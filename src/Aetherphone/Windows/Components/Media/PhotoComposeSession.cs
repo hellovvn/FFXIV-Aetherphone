@@ -25,6 +25,8 @@ internal readonly record struct PhotoComposeStyle(
     Vector4 Rail,
     bool EdgeFrame);
 
+internal sealed record PendingImport(string Path, int Opening);
+
 internal sealed class PhotoComposeSession : IDisposable
 {
     public const int GridColumns = 3;
@@ -61,6 +63,7 @@ internal sealed class PhotoComposeSession : IDisposable
     private const int CircleSegments = 24;
 
     private static readonly Vector4 White = new(1f, 1f, 1f, 1f);
+    private static readonly Vector4 Black = new(0f, 0f, 0f, 1f);
     private static readonly Vector4 WhiteRing = new(1f, 1f, 1f, 0.9f);
     private static readonly Vector4 HoverWash = new(1f, 1f, 1f, 0.1f);
     private static readonly PhotoEditTool[] Tools = { PhotoEditTool.Looks, PhotoEditTool.Adjust };
@@ -74,8 +77,11 @@ internal sealed class PhotoComposeSession : IDisposable
     // The ratio each photo was last framed at, so a change of aspect re-frames it exactly once
     // instead of fighting the user's own zoom and pan every frame.
     private readonly List<float?> framedForRatio = new();
+    private readonly List<string> importedPaths = new();
     private string[] pickerPaths = Array.Empty<string>();
-    private string? pendingPickedPath;
+    private PhotoLibraryWatch libraryWatch;
+    private PendingImport? pendingImport;
+    private int openings;
     private Spring zoomSpring = new(1f);
     private Spring centerXSpring = new(0.5f);
     private Spring centerYSpring = new(0.5f);
@@ -113,6 +119,7 @@ internal sealed class PhotoComposeSession : IDisposable
     public int PreviewIndex { get; set; }
     public string Notice { get; private set; } = string.Empty;
     public int SelectedCount => selected.Count;
+    public int MaxPhotos { get; set; } = PostMedia.MaxPhotos;
     public bool HasSelection => selected.Count > 0;
     public string FirstSelected => selected.Count > 0 ? selected[0] : string.Empty;
     public string CurrentPath => CurrentIndex >= 0 && CurrentIndex < selected.Count ? selected[CurrentIndex] : string.Empty;
@@ -160,28 +167,37 @@ internal sealed class PhotoComposeSession : IDisposable
         CurrentIndex = 0;
         PreviewIndex = 0;
         Notice = string.Empty;
-        pendingPickedPath = null;
+        Interlocked.Increment(ref openings);
+        Volatile.Write(ref pendingImport, null);
+        importedPaths.Clear();
+        libraryWatch.Mark(library);
         pickerPaths = library.List();
         LoadCrop(DefaultCrop);
     }
 
     public void LaunchImportDialog(string title)
     {
-        FilePicker.PickImage(title, path => Interlocked.Exchange(ref pendingPickedPath, path));
+        var opening = Volatile.Read(ref openings);
+        FilePicker.PickImage(title, path => Volatile.Write(ref pendingImport, new PendingImport(path, opening)));
     }
 
     public void ConsumePendingImport()
     {
-        var picked = Interlocked.Exchange(ref pendingPickedPath, null);
-        if (!string.IsNullOrEmpty(picked))
+        var picked = Interlocked.Exchange(ref pendingImport, null);
+        if (picked is { Path.Length: > 0 } && picked.Opening == Volatile.Read(ref openings))
         {
-            TakeImported(picked);
+            TakeImported(picked.Path);
         }
     }
 
     public void TakeImported(string picked)
     {
         pickerPaths = PickerPaths.WithImported(pickerPaths, picked);
+        if (!importedPaths.Contains(picked))
+        {
+            importedPaths.Add(picked);
+        }
+
         if (!SingleSelect && selected.Contains(picked))
         {
             SelectCurrent(selected.IndexOf(picked));
@@ -238,9 +254,9 @@ internal sealed class PhotoComposeSession : IDisposable
             }
         }
 
-        if (selected.Count >= PostMedia.MaxPhotos)
+        if (selected.Count >= MaxPhotos)
         {
-            Notice = Loc.T(L.Common.PhotoLimit, PostMedia.MaxPhotos);
+            Notice = Loc.T(L.Common.PhotoLimit, MaxPhotos);
             return;
         }
 
@@ -433,14 +449,26 @@ internal sealed class PhotoComposeSession : IDisposable
     }
 
     public void DrawPickPane(Rect pane, float scale, in PhotoComposeStyle style, float aspect, bool allowReveal,
-        bool interactive)
+        bool interactive, string? importTitle = null)
     {
         var drawList = ImGui.GetWindowDrawList();
         drawList.AddRectFilled(pane.Min, pane.Max, ImGui.GetColorU32(style.PlaceholderFill));
         var texture = TextureFor(CurrentIndex, ImGui.GetTime());
         if (texture is null)
         {
-            DrawPaneEmpty(drawList, pane, scale, style);
+            var importable = importTitle is not null && interactive && !HasSelection;
+            var hovered = importable && UiInteract.Hover(pane.Min, pane.Max);
+            DrawPaneEmpty(drawList, pane, scale, style, importable, hovered);
+            if (hovered)
+            {
+                ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            }
+
+            if (importable && UiInteract.Click(pane.Min, pane.Max, hovered))
+            {
+                LaunchImportDialog(importTitle!);
+            }
+
             return;
         }
 
@@ -473,7 +501,8 @@ internal sealed class PhotoComposeSession : IDisposable
         return row.Max.Y + gap;
     }
 
-    private void DrawPaneEmpty(ImDrawListPtr drawList, Rect pane, float scale, in PhotoComposeStyle style)
+    private void DrawPaneEmpty(ImDrawListPtr drawList, Rect pane, float scale, in PhotoComposeStyle style,
+        bool importable, bool hovered)
     {
         if (HasSelection)
         {
@@ -484,17 +513,41 @@ internal sealed class PhotoComposeSession : IDisposable
 
         var iconSize = EmptyIconSize * scale;
         var textHeight = Typography.LineHeight(TextStyles.Subheadline);
-        var blockTop = pane.Center.Y - (iconSize + EmptyTextGap * scale + textHeight) * 0.5f;
-        PhoneIcon.Draw(drawList, new Vector2(pane.Center.X, blockTop + iconSize * 0.5f), PhoneIcons.Photo,
-            style.MutedInk, iconSize);
-        Typography.DrawCentered(drawList,
-            new Vector2(pane.Center.X, blockTop + iconSize + EmptyTextGap * scale + textHeight * 0.5f),
-            Loc.T(L.Social.ComposeChoosePhoto), style.MutedInk, TextStyles.Subheadline);
+        var hintHeight = importable ? Typography.LineHeight(TextStyles.Footnote) : 0f;
+        var blockTop = pane.Center.Y - (iconSize + EmptyTextGap * scale + textHeight + hintHeight) * 0.5f;
+        var ink = hovered ? style.Accent : style.MutedInk;
+        PhoneIcon.Draw(drawList, new Vector2(pane.Center.X, blockTop + iconSize * 0.5f),
+            importable ? PhoneIcons.Plus : PhoneIcons.Photo, ink, iconSize);
+        var labelCenter = blockTop + iconSize + EmptyTextGap * scale + textHeight * 0.5f;
+        Typography.DrawCentered(drawList, new Vector2(pane.Center.X, labelCenter),
+            Loc.T(importable ? L.Common.ImportFromPc : L.Social.ComposeChoosePhoto), ink, TextStyles.Subheadline);
+        if (importable)
+        {
+            Typography.DrawCentered(drawList, new Vector2(pane.Center.X, labelCenter + (textHeight + hintHeight) * 0.5f),
+                Loc.T(L.Common.PasteOrDropImage), style.MutedInk, TextStyles.Footnote);
+        }
+    }
+
+    private void RefreshPickerPaths()
+    {
+        if (!libraryWatch.Changed(library))
+        {
+            return;
+        }
+
+        var paths = library.List();
+        for (var index = 0; index < importedPaths.Count; index++)
+        {
+            paths = PickerPaths.WithImported(paths, importedPaths[index]);
+        }
+
+        pickerPaths = paths;
     }
 
     public bool DrawPickGrid(Rect gridRect, float scale, in PhotoComposeStyle style, bool showBadges,
         string importLabel, string importTitle, string? pasteLabel = null)
     {
+        RefreshPickerPaths();
         var gap = GridGap * scale;
         var avail = ScrollLayout.StableContentWidth();
         var cell = (avail - gap * (GridColumns - 1)) / GridColumns;
@@ -608,7 +661,8 @@ internal sealed class PhotoComposeSession : IDisposable
         var center = new Vector2(max.X - radius - BadgeInset * scale, min.Y + radius + BadgeInset * scale);
         drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(accent), CircleSegments);
         drawList.AddCircle(center, radius, ImGui.GetColorU32(WhiteRing), CircleSegments, BadgeRing * scale);
-        Typography.DrawCentered(drawList, center, (order + 1).ToString(Loc.Culture), White,
+        var ink = Palette.Luminance(accent) >= 0.5f ? Black : White;
+        Typography.DrawCentered(drawList, center, (order + 1).ToString(Loc.Culture), ink,
             TextStyles.FootnoteEmphasized);
     }
 
@@ -819,9 +873,11 @@ internal sealed class PhotoComposeSession : IDisposable
     // aspect is the previewed photo's own aspect, not the shared container the caller frames it in,
     // so the caller must contain-fit the returned uv window rather than stretch it.
     public bool TryGetPreviewUv(float aspect, bool allowReveal, out IDalamudTextureWrap texture, out Vector2 uv0,
-        out Vector2 uv1)
+        out Vector2 uv1) => TryGetPreviewUv(ClampedPreviewIndex, aspect, allowReveal, out texture, out uv0, out uv1);
+
+    public bool TryGetPreviewUv(int index, float aspect, bool allowReveal, out IDalamudTextureWrap texture,
+        out Vector2 uv0, out Vector2 uv1)
     {
-        var index = ClampedPreviewIndex;
         var loaded = TextureFor(index, ImGui.GetTime());
         if (loaded is null)
         {
@@ -833,7 +889,7 @@ internal sealed class PhotoComposeSession : IDisposable
 
         texture = loaded;
         var minZoom = allowReveal ? WallpaperCrop.MinZoomToReveal(loaded.Size, aspect) : WallpaperCrop.MinZoom;
-        var crop = CropAt(index).Clamped(loaded.Size, aspect, minZoom);
+        var crop = (index == CurrentIndex ? CurrentTargetCrop : CropAt(index)).Clamped(loaded.Size, aspect, minZoom);
         (uv0, uv1) = crop.ComputeUv(loaded.Size, aspect, minZoom);
         return true;
     }

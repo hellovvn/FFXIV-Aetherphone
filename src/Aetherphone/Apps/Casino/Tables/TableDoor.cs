@@ -7,7 +7,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Casino.Tables;
 
@@ -46,6 +45,7 @@ internal sealed partial class TableDoor
     private readonly CasinoTextCache texts = new();
     private readonly DoorControl[] controls = new DoorControl[ControlCapacity];
     private readonly CodeTiles codeTiles = new();
+    private readonly ChatCodePost inviteSheet = new();
     private readonly GilLedgerSummary summary = new("casino.door.tradeSync");
 
     private string roomId = string.Empty;
@@ -58,7 +58,6 @@ internal sealed partial class TableDoor
     private bool renaming;
     private bool scrollToPlayers;
     private long copiedCodeAtTick;
-    private long copiedInviteAtTick;
     private CasinoTableRowDto? statusSource;
     private LanguageInfo? statusLanguage;
     private string statusName = string.Empty;
@@ -87,8 +86,8 @@ internal sealed partial class TableDoor
         renaming = false;
         scrollToPlayers = false;
         copiedCodeAtTick = 0;
-        copiedInviteAtTick = 0;
         menu.Close();
+        inviteSheet.Close();
         tables.RefreshDoorNow(tableId);
         tables.RefreshCard(tableId);
         tables.RefreshLedgerNow(tableId);
@@ -104,6 +103,7 @@ internal sealed partial class TableDoor
         renaming = false;
         scrollToPlayers = false;
         menu.Close();
+        inviteSheet.Close();
         tables.ForgetDoor();
         tables.ForgetBookLedgerAdmission();
         tournament.Reset();
@@ -141,7 +141,7 @@ internal sealed partial class TableDoor
             DrawTitle(ui, Loc.T(L.HostDesk.Knocking), width, false, scale);
             for (var index = 0; index < knocks.Length; index++)
             {
-                using (ImRaii.PushId(index))
+                using (UiScope.PushId(index))
                 {
                     DrawKnock(ui, knocks[index], width, scale);
                 }
@@ -309,14 +309,12 @@ internal sealed partial class TableDoor
         }
 
         var token = Token(door);
-        var inviteCopied = now - copiedInviteAtTick < CopiedMilliseconds;
         var invite = new Rect(new Vector2(go.Max.X + DoorLayout.ButtonGap * scale, buttonsTop),
             new Vector2(origin.X + width - pad, buttonsTop + buttonHeight));
-        if (DoorPill.Draw(drawList, invite, Loc.T(inviteCopied ? L.Tables.CodeCopied : L.Casino.DoorCopyInvite),
-                ui.Ink, ButtonStyle.Gray, null, token.Length > 0, "casino.door.copyInvite", scale))
+        if (DoorPill.Draw(drawList, invite, Loc.T(L.Tables.InviteAction), ui.Ink, ButtonStyle.Gray, null,
+                hasCode || token.Length > 0, "casino.door.invite", scale))
         {
-            ImGui.SetClipboardText(token);
-            copiedInviteAtTick = now;
+            inviteSheet.Open(hasCode ? code : string.Empty, token);
         }
 
         ImGui.SetCursorScreenPos(origin);

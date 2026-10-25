@@ -46,14 +46,17 @@ internal readonly struct GameSpec
     public readonly LocString[] ModeLabels;
     public readonly bool[] UnrankedModes;
     public readonly bool ModesSoloOnly;
+    public readonly GameGuide? Guide;
 
     public GameSpec(string id, LocString title, GameGenre genre, LocString? hook = null,
         Backdrop backdrop = Backdrop.Nebula, HudStyle hud = HudStyle.Standard, ScoreKind kind = ScoreKind.Score,
         LocString[]? modes = null, string[]? modeStatIds = null, bool clocked = false, bool countdown = false,
         bool landscape = false, bool keyboard = false, ScoreKind[]? modeKinds = null, bool[]? countdownModes = null,
         int levelCount = 0, bool[]? levelModes = null, int seats = 1, LocString? unit = null,
-        LocString[]? modeLabels = null, bool[]? unrankedModes = null, bool modesSoloOnly = false)
+        LocString[]? modeLabels = null, bool[]? unrankedModes = null, bool modesSoloOnly = false,
+        GameGuide? guide = null)
     {
+        Guide = guide;
         Id = id;
         Title = title;
         Hook = hook;

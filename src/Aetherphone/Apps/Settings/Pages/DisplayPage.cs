@@ -2,8 +2,8 @@ using System.Globalization;
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Localization;
-using Aetherphone.Core.Shell;
 using Aetherphone.Core.Theme;
+using Aetherphone.Core.Wallpapers;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
@@ -16,41 +16,35 @@ internal sealed class DisplayPage : ISettingsPage
     {
         new(L.Settings.PhoneSize),
         new(L.Settings.TextSize),
-        new(L.Settings.LiveGlass),
+        new(L.Settings.LiquidGlass),
+        new(L.Settings.RealGlass, L.Settings.LiquidGlass),
         new(L.ControlCenter.LockPosition),
     };
+
+    public static readonly Vector4 PageTint = new(0.13f, 0.56f, 0.96f, 1f);
 
     public string Title => Loc.T(L.Settings.Display);
     public string Summary => string.Empty;
     public FontAwesomeIcon Icon => FontAwesomeIcon.Sun;
-    public Vector4 Tint => new(0.13f, 0.56f, 0.96f, 1f);
+    public Vector4 Tint => PageTint;
     public string? GuideAnchor => "settings.row.display";
     public ReadOnlySpan<SettingsEntry> Entries => Searchable;
     private const float CardGap = Metrics.Space.Xl;
     private const float PercentScale = 100f;
-#if DEBUG
-    private const int LiveGlassDetailRows = 2;
-#else
-    private const int LiveGlassDetailRows = 1;
-#endif
-    private static readonly LiveGlassSource[] SourceOrder = { LiveGlassSource.World, LiveGlassSource.Composite };
-    private readonly string[] sourceLabels = new string[SourceOrder.Length];
-    private LanguageInfo? sourceLabelsLanguage;
     private string widthReadout = string.Empty;
     private int widthReadoutValue = -1;
     private LanguageInfo? widthReadoutLanguage;
     private string zoomReadout = string.Empty;
     private int zoomReadoutPercent = -1;
-#if DEBUG
-    private string liveGlassReadout = string.Empty;
-    private int liveGlassReadoutTenths = -1;
-    private Vector2 liveGlassReadoutSize;
-#endif
     private readonly Configuration configuration;
+    private readonly ISettingsNavigator navigator;
+    private readonly LiquidGlassPage liquidGlass;
 
-    public DisplayPage(Configuration configuration)
+    public DisplayPage(Configuration configuration, ISettingsNavigator navigator, WallpaperLibrary wallpapers)
     {
         this.configuration = configuration;
+        this.navigator = navigator;
+        liquidGlass = new LiquidGlassPage(configuration, wallpapers);
     }
 
     public void Draw(in PhoneContext context, Rect body)
@@ -64,7 +58,7 @@ internal sealed class DisplayPage : ISettingsPage
             ImGui.Dummy(new Vector2(0f, CardGap * scale));
             DrawTextSizeCard(theme);
             ImGui.Dummy(new Vector2(0f, CardGap * scale));
-            DrawLiveGlassCard(theme);
+            DrawLiquidGlassCard(theme);
             ImGui.Dummy(new Vector2(0f, CardGap * scale));
             DrawLockPositionCard(theme);
             ImGui.Dummy(new Vector2(0f, Metrics.Space.Md * scale));
@@ -115,35 +109,15 @@ internal sealed class DisplayPage : ISettingsPage
         }
     }
 
-    private void DrawLiveGlassCard(PhoneTheme theme)
+    private void DrawLiquidGlassCard(PhoneTheme theme)
     {
-        var liveGlassOn = configuration.LiveGlass;
-        var card = GroupCard.Begin(theme, liveGlassOn ? 1 + LiveGlassDetailRows : 1);
-        var liveGlass = SettingsRow.Bool(card.NextRow(), Loc.T(L.Settings.LiveGlass), configuration.LiveGlass, theme);
-        if (liveGlass != configuration.LiveGlass)
-        {
-            configuration.LiveGlass = liveGlass;
-            configuration.Save();
-        }
-
-        if (liveGlassOn)
-        {
-            var sourceIndex = SegmentStrip.Draw("settings.liveGlassSource", card.NextRow(), SourceLabels(),
-                SourceIndex(configuration.LiveGlassSource), theme);
-            var source = SourceOrder[sourceIndex];
-            if (source != configuration.LiveGlassSource)
-            {
-                configuration.LiveGlassSource = source;
-                configuration.Save();
-            }
-
-#if DEBUG
-            SettingsRow.Info(card.NextRow(), Loc.T(L.Settings.LiveGlassReadout), LiveGlassReadout(), theme);
-#endif
-        }
-
+        var card = GroupCard.Begin(theme, 1);
+        var opened = SettingsRow.Disclosure(card.NextRow(), Loc.T(L.Settings.LiquidGlass), string.Empty, theme);
         card.End();
-        SettingsSection.Hint(Loc.T(L.Settings.LiveGlassHint), theme);
+        if (opened)
+        {
+            navigator.Open(liquidGlass);
+        }
     }
 
     private void DrawLockPositionCard(PhoneTheme theme)
@@ -188,49 +162,6 @@ internal sealed class DisplayPage : ISettingsPage
         zoomReadout = PercentLabel(percent);
         return zoomReadout;
     }
-
-    private string[] SourceLabels()
-    {
-        if (ReferenceEquals(sourceLabelsLanguage, Loc.Current))
-        {
-            return sourceLabels;
-        }
-
-        sourceLabelsLanguage = Loc.Current;
-        sourceLabels[0] = Loc.T(L.Settings.LiveGlassSourceWorld);
-        sourceLabels[1] = Loc.T(L.Settings.LiveGlassSourceComposite);
-        return sourceLabels;
-    }
-
-    private static int SourceIndex(LiveGlassSource source)
-    {
-        for (var index = 0; index < SourceOrder.Length; index++)
-        {
-            if (SourceOrder[index] == source)
-            {
-                return index;
-            }
-        }
-
-        return 0;
-    }
-
-#if DEBUG
-    private string LiveGlassReadout()
-    {
-        var tenths = (int)MathF.Round((float)LiveBackdrop.LastPassMilliseconds * 10f);
-        var size = LiveBackdrop.LastCaptureSize;
-        if (tenths == liveGlassReadoutTenths && size == liveGlassReadoutSize && liveGlassReadout.Length > 0)
-        {
-            return liveGlassReadout;
-        }
-
-        liveGlassReadoutTenths = tenths;
-        liveGlassReadoutSize = size;
-        liveGlassReadout = $"{tenths / 10f:0.0} ms, {(int)size.X}x{(int)size.Y}";
-        return liveGlassReadout;
-    }
-#endif
 
     private static string PercentLabel(int percent) =>
         string.Concat(percent.ToString(CultureInfo.InvariantCulture), "%");

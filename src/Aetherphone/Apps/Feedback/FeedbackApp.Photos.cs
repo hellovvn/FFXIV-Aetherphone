@@ -1,6 +1,7 @@
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Localization;
+using Aetherphone.Core.Photos;
 using Aetherphone.Core.Platform;
 using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
@@ -26,10 +27,16 @@ internal sealed partial class FeedbackApp
     private static readonly Vector4 PickerShade = new(0f, 0f, 0f, 1f);
 
     private string[] pickerPaths = Array.Empty<string>();
+    private PhotoLibraryWatch pickerLibraryWatch;
     private string? pendingPickedPath;
 
     private void DrawPhotos(Rect area)
     {
+        if (pickerLibraryWatch.Changed(library))
+        {
+            pickerPaths = library.List();
+        }
+
         var context = new PhoneContext(area, theme, navigation);
         var navBar = AppHeader.BeginLargeTitle(context);
         var body = navBar.Body;

@@ -14,12 +14,16 @@ internal static class Squircle
     private const float CapOverlap = 1.5f;
     private const float DegenerateBox = 0.5f;
     private const uint AlphaMask = 0xFF000000;
+    private const float EdgeFringe = 1f;
+    private const uint OpaqueWhite = 0xFFFFFFFF;
+    private const float QuarterTurn = MathF.PI * 0.5f;
     private static readonly Vector2[][] UnitCorners = BuildUnitCorners(Exponent);
     private static readonly Vector2[][] RoundCorners = BuildUnitCorners(RoundExponent);
     private static readonly Vector2[] PathScratch = new Vector2[(MaxCornerSegments + 1) * 4 + 4];
     private static readonly Vector2[] ClipScratch = new Vector2[(MaxCornerSegments + 1) * 4 + 4];
     private static readonly Vector2[] OuterRing = new Vector2[(MaxCornerSegments + 1) * 4];
     private static readonly Vector2[] InnerRing = new Vector2[(MaxCornerSegments + 1) * 4];
+    private static readonly Vector2[] FringeRing = new Vector2[(MaxCornerSegments + 1) * 4];
     private static bool round;
 
     public static void Fill(ImDrawListPtr drawList, Vector2 min, Vector2 max, float radius, uint color)
@@ -107,6 +111,14 @@ internal static class Squircle
         var corner = CornerFor(box);
         var count = TraceRing(OuterRing, min, max, box, corner);
         TraceRing(InnerRing, innerMin, innerMax, CornerBox(innerMin, innerMax, MathF.Max(box - band, 0f)), corner);
+        var half = EdgeFringe * 0.5f;
+        for (var index = 0; index < count; index++)
+        {
+            var normal = Vector2.Normalize(OuterRing[index] - InnerRing[index]);
+            FringeRing[index] = OuterRing[index] + normal * half;
+            OuterRing[index] -= normal * half;
+        }
+
         var size = max - min;
         var span = uv1 - uv0;
         for (var index = 0; index < count; index++)
@@ -122,26 +134,26 @@ internal static class Squircle
                 MapUv(bentA, min, size, uv0, span), MapUv(bentB, min, size, uv0, span),
                 MapUv(innerB, min, size, uv0, span), MapUv(innerA, min, size, uv0, span), tint);
         }
-    }
 
-    public static void FillEdge(ImDrawListPtr drawList, Vector2 min, Vector2 max, float radius, float band, uint color)
-    {
-        var box = CornerBox(min, max, radius);
-        var innerMin = new Vector2(min.X + band, min.Y + band);
-        var innerMax = new Vector2(max.X - band, max.Y - band);
-        if (box <= DegenerateBox || band <= 0f || innerMax.X - innerMin.X <= 1f || innerMax.Y - innerMin.Y <= 1f)
-        {
-            return;
-        }
-
-        var corner = CornerFor(box);
-        var count = TraceRing(OuterRing, min, max, box, corner);
-        TraceRing(InnerRing, innerMin, innerMax, CornerBox(innerMin, innerMax, MathF.Max(box - band, 0f)), corner);
+        var clear = tint & ~AlphaMask;
+        drawList.PushTextureID(texture);
+        drawList.PrimReserve(count * 6, count * 6);
         for (var index = 0; index < count; index++)
         {
             var next = index + 1 == count ? 0 : index + 1;
-            drawList.AddQuadFilled(OuterRing[index], OuterRing[next], InnerRing[next], InnerRing[index], color);
+            var edgeA = OuterRing[index];
+            var edgeB = OuterRing[next];
+            var uvA = MapUv(edgeA + (edgeA - InnerRing[index]) * refraction, min, size, uv0, span);
+            var uvB = MapUv(edgeB + (edgeB - InnerRing[next]) * refraction, min, size, uv0, span);
+            drawList.PrimVtx(edgeA, uvA, tint);
+            drawList.PrimVtx(edgeB, uvB, tint);
+            drawList.PrimVtx(FringeRing[next], uvB, clear);
+            drawList.PrimVtx(edgeA, uvA, tint);
+            drawList.PrimVtx(FringeRing[next], uvB, clear);
+            drawList.PrimVtx(FringeRing[index], uvA, clear);
         }
+
+        drawList.PopTextureID();
     }
 
     private static Vector2 MapUv(Vector2 point, Vector2 min, Vector2 size, Vector2 uv0, Vector2 span) =>
@@ -269,6 +281,27 @@ internal static class Squircle
             var weight = facing <= 0f ? 0f : MathF.Pow(facing, sharpness);
             var alpha = (uint)MathF.Round((vertex.Col >> 24) * weight);
             vertex.Col = (vertex.Col & ~AlphaMask) | (alpha << 24);
+        }
+    }
+
+    public static void StrokeShaded(ImDrawListPtr drawList, Vector2 min, Vector2 max, float radius, float thickness,
+        uint lit, uint side, uint shade)
+    {
+        var firstVertex = drawList.VtxBuffer.Size;
+        Stroke(drawList, min, max, radius, OpaqueWhite, thickness);
+        var box = CornerBox(min, max, radius);
+        var center = (min + max) * 0.5f;
+        var straight = (max - min) * 0.5f - new Vector2(box, box);
+        var vertices = drawList.VtxBuffer.AsSpan();
+        for (var index = firstVertex; index < vertices.Length; index++)
+        {
+            ref var vertex = ref vertices[index];
+            var offset = vertex.Pos - center;
+            var cornerX = MathF.Max(MathF.Abs(offset.X) - straight.X, 0f);
+            var cornerY = MathF.Max(MathF.Abs(offset.Y) - straight.Y, 0f);
+            var towardEnd = MathF.Atan2(cornerY, cornerX) / QuarterTurn;
+            var mixed = MixColor(offset.X < 0f ? side : shade, offset.Y < 0f ? lit : shade, towardEnd);
+            vertex.Col = (vertex.Col & AlphaMask) == 0 ? mixed & ~AlphaMask : mixed;
         }
     }
 

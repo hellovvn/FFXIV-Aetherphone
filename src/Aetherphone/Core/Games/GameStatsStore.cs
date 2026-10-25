@@ -132,6 +132,31 @@ internal sealed class GameStatsStore
         return record?.LastPlayedUnixSeconds ?? 0L;
     }
 
+    public bool GuideSeen(string gameId)
+    {
+        var seen = configuration.GameGuidesSeen;
+        for (var index = 0; index < seen.Count; index++)
+        {
+            if (string.Equals(seen[index], gameId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void MarkGuideSeen(string gameId)
+    {
+        if (gameId.Length == 0 || GuideSeen(gameId))
+        {
+            return;
+        }
+
+        configuration.GameGuidesSeen.Add(gameId);
+        configuration.Save();
+    }
+
     public void MarkPlayed(string gameId)
     {
         var record = GetOrCreate(gameId);

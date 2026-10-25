@@ -224,26 +224,6 @@ internal static class DeviceChrome
         ScreenRecess(dl, chassis, scale);
     }
 
-    public static void DrawLiveBand(ImDrawListPtr drawList, in ChassisGeometry chassis, float scale)
-    {
-        var band = chassis.Screen.Min.X - chassis.Glass.Min.X;
-        if (band <= 0f)
-        {
-            return;
-        }
-
-        var snapshot = WallpaperBackdrop.Snapshot();
-        if (Plugin.LiveBackdrop.TryRecordFor(chassis.Glass) &&
-            Material.LiquidGlassBand(drawList, chassis.Glass.Min, chassis.Glass.Max, chassis.GlassRadius, band,
-                GlassTone.Dark))
-        {
-            GlassStep(drawList, chassis, scale);
-            ScreenRecess(drawList, chassis, scale);
-        }
-
-        WallpaperBackdrop.Restore(snapshot);
-    }
-
     private static void AntennaLines(ImDrawListPtr drawList, in ChassisGeometry chassis, float scale,
         in CaseFinish finish)
     {

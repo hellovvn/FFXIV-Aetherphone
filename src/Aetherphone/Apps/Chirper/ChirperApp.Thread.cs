@@ -9,7 +9,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Core.Translation;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Chirper;
 
@@ -175,7 +174,7 @@ internal sealed partial class ChirperApp
                 ImGui.SetCursorScreenPos(new Vector2(left, cursorY));
                 using (Typography.WrapAt(right))
                 using (Plugin.Fonts.Push(HeadBodyStyle.Scale))
-                using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.BodyInk))
+                using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.BodyInk))
                 {
                     Typography.Wrapped(bodyText);
                 }
@@ -196,7 +195,7 @@ internal sealed partial class ChirperApp
                 new Vector2(left, cursorY), contentWidth, ChirperInk.MutedInk, ChirperInk.AccentLink, scale);
         }
 
-        var photos = PostMedia.Photos(post.MediaUrls, post.MediaUrl);
+        var photos = PostMedia.Photos(post);
         if (photos.Length > 0)
         {
             cursorY += 12f * scale;
@@ -217,6 +216,7 @@ internal sealed partial class ChirperApp
             cursorY += quoteHeight;
         }
 
+        cursorY = DrawThreadPoll(drawList, post, left, cursorY, contentWidth);
         if (post.CreatedAtUnix > 0)
         {
             cursorY += 12f * scale;
@@ -471,7 +471,7 @@ internal sealed partial class ChirperApp
         var textHeight = commentText.Length == 0 ? 0f
             : commentLayout?.Size.Y ?? Typography.MeasureWrapped(commentText, bodyWidth, ReplyBodyStyle.Scale);
         var translateHeight = TranslateLink.Height(translation, commentKey, comment.Lang, scale);
-        var mediaHeight = comment.MediaUrl is not null && !CommentMediaHidden(comment.MediaUrl)
+        var mediaHeight = comment.Media is not null && !CommentMediaHidden(comment.Media)
             ? CommentMedia.MeasureHeight(comment, bodyWidth, scale) + (commentText.Length > 0 ? 6f * scale : 0f)
             : 0f;
         var bodyTop = origin.Y + padY + nameHeight + 3f * scale;
@@ -548,7 +548,7 @@ internal sealed partial class ChirperApp
                 ImGui.SetCursorScreenPos(new Vector2(textLeft, bodyTop));
                 using (Typography.WrapAt(contentRight))
                 using (Plugin.Fonts.Push(ReplyBodyStyle.Scale))
-                using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.BodyInk))
+                using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.BodyInk))
                 {
                     Typography.Wrapped(commentText);
                 }
@@ -570,14 +570,15 @@ internal sealed partial class ChirperApp
             cursorY += translateHeight;
         }
 
-        if (comment.MediaUrl is { } commentMediaUrl && !CommentMediaHidden(commentMediaUrl))
+        if (comment.Media is { } commentMediaUrl && !CommentMediaHidden(commentMediaUrl))
         {
             var mediaTop = cursorY + (commentText.Length > 0 ? 6f * scale : 0f);
+            var held = HeldGif(commentMediaUrl);
             var mediaRect = CommentMedia.Draw(drawList, images, comment, new Vector2(textLeft, mediaTop), bodyWidth, scale,
-                ChirperInk.ChipFill, ChirperInk.MutedInk);
+                ChirperInk.ChipFill, ChirperInk.MutedInk, held);
             if (UiInteract.HoverClick(mediaRect.Min, mediaRect.Max))
             {
-                photoViewer.Open(this, () => MediaTexture(commentMediaUrl));
+                OpenCommentMedia(commentMediaUrl, held);
             }
         }
 
@@ -607,11 +608,7 @@ internal sealed partial class ChirperApp
 
         if (UiInteract.Click(replyMin, replyMax, replyHovered))
         {
-            if (commentDraft.Length == 0 && comment.AuthorHandle.Length > 0)
-            {
-                commentDraft = "@" + comment.AuthorHandle + " ";
-            }
-
+            commentDraft = ReplyMention.Prefill(commentDraft, comment.AuthorHandle, MaxCommentLength);
             replyFocusPending = true;
         }
 
@@ -718,6 +715,8 @@ internal sealed partial class ChirperApp
             commentAttachment.Restore(returnedAttachment);
         }
 
+        PrepareCommentGifs();
+
         var scale = UiScale.Current;
         if (commentFailure.Failed)
         {
@@ -742,7 +741,7 @@ internal sealed partial class ChirperApp
             ChirperInk.Accent, AppSkin.Transparent, ChirperInk.White, true, 11f, 56f, 1f, 19f);
         var focusPending = replyFocusPending;
         replyFocusPending = false;
-        var canSend = !string.IsNullOrWhiteSpace(commentDraft) || commentAttachment.Path is not null;
+        var canSend = !string.IsNullOrWhiteSpace(commentDraft) || commentAttachment.HasAttachment;
         var delta = MathF.Min(ImGui.GetIO().DeltaTime, TransitionTiming.MaxFrameSeconds);
         replySendReveal.Step(canSend ? 1f : 0f, Motion.Appear, delta);
         var fieldBar = new Rect(new Vector2(fieldLeft, bar.Min.Y), bar.Max);
@@ -752,9 +751,16 @@ internal sealed partial class ChirperApp
         {
             var text = commentDraft;
             var attachmentPath = commentAttachment.Path;
+            var attachedGif = commentAttachment.Gif;
             commentDraft = string.Empty;
             commentAttachment.Clear();
             commentFailure.Clear();
+            if (attachedGif is not null)
+            {
+                SubmitCommentGif(postId, text, attachedGif);
+                return;
+            }
+
             store.AddComment(postId, text, attachmentPath, accepted =>
             {
                 if (accepted)

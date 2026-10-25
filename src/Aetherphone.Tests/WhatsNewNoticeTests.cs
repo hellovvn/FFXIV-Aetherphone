@@ -6,13 +6,13 @@ namespace Aetherphone.Tests;
 
 public sealed class WhatsNewNoticeTests
 {
-    private const string PreviousGamesPin = "app.games.1100";
+    private const string PreviousGamesPin = "app.games.1200";
 
     [Fact]
     public void ThePinKeysAreNewForThisUpdate()
     {
-        Assert.Equal("app.games.1200", NewFeaturePins.Games);
-        Assert.Equal("games.whatsnew.1200", NewFeaturePins.GamesWhatsNew);
+        Assert.Equal("app.games.1400", NewFeaturePins.Games);
+        Assert.Equal("games.whatsnew.1400", NewFeaturePins.GamesWhatsNew);
         Assert.NotEqual(PreviousGamesPin, NewFeaturePins.Games);
         Assert.NotEqual(NewFeaturePins.Games, NewFeaturePins.GamesWhatsNew);
         Assert.NotEqual(NewFeaturePins.Music, NewFeaturePins.GamesWhatsNew);

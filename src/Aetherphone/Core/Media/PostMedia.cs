@@ -1,3 +1,5 @@
+using Aetherphone.Core.Aethernet.Contracts;
+
 namespace Aetherphone.Core.Media;
 
 internal static class PostMedia
@@ -12,5 +14,10 @@ internal static class PostMedia
         }
 
         return string.IsNullOrEmpty(mediaUrl) ? Array.Empty<string>() : new[] { mediaUrl };
+    }
+
+    public static string[] Photos(PostDto post)
+    {
+        return post.GifMedia ?? Photos(post.MediaUrls, post.MediaUrl);
     }
 }

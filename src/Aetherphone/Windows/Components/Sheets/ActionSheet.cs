@@ -63,6 +63,8 @@ internal sealed class ActionSheet
 
     public void Close() => sheet.Close();
 
+    public void CloseImmediately() => sheet.CloseImmediately();
+
     public void Gate()
     {
         if (sheet.IsOpen)

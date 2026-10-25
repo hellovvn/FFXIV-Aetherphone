@@ -42,6 +42,7 @@ internal sealed class HomeInteractionController
     private readonly Spotlight.SpotlightOverlay spotlight;
     private readonly TilePoseCache poses;
     private readonly ShortcutRunner runner;
+    private readonly HomeLaunchTrace launches;
 
     private bool pressActive;
     private Vector2 pressPos;
@@ -90,9 +91,10 @@ internal sealed class HomeInteractionController
 
     public HomeInteractionController(HomeLayoutService layout, Pager pager, FolderOverlay folder,
         WidgetContextMenu widgetMenu, WidgetGallery gallery, Spotlight.SpotlightOverlay spotlight, TilePoseCache poses,
-        ShortcutRunner runner, WidgetHost widgetHost)
+        ShortcutRunner runner, WidgetHost widgetHost, HomeLaunchTrace launches)
     {
         this.layout = layout;
+        this.launches = launches;
         this.widgetHost = widgetHost;
         this.pager = pager;
         this.folder = folder;
@@ -152,7 +154,7 @@ internal sealed class HomeInteractionController
         !gallery.Active && !widgetMenu.Active && !spotlight.Active && !pager.Dragging &&
         MathF.Abs(pager.Value - pager.Page) < 0.001f;
 
-    public void HandleInput(Rect content, in HomeMetrics metrics, INavigator navigation, PhoneTheme theme,
+    public void HandleInput(Rect screen, Rect content, in HomeMetrics metrics, INavigator navigation, PhoneTheme theme,
         float delta)
     {
         if (folder.ConsumeEditRequest())
@@ -199,6 +201,11 @@ internal sealed class HomeInteractionController
             return;
         }
 
+        if (editing && ImGui.IsMouseClicked(ImGuiMouseButton.Left) && HandleEditChromeClick(screen, ImGui.GetMousePos()))
+        {
+            return;
+        }
+
         HandlePress(content, metrics, navigation, theme, delta);
     }
 
@@ -208,11 +215,6 @@ internal sealed class HomeInteractionController
         var mouse = ImGui.GetMousePos();
         if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) && UiInteract.Hover(content.Min, content.Max))
         {
-            if (editing && HandleEditChromeClick(content, metrics, mouse))
-            {
-                return;
-            }
-
             if (editing && TryBeginResize(metrics, mouse))
             {
                 return;
@@ -300,16 +302,16 @@ internal sealed class HomeInteractionController
     public bool RemoveBadgesLive(in HomeMotion motion) =>
         editing && motion.Interactive && !gallery.Active && !widgetMenu.Active && !folder.Active;
 
-    private bool HandleEditChromeClick(Rect content, in HomeMetrics metrics, Vector2 mouse)
+    private bool HandleEditChromeClick(Rect screen, Vector2 mouse)
     {
-        if (HomeChrome.DoneRect(content, metrics).Contains(mouse))
+        if (HomeChrome.DoneRect(screen).Contains(mouse))
         {
             editing = false;
             pressActive = false;
             return true;
         }
 
-        if (HomeChrome.AddRect(content, metrics).Contains(mouse))
+        if (HomeChrome.AddRect(screen).Contains(mouse))
         {
             gallery.Open(pager.Page);
             pressActive = false;
@@ -426,6 +428,16 @@ internal sealed class HomeInteractionController
             return;
         }
 
+        if (pressTile.Link is { } link)
+        {
+            if (!editing)
+            {
+                launches.Open(link, navigation, DrawnRect(rect, pressTile, metrics));
+            }
+
+            return;
+        }
+
         if (pressTile.IsFolder)
         {
             folder.Open(pressTile, rect);
@@ -495,6 +507,11 @@ internal sealed class HomeInteractionController
             return null;
         }
 
+        if (!editing && dragTile is null && HomeChrome.SearchRect(metrics).Contains(mouse))
+        {
+            return null;
+        }
+
         var page = Math.Clamp((int)MathF.Round(pager.Value), 0, layout.PageCount - 1);
         var cell = metrics.CellFromPoint(page, pager.Value, mouse);
         var tiles = layout.Page(page);
@@ -538,7 +555,7 @@ internal sealed class HomeInteractionController
         settleTile = null;
         CancelTap();
         poses.Forget(tile.Key);
-        poses.Forget(string.Concat("dock:", tile.Key));
+        poses.Forget(tile.DockKey);
     }
 
     private int LocatePage(HomeTile tile)

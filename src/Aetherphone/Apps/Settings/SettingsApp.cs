@@ -85,7 +85,7 @@ internal sealed class SettingsApp : IResumableApp, ISettingsNavigator, ISpotligh
             services.ChatHistory);
         var appearance = new AppearancePage(configuration, themes, this, photoLibrary, confirm, wallpapers,
             wallpaperImages, services.Looks);
-        var display = new DisplayPage(configuration);
+        var display = new DisplayPage(configuration, this, wallpapers);
         var minimized = new MinimizedPhonePage(services.MinimizedLayout, services.MinimizedPreview, configuration);
         var language = new LanguagePage(configuration, services.Translation);
         var general = new GeneralPage(configuration, services.Translation, confirm);

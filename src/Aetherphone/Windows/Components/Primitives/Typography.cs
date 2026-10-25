@@ -1,7 +1,6 @@
 using System.Text;
 using Aetherphone.Core;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Windows.Components;
 
@@ -202,7 +201,7 @@ internal static partial class Typography
         {
             Plugin.Fonts.NoticeText(text);
             ImGui.SetCursorScreenPos(position);
-            using (ImRaii.PushColor(ImGuiCol.Text, color))
+            using (UiScope.PushColor(ImGuiCol.Text, color))
             {
                 ImGui.TextUnformatted(text);
             }
@@ -231,6 +230,8 @@ internal static partial class Typography
 
     public static string FitText(string text, float maxWidth, in TextStyle style) =>
         FitText(text, maxWidth, style.Scale, style.Weight);
+
+    public static string FitInCurrentFont(string text, float maxWidth) => Fit(text, maxWidth);
 
     public static string FitTextMiddle(string text, float maxWidth, in TextStyle style)
     {
@@ -629,7 +630,7 @@ internal static partial class Typography
         return lines.ToArray();
     }
 
-    private static bool IsCjk(char value)
+    public static bool IsCjk(char value)
     {
         return value >= '⺀' && value <= '鿿'
             || value >= '豈' && value <= '﫿'
@@ -698,8 +699,19 @@ internal static partial class Typography
             if (ImGui.CalcTextSize(builder.ToString()).X > maxWidth)
             {
                 builder.Length -= token.Length + separatorLength;
+                var carried = CarriedCharacter(builder, token, separatorLength, maxWidth);
+                if (carried != '\0')
+                {
+                    builder.Length--;
+                }
+
                 lines.Add(builder.ToString());
                 builder.Clear();
+                if (carried != '\0')
+                {
+                    builder.Append(carried);
+                }
+
                 AppendToken(token, maxWidth, lines, builder);
             }
         }
@@ -708,6 +720,22 @@ internal static partial class Typography
         {
             lines.Add(builder.ToString());
         }
+    }
+
+    private static char CarriedCharacter(StringBuilder builder, string token, int separatorLength, float maxWidth)
+    {
+        if (separatorLength != 0 || builder.Length < 2)
+        {
+            return '\0';
+        }
+
+        var last = builder[builder.Length - 1];
+        if (!LineBreakRules.KeepsWithNext(last, token))
+        {
+            return '\0';
+        }
+
+        return ImGui.CalcTextSize(string.Concat(last.ToString(), token)).X <= maxWidth ? last : '\0';
     }
 
     private static void AppendToken(string token, float maxWidth, List<string> lines, StringBuilder builder)
@@ -857,7 +885,7 @@ internal static partial class Typography
             }
 
             ImGui.SetCursorScreenPos(center - size * 0.5f);
-            using (ImRaii.PushColor(ImGuiCol.Text, color))
+            using (UiScope.PushColor(ImGuiCol.Text, color))
             {
                 ImGui.TextUnformatted(text);
             }

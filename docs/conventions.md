@@ -9,6 +9,7 @@ This page is the rulebook for code and commits in the Aetherphone client repo. R
 | .editorconfig | Formatting, naming, and code-style rules, enforced in the build |
 | Directory.Build.props | Turns on code style and analyzers in the build, and warnings as errors in CI |
 | .github/workflows/ci.yml | The guard checks and the build every pull request must pass |
+| tools/guards/check | The guard checks themselves, runnable locally |
 | .github/workflows/label-pull-request.yml | The pull request title check |
 | docs/ai-usage.md | The AI involvement levels and the asset provenance rules |
 
@@ -88,7 +89,7 @@ private IPhoneApp? FindApp(string query)
 
 ### Structure rules
 
-CI checks these with fast source scans before anything compiles; [Testing and release](testing-and-release.md) lists every guard.
+CI checks these with fast source scans before anything compiles, and `tools/guards/check` runs the same scans locally; [Testing and release](testing-and-release.md) lists every guard.
 
 - **Layering.** Code under Core and Windows never imports `Aetherphone.Apps`; only the two composition roots may. [Architecture](architecture.md) explains the rule and where new code goes instead.
 - **The namespace matches the folder.** src/Aetherphone/Core/Apps/ is `Aetherphone.Core.Apps`. Windows/Components is the one exception: its subfolders group files by kind, and every file there declares the flat `Aetherphone.Windows.Components` namespace.
@@ -114,6 +115,7 @@ Dear ImGui rebuilds the whole phone every frame, up to the monitor's refresh rat
 - **No LINQ in the plugin.** LINQ allocates iterators and delegates on every call. The plugin project removes the implicit `System.Linq` using, so LINQ does not compile without adding the using to a file, and a CI guard allows that in only a few cold-path files. Write a `for` loop. The test project keeps LINQ.
 - **`for` over `foreach`.** A `foreach` over an interface such as `IReadOnlyList<T>` boxes its enumerator and allocates on every pass; a `for` loop over the indexer does not. `foreach` stays where there is no indexer, mostly dictionaries and sets.
 - **Compute once, cache, invalidate on a real change.** Typography caches fitted and wrapped text and clears the caches when the font atlas changes. Draw helpers such as `ChipRail.Draw` take `ReadOnlySpan` parameters so callers can pass stack, pooled, or cached data.
+- **Push with `UiScope`, not `ImRaii`.** Dalamud's `ImRaii.PushColor`, `PushStyle`, `PushId` and `Disabled` return classes, so every push allocates. `UiScope` (src/Aetherphone/Windows/Components/Primitives/UiScope.cs) takes the same arguments, chains the same way, and returns struct scopes. `ImRaii.Child` is already a struct and stays.
 - **Cache delegates.** Turning an instance method into a delegate, or writing a lambda that captures state, allocates a new delegate each time. SettingsApp stores `drawPage = DrawPage` once in its constructor and passes the field to its router every frame.
 - **Reflection only on cold paths.** Today it appears only in places such as a debug-only localization audit and building the Shortcuts plugin list, never per frame. Keep it that way.
 - **Await every awaitable, and no `async void`.** Draw code cannot await, because a frame cannot pause, so it starts work with an explicit discard, `_ = Task.Run(...)`, and every awaitable inside that task is awaited. CI rejects `async void`.

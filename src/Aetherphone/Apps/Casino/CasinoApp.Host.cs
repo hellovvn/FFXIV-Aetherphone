@@ -5,7 +5,6 @@ using Aetherphone.Core.Localization;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Casino;
 
@@ -26,7 +25,7 @@ internal sealed partial class CasinoApp
     private void DrawHostTab(Rect body)
     {
         var scale = UiScale.Current;
-        using (ImRaii.PushId("casino.host"))
+        using (UiScope.PushId("casino.host"))
         using (AppSurface.Begin(body))
         {
             var drawList = ImGui.GetWindowDrawList();
@@ -45,6 +44,8 @@ internal sealed partial class CasinoApp
                 top = DrawHostAgain(drawList, new Vector2(origin.X, top), width, scale);
                 top = DrawHostGames(drawList, new Vector2(origin.X, top), width, scale) + gap;
             }
+
+            top = DrawRollGames(drawList, new Vector2(origin.X, top), width, scale) + gap;
 
             top = DrawMyLedgerRow(drawList, new Vector2(origin.X, top), width, scale);
             Coin.CoinArt.Reserve(origin, width, top + Coin.CoinArt.BottomPad * scale);

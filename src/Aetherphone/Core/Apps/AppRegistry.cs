@@ -15,6 +15,7 @@ using Aetherphone.Apps.Housing;
 using Aetherphone.Apps.Hunts;
 using Aetherphone.Apps.Inventory;
 using Aetherphone.Apps.Jobs;
+using Aetherphone.Apps.LoveIsland;
 using Aetherphone.Apps.Calculator;
 using Aetherphone.Apps.Casino;
 using Aetherphone.Apps.Maps;
@@ -29,6 +30,7 @@ using Aetherphone.Apps.Notes;
 using Aetherphone.Apps.Notifications;
 using Aetherphone.Apps.Photos;
 using Aetherphone.Apps.Polls;
+using Aetherphone.Apps.Prism;
 using Aetherphone.Apps.Settings;
 using Aetherphone.Apps.Shortcuts;
 using Aetherphone.Apps.Skywatcher;
@@ -45,6 +47,7 @@ using Aetherphone.Core.Home;
 using Aetherphone.Core.Inventory;
 using Aetherphone.Core.Photos;
 using Aetherphone.Core.Shell.Home;
+using Aetherphone.Core.Team;
 using Aetherphone.Core.Telephony;
 using Aetherphone.Core.Video;
 using Aetherphone.Windows;
@@ -92,17 +95,21 @@ internal static class AppRegistry
             WallpaperImages = services.WallpaperImages,
             EncryptionHelp = services.EncryptionHelp,
             Themes = services.Themes,
+            Gifs = services.Gifs,
         }, messageStore);
-        var messageApp = new MessageApp(messageStore, contactBook, services.Calls, services.AethernetSession, services.RemoteImages, services.Lodestone, services.DmLauncher, photoLibrary, services.Http, services.Configuration, services.Confirm, services.Translation, services.Report, services.WallpaperImages, services.Musters, services.MusterLauncher, services.SocialNotifications, services.EncryptionSetup, services.EncryptionHelp, services.SettingsLauncher, messagePopouts);
+        var teamInbox = new TeamInboxStore(services.AethernetSession, dmNet.Team, Plugin.Framework, services.Notifications, services.Visibility, services.RealtimeSignals, "message", Windows.Components.AppPalettes.Message.Accent);
+        var messageApp = new MessageApp(messageStore, contactBook, services.Calls, services.AethernetSession, services.RemoteImages, services.Lodestone, services.DmLauncher, photoLibrary, services.Http, services.Configuration, services.Confirm, services.Translation, services.Report, services.WallpaperImages, services.Musters, services.MusterLauncher, services.SocialNotifications, services.EncryptionSetup, services.EncryptionHelp, services.SettingsLauncher, messagePopouts, services.Gifs, teamInbox);
         messagePopouts.Owner = messageApp;
         apps.Insert(0, messageApp);
-        apps.Add(new ChirperApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "chirper"), services.Lodestone, services.RemoteImages, photoLibrary, services.SocialLauncher, services.GameData, services.Configuration, services.SocialNotifications, services.WallpaperImages, services.Confirm, services.Translation, services.Report, services.Conduct, services.RealtimeSignals));
-        apps.Add(new AethergramApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "aethergram"), services.Lodestone, services.RemoteImages, photoLibrary, services.SocialLauncher, services.GramDmLauncher, services.GameData, services.Configuration, services.SocialNotifications, services.Notifications, services.Http, services.KeyVault, services.ConversationKeys, services.ChatHistory, services.Visibility, services.RealtimeSignals, services.WallpaperImages, services.Confirm, services.Translation, services.Report, services.Conduct, services.Installer, services.EncryptionHelp));
+        apps.Add(new ChirperApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "chirper"), services.Lodestone, services.RemoteImages, photoLibrary, services.SocialLauncher, services.GameData, services.Configuration, services.SocialNotifications, services.WallpaperImages, services.Confirm, services.Translation, services.Report, services.Conduct, services.RealtimeSignals, services.Gifs));
+        apps.Add(new AethergramApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "aethergram"), services.Lodestone, services.RemoteImages, photoLibrary, services.SocialLauncher, services.GramDmLauncher, services.GameData, services.Configuration, services.SocialNotifications, services.Notifications, services.Http, services.KeyVault, services.ConversationKeys, services.ChatHistory, services.Visibility, services.RealtimeSignals, services.WallpaperImages, services.Confirm, services.Translation, services.Report, services.Conduct, services.Installer, services.EncryptionHelp, services.Gifs));
         apps.Add(new VelvetShell(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "velvet"), services.Lodestone, services.Configuration, photoLibrary, services.Http, services.RemoteImages, services.Notifications, services.VelvetLauncher, services.SocialLauncher, services.GameData, services.SocialNotifications, services.KeyVault, services.ConversationKeys, services.ChatHistory, services.Visibility, services.RealtimeSignals, services.WallpaperImages, services.Confirm, services.Translation, services.Report, services.Conduct, services.Installer, services.EncryptionHelp));
         var feedbackNet = new AethernetApi(services.Http, services.AethernetSession, "feedback");
         apps.Add(new FeedbackApp(services.AethernetSession, feedbackNet.Feedback, feedbackNet.Media, photoLibrary, services.Configuration, services.Confirm, services.WallpaperImages, services.RemoteImages, services.GameData, services.Notifications, services.RealtimeSignals, services.FeedbackLauncher));
         apps.Add(new PollsApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "polls").Polls, services.Installer, services.RealtimeSignals));
-        apps.Add(new AnnouncementsApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "announcements").Announcements, services.Notifications, services.Configuration, services.AnnouncementsLauncher, services.Visibility, services.RealtimeSignals));
+        apps.Add(new PrismApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "prism"), services.RemoteImages, photoLibrary, services.WallpaperImages, services.Configuration, services.Confirm, services.Report, services.GameData, services.Textures, services.Glamour, services.MarketIndex, services.MarketLauncher, services.Share, services.SocialNotifications, services.SocialLauncher, services.RealtimeSignals));
+        apps.Add(new AnnouncementsApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "announcements").Announcements, services.Notifications, services.Configuration, services.AnnouncementsLauncher, services.Visibility, services.RealtimeSignals, services.RemoteImages));
+        apps.Add(new LoveIslandApp(services.AethernetSession, new AethernetApi(services.Http, services.AethernetSession, "loveisland"), services.Notifications, services.Configuration, services.CampaignLauncher, services.RealtimeSignals, services.RemoteImages, services.Lodestone, services.BadgeCatalog, services.FrameCatalog, services.SocialLauncher, services.Confirm));
         apps.Add(new CameraApp(new PhotoCaptureService(), photoLibrary, services.Configuration, services.GameUiVisibility, services.CameraShutter));
         apps.Add(new PhotosApp(photoLibrary, services.Confirm, services.Share, services.Configuration));
         apps.Add(new SkywatcherApp(services.Weather, services.WeatherControl, services.Configuration));
@@ -113,7 +120,7 @@ internal static class AppRegistry
         apps.Add(new MapsApp(services.Maps, services.Configuration, services.ZoneMapTextures));
         apps.Add(new NewsApp(services.News, services.RemoteImages, services.GameData));
         apps.Add(new CollectionsApp(services.Collections, services.CollectionsJournal, services.Lodestone, services.Media, services.Http, services.GameData, services.MarketLauncher));
-        apps.Add(new MarketApp(services.Market, services.MarketIndex, services.MarketAlerts, services.MarketWatchlist, services.MarketLauncher, services.GameData, services.Textures, services.Configuration));
+        apps.Add(new MarketApp(services.Market, services.MarketIndex, services.MarketAlerts, services.MarketWatchlist, services.MarketLauncher, services.GameData, services.Textures, services.Configuration, services.Confirm));
         apps.Add(new WalletApp(services.Wallet, services.GameData, services.Textures));
         apps.Add(new InventoryApp(services.InventoryCapture, services.GameData, services.Textures, new InventoryItemSheet(Plugin.DataManager), services.Market, services.MarketLauncher, services.Configuration));
         apps.Add(new JobsApp(services.GameData, services.Textures, services.Configuration, services.Confirm, services.CharacterWatch));
@@ -132,7 +139,7 @@ internal static class AppRegistry
         apps.Add(new GamesApp(services.GameStats, services.GameData, services.Textures, services.Coins,
             services.CoinSessions, services.GameRooms, services.Configuration, services.Leaderboard,
             services.RemoteImages, services.Lodestone, services.MoogleClicker, services.SettingsLauncher,
-            services.Confirm));
+            services.Confirm, services.HomeLinks));
         apps.Add(new NotificationsApp(services, apps));
         var calendarEvents = new CalendarEvents(services.Http, services.AethernetSession);
         apps.Add(new CalendarApp(services.Configuration, calendarEvents, services.Confirm));
@@ -144,7 +151,7 @@ internal static class AppRegistry
             services.CasinoTurns, services.CasinoLauncher, services.GameStats, services.Confirm,
             services.Conduct, services.RemoteImages, services.Lodestone, services.Holdem, services.CasinoVenue,
             services.CasinoTrade, services.Report, services.CasinoFloor, services.Configuration,
-            services.CasinoFameChoice));
+            services.CasinoFameChoice, services.ChatRolls, services.HomeLinks));
         var appStore = new AppStoreApp(services.Installer, services.Confirm, apps);
         apps.Add(appStore);
         apps.Add(new HousingApp(services.Housing, services.Configuration, services.Confirm));

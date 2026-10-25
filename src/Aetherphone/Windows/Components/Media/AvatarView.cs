@@ -9,11 +9,17 @@ namespace Aetherphone.Windows.Components;
 
 internal static class AvatarView
 {
+    public const float MinFrameRadius = 15f;
+
     private const float FadeDurationSeconds = 0.34f;
     private const float PulsePeriodSeconds = 1.15f;
     private const float PulseFloor = 0.72f;
     private const float SettleOvershoot = 0.06f;
-    private const float MinFrameRadius = 15f;
+    // Measured on Lodestone full-body portraits (640x873): a 42% wide window centered 23% down frames
+    // head and shoulders for every race, Lalafell included.
+    private const float FaceSpanOfWidth = 0.42f;
+    private const float FaceCenterOfHeight = 0.23f;
+    private const float FullBodyAspect = 640f / 873f;
     private static readonly Vector4 White = new(1f, 1f, 1f, 1f);
     private static readonly Dictionary<string, float> fadeByKey = new(StringComparer.Ordinal);
 
@@ -77,7 +83,38 @@ internal static class AvatarView
     }
 
     public static void Draw(ImDrawListPtr drawList, Vector2 center, float radius, Vector4 baseColor, string monogram,
-        float monogramScale, AvatarHandle handle, int segments, float alpha = 1f)
+        float monogramScale, AvatarHandle handle, int segments, float alpha = 1f) =>
+        Draw(drawList, center, radius, baseColor, monogram, monogramScale, handle, segments, alpha, false);
+
+    public static void DrawFullBodyFace(ImDrawListPtr drawList, Vector2 center, float radius, Vector4 baseColor,
+        string monogram, float monogramScale, AvatarHandle handle, int segments) =>
+        Draw(drawList, center, radius, baseColor, monogram, monogramScale, handle, segments, 1f, true);
+
+    public static float FullBodyFacePixels(float drawnPixels) =>
+        drawnPixels / (FaceSpanOfWidth * FullBodyAspect);
+
+    private static (Vector2 Uv0, Vector2 Uv1) FaceCrop(Vector2 imageSize)
+    {
+        if (imageSize.X <= 0f || imageSize.Y <= 0f)
+        {
+            return (Vector2.Zero, Vector2.One);
+        }
+
+        var spanX = FaceSpanOfWidth;
+        var spanY = spanX * imageSize.X / imageSize.Y;
+        if (spanY > 1f)
+        {
+            spanX /= spanY;
+            spanY = 1f;
+        }
+
+        var left = 0.5f - spanX * 0.5f;
+        var top = Math.Clamp(FaceCenterOfHeight - spanY * 0.5f, 0f, 1f - spanY);
+        return (new Vector2(left, top), new Vector2(left + spanX, top + spanY));
+    }
+
+    private static void Draw(ImDrawListPtr drawList, Vector2 center, float radius, Vector4 baseColor, string monogram,
+        float monogramScale, AvatarHandle handle, int segments, float alpha, bool fullBodyFace)
     {
         var circleColor = handle.State == AvatarLoadState.Loading ? Pulse(baseColor) : baseColor;
         circleColor.W *= alpha;
@@ -93,8 +130,8 @@ internal static class AvatarView
             var settledRadius = radius * (1f + SettleOvershoot * (1f - fade));
             var corner = new Vector2(settledRadius, settledRadius);
             var tint = ((uint)(fade * alpha * 255f) << 24) | 0x00FFFFFFu;
-            drawList.AddImageRounded(texture.Handle, center - corner, center + corner, Vector2.Zero, Vector2.One, tint,
-                settledRadius);
+            var (uv0, uv1) = fullBodyFace ? FaceCrop(texture.Size) : (Vector2.Zero, Vector2.One);
+            drawList.AddImageRounded(texture.Handle, center - corner, center + corner, uv0, uv1, tint, settledRadius);
         }
     }
 

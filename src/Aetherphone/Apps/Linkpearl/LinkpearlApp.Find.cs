@@ -218,8 +218,10 @@ internal sealed partial class LinkpearlApp
         var centerX = origin.X + width * 0.5f;
         var radius = LookupHeroAvatarRadius * scale;
         var avatarCenter = new Vector2(centerX, origin.Y + HeroTopPad * scale + radius);
-        AvatarView.Draw(drawList, avatarCenter, radius, ink.FaintInk, Initials.Of(detail.Name), HeroMonogramScale,
-            lodestone.Remote(detail.PortraitKey, detail.Portrait, radius * 2f), HeroAvatarSegments);
+        AvatarView.DrawFullBodyFace(drawList, avatarCenter, radius, ink.FaintInk, Initials.Of(detail.Name),
+            HeroMonogramScale,
+            lodestone.Remote(detail.PortraitKey, detail.Portrait, AvatarView.FullBodyFacePixels(radius * 2f)),
+            HeroAvatarSegments);
         var top = avatarCenter.Y + radius + HeroNameGap * scale;
         var maxWidth = width - Metrics.Space.Xl * scale;
         top += Typography.DrawWrappedCentered(new Vector2(centerX, top), detail.Name, ink.TitleInk, TextStyles.Title2,

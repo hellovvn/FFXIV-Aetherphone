@@ -74,6 +74,24 @@ internal static class BrandMark
         return true;
     }
 
+    public static void DrawAvatar(ImDrawListPtr drawList, Vector2 center, float radius, float alpha = 1f)
+    {
+        if (alpha <= 0.001f || radius <= 0.5f)
+        {
+            return;
+        }
+
+        var half = new Vector2(radius, radius);
+        if (!TryResolve(Icon, TextureSizes.LevelFor(radius * 2f), out var texture))
+        {
+            drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(Violet with { W = alpha }), 32);
+            return;
+        }
+
+        drawList.AddImageRounded(texture, center - half, center + half, Vector2.Zero, Vector2.One,
+            ImGui.GetColorU32(new Vector4(1f, 1f, 1f, alpha)), radius);
+    }
+
     public static void Glow(ImDrawListPtr drawList, Vector2 center, float size, float alpha)
     {
         var breath = 0.85f + 0.15f * Pulse.Wave(Pulse.Breath);
@@ -248,9 +266,7 @@ internal static class BrandMark
 
         if (Interlocked.CompareExchange(ref source.Loading[level], 1, 0) == 0)
         {
-            var stamp = generation;
-            var size = TextureSizes.SizeOf(level);
-            _ = Task.Run(() => BuildAsync(source, level, stamp, size, false));
+            StartBuild(source, level);
         }
 
         for (var distance = 1; distance < SlotCount; distance++)
@@ -271,6 +287,13 @@ internal static class BrandMark
         }
 
         return false;
+    }
+
+    private static void StartBuild(MarkSource source, int level)
+    {
+        var stamp = generation;
+        var size = TextureSizes.SizeOf(level);
+        _ = Task.Run(() => BuildAsync(source, level, stamp, size, false));
     }
 
     private static bool TryResolveAmbient(out ImTextureID texture)

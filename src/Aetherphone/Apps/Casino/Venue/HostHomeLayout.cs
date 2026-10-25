@@ -33,26 +33,35 @@ internal static class HostHomeLayout
     public const float ButtonGap = 8f;
     public const float Touch = 44f;
 
-    public static float GridTileWidth(float width, float scale) =>
-        MathF.Max(1f, (width - GridGap * scale * (Columns - 1)) / Columns);
+    public static float GridTileWidth(float width, float scale) => GridTileWidth(width, Columns, scale);
 
-    public static Rect GridCell(Vector2 origin, float tileWidth, float tileHeight, int index, float scale)
+    public static float GridTileWidth(float width, int columns, float scale) =>
+        MathF.Max(1f, (width - GridGap * scale * (columns - 1)) / columns);
+
+    public static Rect GridCell(Vector2 origin, float tileWidth, float tileHeight, int index, float scale) =>
+        GridCell(origin, tileWidth, tileHeight, index, Columns, scale);
+
+    public static Rect GridCell(Vector2 origin, float tileWidth, float tileHeight, int index, int columns,
+        float scale)
     {
-        var column = index % Columns;
-        var row = index / Columns;
+        var column = index % columns;
+        var row = index / columns;
         var x = origin.X + column * (tileWidth + GridGap * scale);
         var y = origin.Y + row * (tileHeight + GridGap * scale);
         return new Rect(new Vector2(x, y), new Vector2(x + tileWidth, y + tileHeight));
     }
 
-    public static float GridHeight(int count, float tileHeight, float scale)
+    public static float GridHeight(int count, float tileHeight, float scale) =>
+        GridHeight(count, tileHeight, Columns, scale);
+
+    public static float GridHeight(int count, float tileHeight, int columns, float scale)
     {
         if (count <= 0)
         {
             return 0f;
         }
 
-        var rows = (count + Columns - 1) / Columns;
+        var rows = (count + columns - 1) / columns;
         return rows * tileHeight + (rows - 1) * GridGap * scale;
     }
 

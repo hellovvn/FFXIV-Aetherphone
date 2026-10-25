@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Aetherphone.Core.Animation;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
@@ -13,16 +12,12 @@ internal static class ArrowKeyCapture
     private const long ReleaseDelayMilliseconds = 2000;
     private const long RepeatDelayMilliseconds = 350;
     private const long RepeatIntervalMilliseconds = 150;
-    private const short PhysicallyDown = unchecked((short)0x8000);
 
     private static long lastArmTick;
     private static bool hooked;
     private static int pending;
     private static int heldDirection;
     private static long nextRepeatTick;
-
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int virtualKey);
 
     public static int Take()
     {
@@ -87,6 +82,5 @@ internal static class ArrowKeyCapture
     }
 
     private static bool HeldDown(int direction) =>
-        GameWindowFocus.IsFocused &&
-        (GetAsyncKeyState((int)(direction > 0 ? VirtualKey.DOWN : VirtualKey.UP)) & PhysicallyDown) != 0;
+        GameKeys.HeldInGame(direction > 0 ? VirtualKey.DOWN : VirtualKey.UP);
 }

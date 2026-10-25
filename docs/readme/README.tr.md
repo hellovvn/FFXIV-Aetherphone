@@ -91,6 +91,7 @@ Aethernet 2 Temmuz 2026'da açıldı. Sezon sonuna kadar 113 dünyadaki oyuncula
         <li>Bir fotoğrafı yapıştır ya da sürükle, göndermeden önce açıklama ekle</li>
         <li>Birebir ya da grup halinde sesli aramalar</li>
         <li>Uçtan uca şifreli</li>
+        <li>Ferah, Standart veya Sıkışık listeler, böylece ekrana daha fazla sohbet ve kişi sığar</li>
       </ul>
     </td>
     <td width="50%" valign="top">

@@ -34,7 +34,8 @@ internal sealed class ClaimApp : IMiniGame
     private const float DrawRate = 70f;
     private const float FuseRate = 60f;
     private static readonly GameSpec StageSpec = new(GameId, L.Claim.Title, GameGenre.Arcade, L.Claim.Hook,
-        Backdrop.Neon, HudStyle.Standard, ScoreKind.Score, clocked: true, countdown: true, keyboard: true);
+        Backdrop.Neon, HudStyle.Standard, ScoreKind.Score, clocked: true, countdown: true, keyboard: true,
+        guide: ClaimGuide.Guide);
     private static readonly Rect FieldWorld = new(Vector2.Zero, new Vector2(ClaimBoard.Width, ClaimBoard.Height));
     private static readonly Vector4 Smoke = new(0.55f, 0.55f, 0.6f, 0.6f);
     private static readonly ParticleSpec DeathShards = new(ClaimRenderer.Danger, ClaimRenderer.FuseColor with { W = 0f },

@@ -116,13 +116,21 @@ internal sealed class SocialProfilePages
             : string.Format(Loc.Culture, Loc.T(L.Social.FollowedByTwoMoreMany), preview[0], preview[1], others);
     }
 
-    public void OpenReport(string targetType, string targetId, string title)
+    public void OpenReport(string targetType, string targetId, string title, Action<ReportReason>? accepted = null)
     {
         report.Open(new ReportPrompt
         {
             Title = title,
             Venue = ReportVenue.Social,
-            Submit = (reason, done) => store.Report(targetType, targetId, reason, done),
+            Submit = (reason, done) => store.Report(targetType, targetId, reason, ok =>
+            {
+                if (ok)
+                {
+                    accepted?.Invoke(reason);
+                }
+
+                done(ok);
+            }),
         });
     }
 

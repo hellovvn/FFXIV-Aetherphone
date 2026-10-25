@@ -90,7 +90,7 @@ Copy-on-write is the contract between store and view. `ChatThreadView` re-runs y
 
 ### The composer
 
-`ChatComposer` owns the draft and one reply or edit target. Its layouts are `Bar` (Velvet), `Pill` (Aethergram, Yellow Pages) and `Plus` (ChocoChat, with an attach menu); in each, an empty draft offers a voice note instead of send. Enter sends, Shift+Enter breaks the line, and `ChatThreadView.MessageMax` caps the text. The field is a soft-wrapping `SoftWrapEditor`, so never read the ImGui buffer as the message; [Linkpearl](linkpearl.md) explains that trap.
+`ChatComposer` owns the draft and one reply or edit target. Its layouts are `Bar` (Velvet), `Pill` (Aethergram, Yellow Pages) and `Plus` (ChocoChat, with an attach menu); in each, an empty draft offers a voice note instead of send. A photo from any source (the picker, Import from PC, a share from Photos, paste or drag) waits in a preview bar above the field, and send carries the typed text as its caption; while an edit is open the photo entry points hide. Enter sends, Shift+Enter breaks the line, and `ChatThreadView.MessageMax` caps the text. The field is a soft-wrapping `SoftWrapEditor`, so never read the ImGui buffer as the message; [Linkpearl](linkpearl.md) explains that trap.
 
 ### The menu and translation
 
@@ -114,7 +114,7 @@ Location, muster and ad shares are kind 0 messages whose body is a token; `ChatT
 - **Replies** carry a server-made snapshot of the quoted message, so the quote renders even when the original is not loaded. Tapping it scrolls to the original.
 - **Edits and deletes.** Only your own plain text can be edited. A delete tombstones the message locally and the bubble shows a muted "deleted" row.
 - **Forwarding** seals encrypted text again for the target thread. Encrypted media cannot be forwarded.
-- **Media.** Stills are re-encoded to a capped JPEG; a GIF uploads unchanged up to `GifMedia.MaxBytes`. Voice notes record as WAV.
+- **Media.** Stills are re-encoded to a capped JPEG; a GIF uploads unchanged up to `GifMedia.MaxBytes`. Voice notes record as WAV; with automatic gain on, `SpeechLeveler` levels the whole note on stop (it looks ahead, so a shout is turned down before it starts, and caps peaks at -3 dBFS). Voice notes have no gate: the mic threshold applies to calls only.
 - **Starring** is ChocoChat only and lives in local config.
 
 ## Paging
@@ -199,6 +199,10 @@ A local-only surface skips both bases and composes `ChatTranscript`, `ChatEntran
 - **Short threads never load older pages on their own.** The trigger needs a scrollbar, so a first page that does not fill the viewport never pulls more.
 - **Token shares need three changes.** Wire a new token type into the bubble, `ChatText.EffectiveKind` and the previews (`QuotePreview`, `ListPreview`), or it shows as raw text somewhere.
 - **The entrance animation keys on the last message id.** `ChatEntranceTracker` animates only when the count grows and the last id changes, so prepended history stays still. An unstable last id makes older pages pop in like new ones.
+
+## Official team conversation
+
+The Aetherphone Team conversation uses its own `/team/messages` inbox. The server allows deletion once the player has a paid gil prize and no outstanding gil prizes. ChocoChat then offers Delete conversation on right-click. Deleting clears the player's history through the newest message when the confirmation opens, removes its unread count and closes replies until the team writes again. The console retains its history. `canDelete` and `clearedThroughId` on the inbox page keep the permission and cleared history synchronized across sessions; older servers default to keeping the conversation protected.
 
 ## Related docs
 

@@ -245,6 +245,8 @@ internal sealed class ModerationNoticeService : IDisposable
             "chirp" or "gram" or "velvet_post" => ContentRemovalKinds.Post,
             "comment" or "velvet_comment" => ContentRemovalKinds.Comment,
             "story" => ContentRemovalKinds.Story,
+            "prism_glam" => ContentRemovalKinds.Glam,
+            "prism_look" => ContentRemovalKinds.Look,
             _ => null,
         };
 

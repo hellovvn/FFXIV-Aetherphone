@@ -36,6 +36,7 @@ internal sealed class ShellScreenPainter
     public void PaintCurrentTransformed(Rect screen, float screenRadius, PhoneTheme theme, in HomeMotion motion,
         bool landscape, in LayerTransform transform)
     {
+        using var glassPlacement = RealGlass.Transform(in transform);
         using var stage = ScreenLayer.Begin(CurrentLayerId, screen, true);
         PaintCurrentInside(screen, screenRadius, theme, motion);
         using (ScreenLayer.BeginPassive("chrome", screen))
@@ -99,7 +100,6 @@ internal sealed class ShellScreenPainter
             WallpaperBackdrop.RecordAppGround(screen, content.AppBackground, content.AppBackground);
         }
 
-        Plugin.LiveBackdrop.Record(screen, content.AppBackground);
         var contentRect = ContentRect(screen, theme);
         try
         {

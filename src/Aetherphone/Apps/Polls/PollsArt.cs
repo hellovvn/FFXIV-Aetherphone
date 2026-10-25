@@ -9,7 +9,6 @@ namespace Aetherphone.Apps.Polls;
 internal static class PollsArt
 {
     public const float ChipHeight = 24f;
-    public const float RadioRadius = 10f;
 
     public static readonly Vector4 EndingSoonInk = new(1f, 0.62f, 0.04f, 1f);
     public static readonly Vector4 White = new(1f, 1f, 1f, 1f);
@@ -20,8 +19,6 @@ internal static class PollsArt
     private const float ChipFillAlpha = 0.16f;
     private const float MarkDotRadius = 3.5f;
     private const float MarkDotGap = 6f;
-    private const float RingThickness = 1.6f;
-    private const float CheckThickness = 2f;
     private const float StateTileSize = 68f;
     private const float StateGlyphSize = 30f;
     private const float StateTitleGap = 18f;
@@ -69,28 +66,6 @@ internal static class PollsArt
 
     public static float MarkWidth(string label, float scale) =>
         Typography.Measure(label, TextStyles.FootnoteEmphasized).X + (MarkDotGap + MarkDotRadius * 2f) * scale;
-
-    public static void RadioRing(ImDrawListPtr drawList, Vector2 center, Vector4 ink, float scale)
-    {
-        drawList.AddCircle(center, RadioRadius * scale, ImGui.GetColorU32(ink), 32, RingThickness * scale);
-    }
-
-    public static void CheckBadge(ImDrawListPtr drawList, Vector2 center, float grow, Vector4 fill, Vector4 mark,
-        float scale)
-    {
-        if (grow <= 0.01f)
-        {
-            return;
-        }
-
-        var radius = RadioRadius * scale * grow;
-        drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(fill), 32);
-        var color = ImGui.GetColorU32(mark);
-        var thickness = CheckThickness * scale;
-        var elbow = center + new Vector2(-0.12f * radius, 0.36f * radius);
-        drawList.AddLine(center + new Vector2(-0.46f * radius, 0.02f * radius), elbow, color, thickness);
-        drawList.AddLine(elbow, center + new Vector2(0.48f * radius, -0.34f * radius), color, thickness);
-    }
 
     public static void Glyph(ImDrawListPtr drawList, Vector2 center, FontAwesomeIcon icon, Vector4 ink, float size)
     {

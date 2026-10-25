@@ -10,7 +10,6 @@ using Aetherphone.Core.Playback;
 using Aetherphone.Core.Shell;
 using Aetherphone.Core.Telephony;
 using Aetherphone.Core.Theme;
-using Aetherphone.Core.Wallpapers;
 using Dalamud.Bindings.ImGui;
 
 namespace Aetherphone.Windows.Components;
@@ -74,7 +73,6 @@ internal sealed partial class MinimizedPhone : IDisposable
     private readonly ThemeProvider themes;
     private readonly MinimizedFeed feed;
     private readonly MinimapReader minimap;
-    private readonly LiveBackdrop liveBackdrop;
     private readonly ResizeGrip resizeGrip = new();
     private readonly Queue<PhoneNotification> queuedCards = new();
     private readonly MinimizedPart[] pageParts = new MinimizedPart[MinimizedParts.Count];
@@ -158,7 +156,6 @@ internal sealed partial class MinimizedPhone : IDisposable
         feed = new MinimizedFeed(services.Weather, services.Coins, services.AethernetSession, services.Activity,
             services.GameData, services.GameTimers);
         minimap = new MinimapReader(services.ZoneMapTextures);
-        liveBackdrop = services.LiveBackdrop;
         mapSpan = new Spring(MinimizedShapes.MapSpan(configuration.MinimizedMapZoom));
         notifications.Changed += RefreshBadge;
         notifications.Presented += OnPresented;
@@ -199,29 +196,25 @@ internal sealed partial class MinimizedPhone : IDisposable
     {
         var scale = Scale;
         var geometry = ChassisGeometry.Puck(body, theme.CaseKind);
-        var drawList = ImGui.GetForegroundDrawList();
-        var glassBody = !ShowsMinimap && liveBackdrop.TryRecordFor(body);
-        if (glassBody)
-        {
-            Material.LiquidGlass(drawList, body.Min, body.Max, geometry.BodyRadius, scale, Material.ToneFor(theme),
-                0f);
-        }
-        else
-        {
-            DeviceChrome.DrawShell(drawList, geometry, scale, theme, 1f);
-        }
-
-        var clicked = DrawFace(drawList, geometry, theme, delta, true, 1f, glassBody);
+        var drawList = LayerDrawList();
+        var viewport = ImGui.GetMainViewport();
+        drawList.PushClipRect(viewport.Pos, viewport.Pos + viewport.Size, false);
+        DeviceChrome.DrawShell(drawList, geometry, scale, theme, 1f);
+        var clicked = DrawFace(drawList, geometry, theme, delta, true, 1f);
         if (TourCue.MiniPhone)
         {
             CoachmarkOverlay.DrawMiniCue(drawList, body, geometry.BodyRadius, scale);
         }
 
+        drawList.PopClipRect();
         return clicked;
     }
 
+    public ImDrawListPtr LayerDrawList() =>
+        configuration.MinimizedAlwaysOnTop ? ImGui.GetForegroundDrawList() : ImGui.GetWindowDrawList();
+
     public bool DrawFace(ImDrawListPtr drawList, in ChassisGeometry geometry, PhoneTheme theme, float delta,
-        bool interactive, float alpha, bool glassBody = false)
+        bool interactive, float alpha)
     {
         clock += delta;
         feed.Update(delta);
@@ -270,7 +263,7 @@ internal sealed partial class MinimizedPhone : IDisposable
         {
             if (wallpaper)
             {
-                DrawWallpaperBackdrop(drawList, geometry, theme, alpha, glassBody);
+                DrawWallpaperBackdrop(drawList, geometry, theme, alpha);
             }
 
             DrawClockFace(drawList, screen);
@@ -278,7 +271,7 @@ internal sealed partial class MinimizedPhone : IDisposable
 
         DrawBanner(drawList, screen);
         drawList.PopClipRect();
-        if ((mapFace || wallpaper) && !glassBody)
+        if (mapFace || wallpaper)
         {
             DeviceChrome.MaskScreenCorners(drawList, geometry, theme, scale);
         }
@@ -372,36 +365,24 @@ internal sealed partial class MinimizedPhone : IDisposable
     }
 
     private static void DrawWallpaperBackdrop(ImDrawListPtr drawList, in ChassisGeometry geometry, PhoneTheme theme,
-        float alpha, bool rounded)
+        float alpha)
     {
         var screen = geometry.Screen;
         var library = Plugin.Wallpapers;
         var aspect = screen.Height > 0f ? screen.Width / screen.Height : 0.5f;
-        DrawWallpaperLayer(drawList, screen, geometry.ScreenRadius, library.Resolve(theme.LightWallpaperId), aspect,
-            alpha, theme.ScreenBase, rounded);
+        WallpaperRenderer.DrawSingle(drawList, screen, geometry.ScreenRadius, library.Resolve(theme.LightWallpaperId),
+            aspect, alpha, theme.ScreenBase);
         var darkness = library.ThemeDarkness;
         if (darkness > 0.001f)
         {
-            DrawWallpaperLayer(drawList, screen, geometry.ScreenRadius, library.Resolve(theme.DarkWallpaperId), aspect,
-                alpha * darkness, null, rounded);
+            WallpaperRenderer.DrawSingle(drawList, screen, geometry.ScreenRadius,
+                library.Resolve(theme.DarkWallpaperId), aspect, alpha * darkness, null);
         }
 
         var scrim = CalmWallpaperScrim +
                     (HarshWallpaperScrim - CalmWallpaperScrim) * WallpaperLegibility.Strength(theme);
         Squircle.Fill(drawList, screen.Min, screen.Max, geometry.ScreenRadius,
             ImGui.GetColorU32(new Vector4(0f, 0f, 0f, scrim * alpha)));
-    }
-
-    private static void DrawWallpaperLayer(ImDrawListPtr drawList, Rect screen, float radius, WallpaperEntry entry,
-        float aspect, float alpha, Vector4? fallback, bool rounded)
-    {
-        if (rounded)
-        {
-            WallpaperRenderer.DrawSingleRounded(drawList, screen, radius, entry, aspect, alpha, fallback);
-            return;
-        }
-
-        WallpaperRenderer.DrawSingle(drawList, screen, radius, entry, aspect, alpha, fallback);
     }
 
     private void DrawGlass(ImDrawListPtr drawList, Rect rect, float radius, float opacity)
@@ -621,7 +602,7 @@ internal sealed partial class MinimizedPhone : IDisposable
                     dragging = true;
                 }
 
-                if (dragging)
+                if (dragging && !configuration.LockMinimizedPosition)
                 {
                     dragDelta += ImGui.GetIO().MouseDelta;
                 }
@@ -630,7 +611,7 @@ internal sealed partial class MinimizedPhone : IDisposable
             {
                 if (dragging)
                 {
-                    dragReleased = true;
+                    dragReleased = !configuration.LockMinimizedPosition;
                 }
                 else if (bodyHovered)
                 {

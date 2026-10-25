@@ -14,6 +14,7 @@ internal enum PauseAction : byte
     Restart,
     Leaderboard,
     Quit,
+    HowToPlay,
 }
 
 internal sealed class StagePause
@@ -25,7 +26,7 @@ internal sealed class StagePause
     private const float ButtonGap = 10f;
     private const float TitleGap = 22f;
     private const float ActiveThreshold = 0.9f;
-    private const int ButtonCount = 4;
+    private const int BaseButtons = 3;
 
     private Spring veil;
 
@@ -37,7 +38,7 @@ internal sealed class StagePause
     }
 
     public PauseAction Draw(ImDrawListPtr drawList, Rect full, PhoneTheme theme, Vector4 accent, float deltaSeconds,
-        bool shown, bool leaderboard, float scale)
+        bool shown, bool leaderboard, bool guide, float scale)
     {
         veil.Step(shown ? 1f : 0f, FadeSeconds, deltaSeconds);
         var alpha = Alpha;
@@ -50,7 +51,7 @@ internal sealed class StagePause
         var buttonHeight = ButtonHeight * scale;
         var gap = ButtonGap * scale;
         var titleHeight = Typography.LineHeight(TextStyles.Title2);
-        var buttons = leaderboard ? ButtonCount : ButtonCount - 1;
+        var buttons = BaseButtons + (leaderboard ? 1 : 0) + (guide ? 1 : 0);
         var stackHeight = titleHeight + TitleGap * scale + buttons * buttonHeight + (buttons - 1) * gap;
         var top = full.Center.Y - stackHeight * 0.5f;
         var centerX = full.Center.X;
@@ -76,6 +77,16 @@ internal sealed class StagePause
         }
 
         y += buttonHeight + gap;
+        if (guide)
+        {
+            if (GameHud.Button(new Vector2(centerX, y), size, Loc.T(L.Stage.HowToPlay), secondary, theme))
+            {
+                return PauseAction.HowToPlay;
+            }
+
+            y += buttonHeight + gap;
+        }
+
         if (leaderboard)
         {
             if (GameHud.Button(new Vector2(centerX, y), size, Loc.T(L.Stage.Leaderboard), secondary, theme))

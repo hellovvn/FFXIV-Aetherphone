@@ -38,7 +38,7 @@ internal sealed class CoilApp : IMiniGame
 
     private static readonly CoilPower[] TimedPowers = { CoilPower.Freeze, CoilPower.Slow, CoilPower.Reverse, CoilPower.Guide };
     private static readonly GameSpec StageSpec = new(GameId, L.Coil.Title, GameGenre.Puzzle, L.Coil.Hook,
-        Backdrop.Cavern, HudStyle.Standard, ScoreKind.Score, clocked: true, keyboard: true);
+        Backdrop.Cavern, HudStyle.Standard, ScoreKind.Score, clocked: true, keyboard: true, guide: CoilGuide.Guide);
     private static readonly Vector4 Gold = new(1f, 0.88f, 0.45f, 1f);
     private static readonly Vector4 Cream = new(1f, 1f, 0.9f, 1f);
     private static readonly Vector4 ChainGold = new(1f, 0.86f, 0.42f, 1f);
@@ -412,7 +412,7 @@ internal sealed class CoilApp : IMiniGame
 
     private void DrawWorld(ImDrawListPtr drawList, Vector2 turret, float scale, float time)
     {
-        CoilRenderer.DrawTrack(drawList, board, in camera, Accent, scale, time);
+        CoilRenderer.DrawTrack(drawList, board.Track, in camera, Accent, scale, time);
         CoilRenderer.DrawVortex(drawList, board, in camera, Accent, time);
         CoilRenderer.DrawMarbles(drawList, board, in camera, time);
         CoilRenderer.DrawShots(drawList, board, in camera, time);
@@ -450,7 +450,7 @@ internal sealed class CoilApp : IMiniGame
         }
     }
 
-    private static void DrawChip(ImDrawListPtr drawList, Vector2 min, Vector2 size, CoilPower power, float fraction,
+    public static void DrawChip(ImDrawListPtr drawList, Vector2 min, Vector2 size, CoilPower power, float fraction,
         bool armed, float scale)
     {
         var max = min + size;

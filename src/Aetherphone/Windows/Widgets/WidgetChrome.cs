@@ -123,7 +123,7 @@ internal static class WidgetChrome
         Header(context, ink, appId, label, accent, string.Empty, default);
 
     public static float Header(in WidgetContext context, in WidgetInk ink, string appId, string label,
-        Vector4 accent, string trailing, Vector4 trailingColor)
+        Vector4 accent, string trailing, Vector4 trailingColor, float trailingReserve = 0f)
     {
         var content = WidgetMetrics.Content(context);
         var scale = context.Scale;
@@ -143,6 +143,7 @@ internal static class WidgetChrome
             right -= trailingSize.X + WidgetMetrics.Gutter * scale;
         }
 
+        right -= trailingReserve;
         if (appId.Length > 0)
         {
             AppIconTile.TryDrawGlyph(drawList, appId, new Vector2(left + glyphSize * 0.5f, centerY), glyphSize, tint);

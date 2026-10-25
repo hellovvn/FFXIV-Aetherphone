@@ -48,7 +48,7 @@ internal sealed partial class PollsApp
         var optionsTop = questionTop + questionHeight + QuestionGap * scale;
         var percentReserve = Typography.Measure(WidestPercent(), TextStyles.SubheadlineEmphasized).X
                              + (LeaderIconSize + LeaderIconGap + PercentGap) * scale;
-        var labelOffset = (OptionInsetX + PollsArt.RadioRadius * 2f + RadioGap) * scale;
+        var labelOffset = (OptionInsetX + PollGlyphs.RadioRadius * 2f + RadioGap) * scale;
         var labelWidth = MathF.Max(1f, innerWidth - labelOffset - percentReserve - OptionInsetX * scale);
 
         var heights = EnsureRowBuffer(poll.Options.Length);
@@ -227,15 +227,15 @@ internal sealed partial class PollsApp
         var labelHeight = BlockHeight(label, style, labelWidth);
         var labelTop = row.Center.Y - labelHeight * 0.5f;
         var firstLineCenterY = labelTop + Typography.Measure(label, style).Y * 0.5f;
-        var radioCenter = new Vector2(row.Min.X + (OptionInsetX + PollsArt.RadioRadius) * scale, firstLineCenterY);
+        var radioCenter = new Vector2(row.Min.X + (OptionInsetX + PollGlyphs.RadioRadius) * scale, firstLineCenterY);
         var ringAlpha = 1f + (RingAlphaResults - 1f) * reveal;
         if (!closed || mine)
         {
-            PollsArt.RadioRing(drawList, radioCenter, Palette.WithAlpha(ui.MutedInk, ringAlpha * (1f - selection)),
+            PollGlyphs.RadioRing(drawList, radioCenter, Palette.WithAlpha(ui.MutedInk, ringAlpha * (1f - selection)),
                 scale);
         }
 
-        PollsArt.CheckBadge(drawList, radioCenter, selection, PollsArt.White, ui.Accent, scale);
+        PollGlyphs.CheckBadge(drawList, radioCenter, selection, PollsArt.White, ui.Accent, scale);
         Typography.DrawWrappedLeft(new Vector2(row.Min.X + labelOffset, labelTop), label, ui.TitleInk, style,
             labelWidth);
 

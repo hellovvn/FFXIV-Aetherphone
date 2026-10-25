@@ -35,11 +35,10 @@ internal static class CoilRenderer
     public static Rect FieldRect(in Camera2D camera) =>
         new(camera.ToScreen(Vector2.Zero), camera.ToScreen(new Vector2(CoilBoard.FieldWidth, CoilBoard.FieldHeight)));
 
-    public static void DrawTrack(ImDrawListPtr drawList, CoilBoard board, in Camera2D camera, Vector4 accent,
+    public static void DrawTrack(ImDrawListPtr drawList, CoilTrack track, in Camera2D camera, Vector4 accent,
         float scale, float time)
     {
         var radius = camera.Px(CoilBoard.MarbleRadius);
-        var track = board.Track;
         StrokeGroove(drawList, track, in camera, new Vector2(0f, 2.2f * scale), ImGui.GetColorU32(GrooveShadow),
             radius * 2.9f);
         StrokeGroove(drawList, track, in camera, new Vector2(0f, -0.9f * scale),
@@ -106,11 +105,14 @@ internal static class CoilRenderer
     public static void DrawVortex(ImDrawListPtr drawList, CoilBoard board, in Camera2D camera, Vector4 accent,
         float time)
     {
-        var radius = camera.Px(CoilBoard.MarbleRadius);
-        var center = camera.ToScreen(board.Track.End);
         var lead = board.LeadProgress;
-        var draining = board.State == CoilState.Draining;
-        var heat = draining ? 1f : MathF.Max(lead * lead, board.Danger);
+        var heat = board.State == CoilState.Draining ? 1f : MathF.Max(lead * lead, board.Danger);
+        DrawVortex(drawList, camera.ToScreen(board.Track.End), camera.Px(CoilBoard.MarbleRadius), accent, heat, time);
+    }
+
+    public static void DrawVortex(ImDrawListPtr drawList, Vector2 center, float radius, Vector4 accent, float heat,
+        float time)
+    {
         var pulse = 0.5f + 0.5f * MathF.Sin(time * (3f + heat * 9f));
         var tint = Vector4.Lerp(accent, DangerRed, Math.Clamp(heat * 1.4f - 0.3f, 0f, 1f));
         ProgressRing.Glow(center, radius * (3.2f + heat * 2.2f + pulse * heat), tint, 0.5f + heat * 1.6f);
@@ -170,7 +172,7 @@ internal static class CoilRenderer
         }
     }
 
-    private static float SizeFactor(CoilTrack track, float arc)
+    public static float SizeFactor(CoilTrack track, float arc)
     {
         var emerging = (arc + CoilBoard.MarbleRadius) / CoilBoard.Diameter;
         var sinking = (track.Length + CoilBoard.MarbleRadius - arc) / CoilBoard.Diameter;
@@ -184,23 +186,28 @@ internal static class CoilRenderer
         for (var index = 0; index < shots.Length; index++)
         {
             ref readonly var shot = ref shots[index];
-            var center = camera.ToScreen(shot.Position);
-            var direction = Vector2.Normalize(shot.Velocity);
-            var fill = shot.Kind == CoilPower.None ? CoilArt.ColourOf(shot.Colour) : CoilArt.PowerColour(shot.Kind);
-            for (var trail = TrailLength; trail >= 1; trail--)
-            {
-                var fade = 1f - trail / (float)(TrailLength + 1);
-                drawList.AddCircleFilled(center - direction * radius * 0.9f * trail, radius * (0.9f - trail * 0.12f),
-                    ImGui.GetColorU32(fill with { W = 0.22f * fade }));
-            }
-
-            if (shot.Kind != CoilPower.None)
-            {
-                ProgressRing.Glow(center, radius * 2.2f, fill, 1.4f);
-            }
-
-            CoilArt.Marble(drawList, center, radius, shot.Colour, CoilPower.None, time * 18f, direction, 1f, time);
+            DrawShot(drawList, camera.ToScreen(shot.Position), Vector2.Normalize(shot.Velocity), radius, shot.Colour,
+                shot.Kind, time);
         }
+    }
+
+    public static void DrawShot(ImDrawListPtr drawList, Vector2 center, Vector2 direction, float radius, byte colour,
+        CoilPower kind, float time)
+    {
+        var fill = kind == CoilPower.None ? CoilArt.ColourOf(colour) : CoilArt.PowerColour(kind);
+        for (var trail = TrailLength; trail >= 1; trail--)
+        {
+            var fade = 1f - trail / (float)(TrailLength + 1);
+            drawList.AddCircleFilled(center - direction * radius * 0.9f * trail, radius * (0.9f - trail * 0.12f),
+                ImGui.GetColorU32(fill with { W = 0.22f * fade }));
+        }
+
+        if (kind != CoilPower.None)
+        {
+            ProgressRing.Glow(center, radius * 2.2f, fill, 1.4f);
+        }
+
+        CoilArt.Marble(drawList, center, radius, colour, CoilPower.None, time * 18f, direction, 1f, time);
     }
 
     public static void DrawAim(ImDrawListPtr drawList, CoilBoard board, in Camera2D camera, Vector2 direction,
@@ -225,6 +232,11 @@ internal static class CoilRenderer
             return;
         }
 
+        DrawAimDots(drawList, mouth, direction, radius, tint);
+    }
+
+    public static void DrawAimDots(ImDrawListPtr drawList, Vector2 mouth, Vector2 direction, float radius, Vector4 tint)
+    {
         for (var dot = 1; dot <= AimDots; dot++)
         {
             var fade = 1f - dot / (float)(AimDots + 1);
@@ -234,10 +246,13 @@ internal static class CoilRenderer
     }
 
     public static void DrawLauncher(ImDrawListPtr drawList, CoilBoard board, in Camera2D camera, Vector2 direction,
-        Vector4 accent, float recoil, float swap, float time)
+        Vector4 accent, float recoil, float swap, float time) =>
+        DrawLauncher(drawList, camera.ToScreen(board.Launcher), camera.Px(CoilBoard.MarbleRadius), direction, accent,
+            recoil, swap, board.LoadedColour, board.NextColour, board.ArmedPower, time);
+
+    public static void DrawLauncher(ImDrawListPtr drawList, Vector2 center, float radius, Vector2 direction,
+        Vector4 accent, float recoil, float swap, byte loaded, byte nextColour, CoilPower armed, float time)
     {
-        var radius = camera.Px(CoilBoard.MarbleRadius);
-        var center = camera.ToScreen(board.Launcher);
         var across = new Vector2(-direction.Y, direction.X);
         var squashAlong = 1f - 0.16f * recoil;
         var squashAcross = 1f + 0.12f * recoil;
@@ -270,18 +285,15 @@ internal static class CoilRenderer
 
         var swapScale = 1f - 0.35f * swap;
         var next = Local(center, direction, across, radius, squashAlong, squashAcross, -1.25f, 0f);
-        CoilArt.Marble(drawList, next, radius * 0.55f * swapScale, board.NextColour, CoilPower.None, 0f, direction, 1f,
-            time);
+        CoilArt.Marble(drawList, next, radius * 0.55f * swapScale, nextColour, CoilPower.None, 0f, direction, 1f, time);
         var mouthRing = Local(center, direction, across, radius, squashAlong, squashAcross, 1.35f - recoil * 0.5f, 0f);
         drawList.AddCircleFilled(mouthRing, radius * 1.08f, ImGui.GetColorU32(MouthWell));
-        if (board.ArmedPower != CoilPower.None)
+        if (armed != CoilPower.None)
         {
-            ProgressRing.Glow(mouthRing, radius * 1.7f, CoilArt.PowerColour(board.ArmedPower),
-                1.2f + 0.5f * MathF.Sin(time * 7f));
+            ProgressRing.Glow(mouthRing, radius * 1.7f, CoilArt.PowerColour(armed), 1.2f + 0.5f * MathF.Sin(time * 7f));
         }
 
-        CoilArt.Marble(drawList, mouthRing, radius * 0.95f * swapScale, board.LoadedColour, board.ArmedPower, 0f,
-            direction, 1f, time);
+        CoilArt.Marble(drawList, mouthRing, radius * 0.95f * swapScale, loaded, armed, 0f, direction, 1f, time);
     }
 
     private static void DrawHead(ImDrawListPtr drawList, Vector2 center, Vector2 along, Vector2 across, float radius,

@@ -27,6 +27,7 @@ internal enum MessageScreen : byte
     SharePhoto,
     ChatTheme,
     Wallpaper,
+    Team,
 }
 
 internal readonly record struct MessageRoute(MessageScreen Screen, string? Id = null)
@@ -43,6 +44,7 @@ internal readonly record struct MessageRoute(MessageScreen Screen, string? Id = 
     public static readonly MessageRoute Starred = new(MessageScreen.Starred);
     public static readonly MessageRoute ChatTheme = new(MessageScreen.ChatTheme);
     public static readonly MessageRoute DefaultWallpaper = new(MessageScreen.Wallpaper);
+    public static readonly MessageRoute Team = new(MessageScreen.Team);
 
     public static MessageRoute Thread(string conversationId) => new(MessageScreen.Thread, conversationId);
 

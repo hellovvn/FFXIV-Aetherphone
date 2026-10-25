@@ -25,6 +25,9 @@ public sealed class LivePageTests
         Assert.Equal(LiveJoinInput.Token, LiveBoard.Classify("  table-0123456789abcdef  "));
         Assert.Equal(LiveJoinInput.None, LiveBoard.Classify("table-0123"));
         Assert.Equal(LiveJoinInput.None, LiveBoard.Classify("[aep.casino.v1:not a table id]"));
+        Assert.Equal(LiveJoinInput.Code,
+            LiveBoard.Classify("Join my table: [Gamba YUCPHJ]. Enter the code in Aetherphone under Gamba > Live."));
+        Assert.Equal(LiveJoinInput.None, LiveBoard.Classify("Join my table: [Gamba YUCPH]."));
     }
 
     [Fact]

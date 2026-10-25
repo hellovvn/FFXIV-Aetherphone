@@ -6,6 +6,7 @@ using Aetherphone.Apps.Games.BubbleShooter;
 using Aetherphone.Apps.Games.CapMan;
 using Aetherphone.Apps.Games.Chess;
 using Aetherphone.Apps.Games.Claim;
+using Aetherphone.Apps.Games.Cluster;
 using Aetherphone.Apps.Games.Coil;
 using Aetherphone.Apps.Games.Crates;
 using Aetherphone.Apps.Games.Crawler;
@@ -21,6 +22,7 @@ using Aetherphone.Apps.Games.Framework;
 using Aetherphone.Apps.Games.Fuse;
 using Aetherphone.Apps.Games.GemSwap;
 using Aetherphone.Apps.Games.Gloop;
+using Aetherphone.Apps.Games.Harvest;
 using Aetherphone.Apps.Games.Herd;
 using Aetherphone.Apps.Games.Hop;
 using Aetherphone.Apps.Games.Invaders;
@@ -61,11 +63,13 @@ using Aetherphone.Apps.Games.Whack;
 using Aetherphone.Apps.Games.WordRun;
 using Aetherphone.Core;
 using Aetherphone.Core.Aethernet.Contracts;
+using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Changelog;
 using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.Games;
+using Aetherphone.Core.Home;
 using Aetherphone.Core.Honorific;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
@@ -111,6 +115,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
     private const float CoinChipRingRadius = 7f;
     private const float CoinChipGap = 5f;
     private const string CoinChipTooltipId = "games.coinChip";
+    private const string CoinFloatLayerId = "games.coinFloats";
     private const float ResultAppearSpeed = 3.4f;
 
     private static readonly string[] TabIds = [HomeTabRoute, TogetherTabRoute, LibraryTabRoute, ProfileTabRoute];
@@ -127,6 +132,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
     private readonly RemoteImageCache images;
     private readonly LodestoneService lodestone;
     private readonly SettingsLauncher settingsLauncher;
+    private readonly HomeLinks homeLinks;
     private readonly OnlineHub onlineHub;
     private readonly OnlineRoomView onlineRoom;
     private readonly IMiniGame[] games;
@@ -145,6 +151,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
     private readonly ScreenFx fx;
     private readonly StageIntro intro = new();
     private readonly StagePause pause = new();
+    private readonly StageGuide guide = new();
     private readonly StageChrome chrome = new();
     private readonly LevelSelect levelSelect = new();
     private readonly StageHandoff handoff = new();
@@ -172,7 +179,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         Core.Coins.CoinStore coins, Core.Coins.CoinGameSessionTracker coinSessions,
         GameRoomsStore gameRooms, Configuration configuration, LeaderboardStore leaderboard, RemoteImageCache images,
         LodestoneService lodestone, MoogleClickerService moogleClicker, SettingsLauncher settingsLauncher,
-        ConfirmService confirm)
+        ConfirmService confirm, HomeLinks homeLinks)
     {
         this.stats = stats;
         this.configuration = configuration;
@@ -183,6 +190,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         this.images = images;
         this.lodestone = lodestone;
         this.settingsLauncher = settingsLauncher;
+        this.homeLinks = homeLinks;
         refreshLeaderboard = RefreshLeaderboardNow;
         session = new GameSession(stats, leaderboard, leaderboard);
         fx = new ScreenFx(backdrop);
@@ -249,6 +257,8 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
             new MiniGolfApp(),
             new HerdApp(textures),
             new TempoApp(),
+            new ClusterApp(),
+            new HarvestApp(),
         };
         library = new GamesLibrary(games, stats, leaderboard);
         countLabels = new string[library.Entries.Length + 1];
@@ -353,7 +363,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
     public void OnClosed()
     {
         ResetLaunch();
-        CloseCurrentGame();
+        CloseCurrentGame(false);
         gameRooms.Exit();
         AppLandscape.Release(Id);
         TourHolds.Release(Id);
@@ -413,24 +423,42 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
 
         if (!router.IsTransitioning && !LaunchActive && currentGame is not null && !GamesStack.HoldsGame(router))
         {
-            CloseCurrentGame();
+            CloseCurrentGame(true);
         }
 
+        SpawnCoinNote(context.Content);
+        DrawCoinFloats();
+    }
+
+    private void SpawnCoinNote(Rect content)
+    {
         var award = coinSessions.TakeAward(out _);
-        if (award is not null)
+        if (award is null)
         {
-            var anchor = new Vector2(context.Content.Center.X, context.Content.Min.Y + 96f * UiScale.Current);
-            if (award.Granted && award.Amount > 0)
-            {
+            return;
+        }
+
+        var anchor = new Vector2(content.Center.X, content.Min.Y + 96f * UiScale.Current);
+        switch (Core.Coins.CoinGameSessionTracker.NoteFor(award))
+        {
+            case Core.Coins.CoinAwardNote.Reward:
                 coinFloats.Spawn(Loc.T(L.Coin.CheckInReward, NumberText.Group(award.Amount)), anchor);
                 coins.AbsorbLocalAward(award.Balance);
-            }
-            else if (award.Reason == "too_short")
-            {
+                break;
+            case Core.Coins.CoinAwardNote.TooShort:
                 coinFloats.Spawn(Loc.T(L.Coin.SessionTooShort), anchor, true);
-            }
+                break;
+        }
+    }
+
+    private void DrawCoinFloats()
+    {
+        if (coinFloats.IsIdle)
+        {
+            return;
         }
 
+        using var layer = ScreenLayer.BeginPassive(CoinFloatLayerId, screenRect);
         coinFloats.Draw(ImGui.GetWindowDrawList(), Core.Apps.AppAccents.For("coin"), theme.TextMuted,
             ImGui.GetIO().DeltaTime);
     }
@@ -731,10 +759,11 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
             {
                 var gameContext = new GameContext(full, safe, theme, 0f, rawSeconds, session, hud, fx, backdrop,
                     chrome);
-                var action = levelSelect.IsOpen ? IntroAction.None : intro.Draw(drawList, gameContext, accent, scale);
-                if (action == IntroAction.Play)
+                var action = levelSelect.IsOpen || guide.IsOpen
+                    ? IntroAction.None
+                    : intro.Draw(drawList, gameContext, accent, scale);
+                if (action == IntroAction.Play && StartRunOrGuide(game, spec))
                 {
-                    StartRun(game);
                     break;
                 }
 
@@ -746,11 +775,15 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
                 {
                     levelSelect.Open();
                 }
+                else if (action == IntroAction.HowToPlay && spec.Guide is { } introGuide)
+                {
+                    guide.Open(introGuide, GuideOrigin.Intro);
+                }
 
                 var chosen = levelSelect.Draw(drawList, gameContext, accent, scale);
                 if (chosen > 0 && session.SelectLevel(chosen))
                 {
-                    StartRun(game);
+                    StartRunOrGuide(game, spec);
                 }
 
                 break;
@@ -789,12 +822,32 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         }
 
         handoff.Draw(drawList, full, session, rawSeconds, scale);
-        var pauseAction = pause.Draw(drawList, full, theme, accent, rawSeconds, session.State == StageFlow.Paused,
-            session.RankedMode, scale);
+        var pausedGuide = guide.IsOpen && guide.Origin == GuideOrigin.Pause;
+        var pauseAction = pause.Draw(drawList, full, theme, accent, rawSeconds,
+            session.State == StageFlow.Paused && !pausedGuide, session.RankedMode, spec.Guide is not null, scale);
+        var guideContext = new GameContext(full, safe, theme, 0f, rawSeconds, session, hud, fx, backdrop, chrome);
+        if (DrawGuide(drawList, guideContext, spec, accent, scale) == GuideExit.Play
+            && session.State == StageFlow.Intro)
+        {
+            StartRun(game);
+        }
+
+        if (guide.IsOpen && guide.Origin == GuideOrigin.Pause && session.State != StageFlow.Paused)
+        {
+            guide.Close();
+        }
+
         switch (pauseAction)
         {
             case PauseAction.Resume:
                 session.Resume();
+                break;
+            case PauseAction.HowToPlay:
+                if (spec.Guide is { } pauseGuide)
+                {
+                    guide.Open(pauseGuide, GuideOrigin.Pause);
+                }
+
                 break;
             case PauseAction.Restart:
                 SettleRun();
@@ -809,6 +862,31 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
             default:
                 break;
         }
+    }
+
+    private bool StartRunOrGuide(IMiniGame game, in GameSpec spec)
+    {
+        if (spec.Guide is { } firstGuide && !stats.GuideSeen(spec.Id))
+        {
+            levelSelect.Close();
+            guide.Open(firstGuide, GuideOrigin.BeforePlay);
+            return false;
+        }
+
+        StartRun(game);
+        return true;
+    }
+
+    private GuideExit DrawGuide(ImDrawListPtr drawList, in GameContext gameContext, in GameSpec spec, Vector4 accent,
+        float scale)
+    {
+        var exit = guide.Draw(drawList, gameContext, accent, scale);
+        if (exit != GuideExit.None)
+        {
+            stats.MarkGuideSeen(spec.Id);
+        }
+
+        return exit;
     }
 
     private StageResult BuildStageResult(in GameSpec spec, Vector4 accent)
@@ -892,7 +970,12 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         var radius = StageLayout.ChipRadius * scale;
         if (chrome.BackChip(drawList, StageLayout.BackChipCenter(full, scale), radius, theme, scale))
         {
-            if (levelSelect.IsOpen)
+            if (guide.IsOpen)
+            {
+                guide.Close();
+                stats.MarkGuideSeen(currentGame?.Spec.Id ?? string.Empty);
+            }
+            else if (levelSelect.IsOpen)
             {
                 levelSelect.Close();
             }
@@ -902,29 +985,39 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
             }
         }
 
-        if (landscape)
+        var rightEdge = session.State == StageFlow.Intro
+            ? DrawHomeChip(drawList, full, theme, radius, scale, landscape ? 0f : full.Max.X - Metrics.Space.Md * scale)
+            : landscape ? 0f : DrawPauseChip(drawList, full, theme, radius, scale);
+        var chip = BuildCoinSessionChip();
+        if (!chip.Visible)
         {
             return;
         }
 
-        var pauseCenter = StageLayout.PauseChipCenter(full, scale);
-        var showPause = session.State is StageFlow.Playing or StageFlow.Countdown or StageFlow.Paused;
+        if (landscape)
+        {
+            rightEdge = StageLayout.LandscapeCoinChipLeft(full, scale) + CoinSessionChipWidth(chip, scale);
+        }
+
+        var rowCenterY = StageLayout.BackChipCenter(full, scale).Y;
+        chrome.RecordCoinChip(DrawCoinSessionChip(chip, rightEdge, rowCenterY, backdrop.Ink, scale));
+    }
+
+    private float DrawPauseChip(ImDrawListPtr drawList, Rect full, PhoneTheme theme, float radius, float scale)
+    {
         var rightEdge = full.Max.X - Metrics.Space.Md * scale;
-        if (showPause)
+        if (session.State is not (StageFlow.Playing or StageFlow.Countdown or StageFlow.Paused))
         {
-            if (chrome.PauseChip(drawList, pauseCenter, radius, theme, scale, session.State == StageFlow.Paused))
-            {
-                TogglePause();
-            }
-
-            rightEdge = pauseCenter.X - radius - StageLayout.CoinChipGap * scale;
+            return rightEdge;
         }
 
-        var chip = BuildCoinSessionChip();
-        if (chip.Visible)
+        var pauseCenter = StageLayout.PauseChipCenter(full, scale);
+        if (chrome.PauseChip(drawList, pauseCenter, radius, theme, scale, session.State == StageFlow.Paused))
         {
-            chrome.RecordCoinChip(DrawCoinSessionChip(chip, rightEdge, pauseCenter.Y, backdrop.Ink, scale));
+            TogglePause();
         }
+
+        return pauseCenter.X - radius - StageLayout.CoinChipGap * scale;
     }
 
     private void TogglePause()
@@ -997,8 +1090,8 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         var accent = chip.CoolingDown ? muted : AppAccents.For("coin");
         var ringRadius = CoinChipRingRadius * scale;
         var thickness = Metrics.Stroke.Ring * scale;
-        var textSize = chip.Label.Length > 0 ? Typography.Measure(chip.Label, TextStyles.Caption1) : Vector2.Zero;
-        var labelSpan = chip.Label.Length > 0 ? textSize.X + CoinChipGap * scale : 0f;
+        var textSize = CoinChipTextSize(chip);
+        var labelSpan = CoinChipLabelSpan(chip, textSize.X, scale);
         var ringCenter = new Vector2(right - labelSpan - ringRadius, rowCenterY);
         ProgressRing.Track(ringCenter, ringRadius, thickness, Palette.WithAlpha(accent, 0.28f));
         ProgressRing.Fill(ringCenter, ringRadius, thickness, chip.Fraction, accent);
@@ -1030,6 +1123,16 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
             chip.Label, chip.CoolingDown ? muted : StageInks.StrongOn(tone), TextStyles.Caption1);
         return hoverRect;
     }
+
+    private static float CoinSessionChipWidth(in CoinSessionChip chip, float scale) =>
+        CoinChipLabelSpan(chip, CoinChipTextSize(chip).X, scale) +
+        (CoinChipRingRadius * 2f + Metrics.Stroke.Ring) * scale;
+
+    private static Vector2 CoinChipTextSize(in CoinSessionChip chip) =>
+        chip.Label.Length > 0 ? Typography.Measure(chip.Label, TextStyles.Caption1) : Vector2.Zero;
+
+    private static float CoinChipLabelSpan(in CoinSessionChip chip, float textWidth, float scale) =>
+        chip.Label.Length > 0 ? textWidth + CoinChipGap * scale : 0f;
 
     private static string CoinChipHint(in CoinSessionChip chip)
     {
@@ -1131,6 +1234,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         stageHud.Reset();
         intro.Begin(spec);
         pause.Reset();
+        guide.Reset();
         levelSelect.Reset();
         handoff.Reset();
         resultProgress = 0f;
@@ -1153,7 +1257,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         session.Settle();
     }
 
-    private void CloseCurrentGame()
+    private void CloseCurrentGame(bool playerWatching)
     {
         AppLandscape.Release(Id);
         if (currentGame is null)
@@ -1164,7 +1268,7 @@ internal sealed partial class GamesApp : IPhoneApp, ITabRouteTarget, INameplateA
         SettleRun();
         currentGame.Close();
         currentGame = null;
-        coinSessions.GameClosed();
+        coinSessions.GameClosed(playerWatching);
         library.Rebuild();
     }
 }

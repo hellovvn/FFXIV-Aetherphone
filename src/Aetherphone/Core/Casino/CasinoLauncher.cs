@@ -6,19 +6,24 @@ internal enum CasinoLaunchKind
     Table,
     Game,
     Ledger,
+    Code,
 }
 
-internal readonly record struct CasinoLaunch(CasinoLaunchKind Kind, string TableId = "", string GameId = "");
+internal readonly record struct CasinoLaunch(CasinoLaunchKind Kind, string TableId = "", string GameId = "",
+    string Code = "");
 
 internal sealed class CasinoLauncher
 {
     public const string LedgerGroupPrefix = "casino:ledger:";
+    public const string CodeGroupPrefix = "casino:code:";
 
     private CasinoLaunch? pending;
 
     public bool HasPending => pending is not null;
 
     public static string LedgerGroupKey(string tableId) => string.Concat(LedgerGroupPrefix, tableId);
+
+    public static string CodeGroupKey(string code) => string.Concat(CodeGroupPrefix, code);
 
     public static bool RoutesWithoutCard(string tableId) =>
         CasinoRoomIds.IsBlackjackHouse(tableId) || HoldemRules.IsHouseRoom(tableId);
@@ -53,11 +58,28 @@ internal sealed class CasinoLauncher
         pending = new CasinoLaunch(CasinoLaunchKind.Ledger, tableId);
     }
 
+    public void RequestCode(string raw)
+    {
+        var code = CasinoRoomCodes.Normalized(raw);
+        if (code.Length == 0)
+        {
+            return;
+        }
+
+        pending = new CasinoLaunch(CasinoLaunchKind.Code, Code: code);
+    }
+
     public void RequestNotification(string groupKey)
     {
         if (groupKey.StartsWith(LedgerGroupPrefix, StringComparison.Ordinal))
         {
             RequestLedger(groupKey[LedgerGroupPrefix.Length..]);
+            return;
+        }
+
+        if (groupKey.StartsWith(CodeGroupPrefix, StringComparison.Ordinal))
+        {
+            RequestCode(groupKey[CodeGroupPrefix.Length..]);
             return;
         }
 
@@ -67,9 +89,9 @@ internal sealed class CasinoLauncher
         }
     }
 
-    public bool TryConsume(out CasinoLaunch launch)
+    public bool TryConsume(bool stateLoaded, out CasinoLaunch launch)
     {
-        if (pending is not { } held)
+        if (pending is not { } held || (held.Kind == CasinoLaunchKind.Game && !stateLoaded))
         {
             launch = default;
             return false;

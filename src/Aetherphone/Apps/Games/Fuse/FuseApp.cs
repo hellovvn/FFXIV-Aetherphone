@@ -23,7 +23,8 @@ internal sealed class FuseApp : IMiniGame
     private static readonly LocString[] Modes = { L.Games.Easy, L.Games.Hard };
     private static readonly FuseSkill[] ModeSkills = { FuseSkill.Easy, FuseSkill.Hard };
     private static readonly GameSpec StageSpec = new(GameId, L.Fuse.Title, GameGenre.Action, L.Fuse.Hook,
-        Backdrop.Meadow, HudStyle.Standard, ScoreKind.Streak, Modes, clocked: true, countdown: true, keyboard: true);
+        Backdrop.Meadow, HudStyle.Standard, ScoreKind.Streak, Modes, clocked: true, countdown: true, keyboard: true,
+        guide: FuseGuide.Guide);
     private static readonly Vector4 AccentColor = AppAccents.For(GameId);
     private static readonly Vector4 Danger = new(0.95f, 0.30f, 0.30f, 1f);
     private static readonly Vector4 Smoke = new(0.36f, 0.34f, 0.33f, 0.55f);

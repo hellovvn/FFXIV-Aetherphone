@@ -376,10 +376,10 @@ public sealed class CasinoTableWireContractTests
 
         var launcher = new CasinoLauncher();
         launcher.RequestTable(notification.GroupKey![CasinoTurnNotifier.GroupPrefix.Length..]);
-        Assert.True(launcher.TryConsume(out var launch));
+        Assert.True(launcher.TryConsume(true, out var launch));
         Assert.Equal(CasinoLaunchKind.Table, launch.Kind);
         Assert.Equal(CasinoRoomIds.BlackjackPit, launch.TableId);
-        Assert.False(launcher.TryConsume(out _));
+        Assert.False(launcher.TryConsume(true, out _));
     }
 
     [Fact]
@@ -395,10 +395,10 @@ public sealed class CasinoTableWireContractTests
 
         var launcher = new CasinoLauncher();
         launcher.RequestNotification(trade.GroupKey!);
-        Assert.True(launcher.TryConsume(out var launch));
+        Assert.True(launcher.TryConsume(true, out var launch));
         Assert.Equal(CasinoLaunchKind.Ledger, launch.Kind);
         Assert.Equal("table-7", launch.TableId);
-        Assert.False(launcher.TryConsume(out _));
+        Assert.False(launcher.TryConsume(true, out _));
     }
 
     [Fact]
@@ -406,12 +406,12 @@ public sealed class CasinoTableWireContractTests
     {
         var launcher = new CasinoLauncher();
         launcher.RequestNotification(string.Concat(CasinoTurnNotifier.GroupPrefix, "table-7"));
-        Assert.True(launcher.TryConsume(out var launch));
+        Assert.True(launcher.TryConsume(true, out var launch));
         Assert.Equal(CasinoLaunchKind.Table, launch.Kind);
         Assert.Equal("table-7", launch.TableId);
 
         launcher.RequestNotification(string.Concat(CasinoTurnNotifier.GroupPrefix, CasinoRoomIds.BlackjackPit));
-        Assert.True(launcher.TryConsume(out launch));
+        Assert.True(launcher.TryConsume(true, out launch));
         Assert.Equal(CasinoLaunchKind.Table, launch.Kind);
         Assert.Equal(CasinoRoomIds.BlackjackPit, launch.TableId);
     }
@@ -527,11 +527,11 @@ public sealed class CasinoTableWireContractTests
 
         launcher.RequestGame("dailyspin");
         Assert.True(launcher.HasPending);
-        Assert.True(launcher.TryConsume(out var launch));
+        Assert.True(launcher.TryConsume(true, out var launch));
         Assert.Equal(CasinoLaunchKind.Game, launch.Kind);
         Assert.Equal("dailyspin", launch.GameId);
         Assert.False(launcher.HasPending);
-        Assert.False(launcher.TryConsume(out _));
+        Assert.False(launcher.TryConsume(true, out _));
     }
 
     [Fact]

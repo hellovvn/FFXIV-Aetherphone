@@ -58,7 +58,7 @@ internal static class ClaimPad
         _ => ClaimMove.None,
     };
 
-    private static bool DrawToggle(ImDrawListPtr drawList, Vector2 center, float radius, string label, Vector4 color,
+    internal static bool DrawToggle(ImDrawListPtr drawList, Vector2 center, float radius, string label, Vector4 color,
         bool on, bool interactive, float scale)
     {
         var corner = new Vector2(radius, radius);

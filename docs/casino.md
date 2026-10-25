@@ -16,6 +16,7 @@ Paths are under src/Aetherphone unless they start with src/.
 | Apps/Casino/Strip/StripCatalog.cs | The Floor's shelves |
 | Apps/Casino/Tables/ | Card tables, the host sheet, the door, the ledger pages |
 | Apps/Casino/Venue/ | Venue rooms, the Host tab's cards, broadcast, tournaments |
+| Apps/Casino/Rolls/, Core/Casino/Rolls/ | Roll games: setup and game pages; the chat roll reader, the table engine and its chat lines |
 | Core/Casino/CasinoStore.cs, CasinoPlayStore.cs | Floor state, chips in and out, the solo game stores |
 | Core/Casino/*Rules.cs, CasinoVerifier.cs | Rules mirrors and the fairness verifier |
 | Core/Aethernet/Clients/CasinoClient*.cs, Core/Aethernet/Contracts/Casino*Dtos.cs | Casino routes and wire records, one file per area |
@@ -163,6 +164,7 @@ Folders are under src/Aetherphone/Apps/Casino.
 | Daily spin | Free | Cabinets/ | Once a day; pays wallet coins. |
 | Dice table, Deathroll, Raffle | Venue room | Venue/ | Hosted rooms on free play or gil. |
 | Book | Hosted ledger | Tables/ | A gil ledger with trade sync and no game. |
+| Deathroll, Elimination, Higher or Lower, Coin Flip | Roll game | Rolls/ | Played with /random in game chat; no server, nothing counts. |
 
 ## Hosting tables
 
@@ -170,7 +172,11 @@ The server checks every setting and host action; the client lays out the choices
 
 **Opening a table.** The Host tab offers a poster per hostable game, or Host again with the last table's settings. Both open `HostSheet`, which fills a `HostDraft`: the game, Play for (Chips, Free play or Gil; a currency the game refuses is faded and says why), the key numbers as ladder sliders, Who can join (Anyone, Knock or Invite only) and a name. Table rules opens `HostRulesPage` for dealing, turns and limits. `CasinoHostingRules.Check` names a conflict, such as a minimum bet above the maximum, before anything is sent.
 
-**The door.** `TableDoor` is the host's console: the six-character room code with Copy and Copy invite, a card per knock with Let in and Decline, the players with co-dealer and remove actions, and Manage (Pause, Deal next round, Rename, Close). At a chip table the house clock deals, so the door explains why Pause, Deal and co-dealers are missing. At their own table the host gets a Host pill in the top bar, badged with waiting knocks, that returns to the door and keeps the seat. At a Hold'em table a player can send one of six reactions (`casino.react` over the live connection), which everyone else at the table sees.
+**The door.** `TableDoor` is the host's console: the six-character room code with Copy and Invite, a card per knock with Let in and Decline, the players with co-dealer and remove actions, and Manage (Pause, Deal next round, Rename, Close). At a chip table the house clock deals, so the door explains why Pause, Deal and co-dealers are missing. At their own table the host gets a Host pill in the top bar, badged with waiting knocks, that returns to the door and keeps the seat. At a Hold'em table a player can send one of six reactions (`casino.react` over the live connection), which everyone else at the table sees.
+
+**Codes in chat.** Invite on the door and Post the code in chat on a venue table's sheet open `ChatCodePost`, which sends a line in the host's language through party, say or yell. The line carries the code as `[Gamba CODE]` (`CasinoChatCodes`), the one part that never changes with the language, so players without the plugin can read it and every phone can find it. The door's sheet also keeps Copy invite. `CasinoChatInvites` listens to party, cross-world party, say and yell, ignores the player's own lines, and raises one notification per code per 15 minutes; tapping it opens Live and runs the same `JoinByCode` as typing the code, so knocks and invite-only rules still apply.
+
+**Roll games.** The Host tab's Roll games posters run a game in game chat, so players need no plugin: Deathroll (a duel, or a player against the host), Elimination (the lowest roll each round is out, ties roll again), Higher or Lower and Coin Flip against the host. Nothing goes to the server and nothing counts for levels or missions; the host's phone is the referee. `ChatRolls` listens only while a game is open, reads /random lines from the system log and /dice lines from any chat channel, and hands each roll to `RollTable`, which keeps the players, the turns and the result. `RollLines` reads a roll from the line's structure, not its wording: the rolled number follows icon 73, a /dice line starts with icon 54, and any other number is the range, so every client language reads the same way. A roll out of turn or of the wrong range shows in the log and changes nothing. With a channel picked, each turn and the result go out through `ChatSender` one line per 1.2 seconds from the framework tick, never from inside the chat handler. Record payout puts a player's win into the Book of the host's open gil table.
 
 **The ledger page.** `TableLedger` lists a gil table's entries (in or out, the other side, the kind, the amount, a RECORDED or OWED pill). A tap gives the host the entry's one action: Remove, Mark paid or Mark unpaid. "Missed a trade? Add it by hand" records an entry for a player, or for a guest by character name, since most patrons have no plugin. Players see the rows read only; My gil ledger (`GilLedgerView`) gathers every recent entry they are a side of.
 
@@ -182,7 +188,7 @@ Gamba has four tabs (`CasinoTab`); every other page is a `CasinoRoute` on the ro
 
 - **Floor** (CasinoApp.Lobby.cs, Strip/): resume card, chips hero with Get chips, level card, claims and daily streak, shortcuts, the Cards, Slots and Quick bets shelves, the jackpot marquee, live rooms, and the Fair play and loss limit links.
 - **Live** (CasinoApp.Live.cs, Live/): big wins, join by code or invite, your table, clocked rooms, challenges, house tables and player tables.
-- **Host** (CasinoApp.Host.cs, Venue/): your open table, or Host again and the game posters, then My gil ledger.
+- **Host** (CasinoApp.Host.cs, Venue/): your open table, or Host again and the game posters, then the roll games (CasinoApp.Rolls.cs, Rolls/) and My gil ledger.
 - **Cashier** (CashierPanel.cs): both balances, Buy chips or Cash out, one coin field and a confirm sheet. Partial cash out needs the `cashier.partial` feature. Every stage's chips capsule opens the same panel as a drawer.
 
 The bonus claim and daily spin home widgets live in Apps/Casino/Widgets/.

@@ -12,7 +12,6 @@ using Aetherphone.Windows.Components;
 using Aetherphone.Windows.Widgets;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Dailies;
 
@@ -20,7 +19,7 @@ internal sealed partial class DailiesApp
 {
     private const float RowWashRadius = 12f;
     private const float EditButtonRadius = RoundButton.SmallRadius;
-    private const float EditHitRadius = 20f;
+    private const float EditHitRadius = Metrics.Size.TapTarget * 0.5f;
     private const float EditGlyph = 13f;
     private const float HiddenAlpha = 0.45f;
     private const float UnavailableAlpha = 0.6f;
@@ -444,11 +443,11 @@ internal sealed partial class DailiesApp
         }
 
         bool entered;
-        using (ImRaii.PushColor(ImGuiCol.FrameBg, Transparent))
-        using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, Transparent))
-        using (ImRaii.PushColor(ImGuiCol.FrameBgActive, Transparent))
-        using (ImRaii.PushColor(ImGuiCol.Text, ui.TitleInk))
-        using (ImRaii.PushColor(ImGuiCol.TextDisabled, ui.MutedInk))
+        using (UiScope.PushColor(ImGuiCol.FrameBg, Transparent))
+        using (UiScope.PushColor(ImGuiCol.FrameBgHovered, Transparent))
+        using (UiScope.PushColor(ImGuiCol.FrameBgActive, Transparent))
+        using (UiScope.PushColor(ImGuiCol.Text, ui.TitleInk))
+        using (UiScope.PushColor(ImGuiCol.TextDisabled, ui.MutedInk))
         {
             entered = ImGui.InputTextWithHint("##dailies.compose", hint, ref composeText,
                 DailyLedger.MaxTitleLength * 4, ImGuiInputTextFlags.EnterReturnsTrue);

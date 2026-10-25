@@ -23,11 +23,12 @@ internal enum FollowState
     Following,
 }
 
-internal abstract class SocialFeedStore : IDisposable
+internal abstract partial class SocialFeedStore : IDisposable
 {
     private const int CommentImageDimension = 1280;
     private const string CommentUploadScope = "comment";
     private const long BadgeProgressRefreshMilliseconds = 60_000;
+    private const int UserListSearchCap = 2000;
 
     protected readonly AethernetSession session;
     protected readonly AccountClient account;
@@ -83,6 +84,7 @@ internal abstract class SocialFeedStore : IDisposable
     private volatile bool userListLoadingMore;
     private volatile bool userListLoading;
     private volatile bool userListFailed;
+    private volatile bool userListMoreFailed;
     private UserListKind userListKind;
     private volatile string? userListSourceId;
     private volatile Dictionary<string, int>? userListReactionKinds;
@@ -179,6 +181,7 @@ internal abstract class SocialFeedStore : IDisposable
         userListCursor = null;
         userListLoading = false;
         userListFailed = false;
+        userListMoreFailed = false;
         userListReactionKinds = null;
         userListReactionCounts = null;
         userListReactionFilter = -1;
@@ -364,6 +367,12 @@ internal abstract class SocialFeedStore : IDisposable
     public int[]? UserListReactionCounts => userListReactionCounts;
     public int UserListReactionFilter => userListReactionFilter;
     public int UserListTotal => userListTotal;
+    public int UserListSearchLimit => UserListSearchCap;
+    public bool UserListSearchCapped => userListCursor is not null && userListResults.Length >= UserListSearchCap;
+    public bool UserListSearchFilling => userListCursor is not null && !userListMoreFailed
+        && userListResults.Length < UserListSearchCap;
+    public bool UserListSearchStalled => userListCursor is not null && userListMoreFailed
+        && userListResults.Length < UserListSearchCap;
 
     public int ReactionKindOf(string userId)
     {
@@ -1358,6 +1367,7 @@ internal abstract class SocialFeedStore : IDisposable
         followingLane.Items = MapSaved(followingLane.Items, postId, saved);
         profileLane.Items = MapSaved(profileLane.Items, postId, saved);
         taggedLane.Items = MapSaved(taggedLane.Items, postId, saved);
+        hashtagLane.Items = MapSaved(hashtagLane.Items, postId, saved);
         likedLane.Items = MapSaved(likedLane.Items, postId, saved);
         savedLane.Items = saved
             ? MapSaved(savedLane.Items, postId, true)
@@ -1617,6 +1627,7 @@ internal abstract class SocialFeedStore : IDisposable
 
         userListCursor = null;
         userListFailed = false;
+        userListMoreFailed = false;
         userListLoading = true;
         work.Run("user list", async token =>
         {
@@ -1666,15 +1677,51 @@ internal abstract class SocialFeedStore : IDisposable
         work.Run("user list more", async token =>
         {
             var page = await FetchUserListPageAsync(kind, sourceId, cursor, token).ConfigureAwait(false);
-            if (page is null || Volatile.Read(ref userListGeneration) != generation)
+            if (Volatile.Read(ref userListGeneration) != generation)
             {
+                return;
+            }
+
+            if (page is null)
+            {
+                userListMoreFailed = true;
                 return;
             }
 
             userListResults = CopyOnWrite.AppendPageById(userListResults, page.Items);
             userListCursor = page.NextCursor;
+            userListMoreFailed = false;
             userListReactionKinds = MergeReactionKinds(userListReactionKinds, page.ReactionKinds);
         }, () => userListLoadingMore = false);
+    }
+
+    public void FillUserListForSearch()
+    {
+        if (UserListSearchFilling)
+        {
+            LoadMoreUserList();
+        }
+    }
+
+    public void RetryUserList()
+    {
+        var sourceId = userListSourceId;
+        if (sourceId is null)
+        {
+            return;
+        }
+
+        if (userListFailed)
+        {
+            OpenUserList(sourceId, userListKind);
+            return;
+        }
+
+        if (userListMoreFailed)
+        {
+            userListMoreFailed = false;
+            LoadMoreUserList();
+        }
     }
 
     private static Dictionary<string, int>? MergeReactionKinds(Dictionary<string, int>? existing,
@@ -1866,6 +1913,24 @@ internal abstract class SocialFeedStore : IDisposable
         if (detailPost is { } current && current.Id == postId)
         {
             detailPost = transform(current);
+        }
+    }
+
+    protected void MapReferencedEverywhere(string postId, Func<PostDto, PostDto> transform)
+    {
+        bool Match(PostDto host) => host.ReferencedPost is { } referenced && referenced.Id == postId;
+        PostDto Nest(PostDto host) => host with { ReferencedPost = transform(host.ReferencedPost!) };
+        forYouLane.Items = CopyOnWrite.Map(forYouLane.Items, Match, Nest);
+        latestLane.Items = CopyOnWrite.Map(latestLane.Items, Match, Nest);
+        followingLane.Items = CopyOnWrite.Map(followingLane.Items, Match, Nest);
+        profileLane.Items = CopyOnWrite.Map(profileLane.Items, Match, Nest);
+        savedLane.Items = CopyOnWrite.Map(savedLane.Items, Match, Nest);
+        taggedLane.Items = CopyOnWrite.Map(taggedLane.Items, Match, Nest);
+        hashtagLane.Items = CopyOnWrite.Map(hashtagLane.Items, Match, Nest);
+        likedLane.Items = CopyOnWrite.Map(likedLane.Items, Match, Nest);
+        if (detailPost is { } current && Match(current))
+        {
+            detailPost = Nest(current);
         }
     }
 

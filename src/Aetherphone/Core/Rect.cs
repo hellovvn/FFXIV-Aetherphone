@@ -23,4 +23,7 @@ internal readonly record struct Rect(Vector2 Min, Vector2 Max)
         var min = Vector2.Max(Min, other.Min);
         return new Rect(min, Vector2.Max(min, Vector2.Min(Max, other.Max)));
     }
+
+    public static Rect Lerp(Rect from, Rect to, float amount) =>
+        new(Vector2.Lerp(from.Min, to.Min, amount), Vector2.Lerp(from.Max, to.Max, amount));
 }

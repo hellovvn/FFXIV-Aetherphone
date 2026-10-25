@@ -84,13 +84,15 @@ internal static class FriendRow
     {
         var ink = chrome.Ink;
         var scale = UiScale.Current;
+        var size = chrome.ListRow(Height, AvatarRadius);
+        var glyph = size.Glyph * scale;
         var drawList = ImGui.GetWindowDrawList();
         var chipLabelWidth = friend.WorldName.Length > 0 ? Typography.Measure(friend.WorldName, WorldChipStyle).X : 0f;
-        var chipWidth = chipLabelWidth > 0f ? chipLabelWidth + ChipPadX * 2f * scale : 0f;
+        var chipWidth = chipLabelWidth > 0f ? chipLabelWidth + ChipPadX * 2f * glyph : 0f;
         var reserve = chipWidth > 0f ? chipWidth + ChipGap * scale : 0f;
-        var person = chrome.BeginPersonRow(drawList, Height, AvatarRadius, reserve, true, out var avatarCenter);
+        var person = chrome.BeginPersonRow(drawList, size.Height, size.AvatarRadius, reserve, true, out var avatarCenter);
         var alpha = friend.Online ? 1f : OfflineAlpha;
-        var radius = AvatarRadius * scale;
+        var radius = size.AvatarRadius * scale;
         AvatarView.Draw(drawList, avatarCenter, radius, friend.Online ? ink.Accent : ink.FaintInk,
             Initials.Of(friend.Name), MonogramScale, lodestone.Avatar(friend.Name, friend.WorldName, radius * 2f),
             AvatarSegments, alpha);
@@ -102,12 +104,12 @@ internal static class FriendRow
         if (chipWidth > 0f)
         {
             DrawWorldChip(drawList, ink, friend.WorldName, person.Bounds.Max.X - ChatListChrome.CellPadX * scale,
-                person.Bounds.Center.Y, chipWidth, alpha, scale);
+                person.Bounds.Center.Y, chipWidth, alpha, glyph);
         }
 
         chrome.DrawRowTitleAndSub(drawList, new MarqueeId("linkpearl.friend.", friend.Name), friend.Name,
             FriendLabels.RowSubtitle(friend), person.TextLeft, person.TextRight, person.Bounds.Center.Y,
-            Palette.WithAlpha(ink.TitleInk, alpha), Palette.WithAlpha(ink.MutedInk, alpha));
+            Palette.WithAlpha(ink.TitleInk, alpha), Palette.WithAlpha(ink.MutedInk, alpha), size);
         chrome.EndPersonRow(drawList, person);
         return person.Tapped;
     }

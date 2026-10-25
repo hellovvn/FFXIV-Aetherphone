@@ -7,6 +7,7 @@ internal sealed class FakeStatsConfiguration : IGameStatsConfiguration
     public List<GameStatRecord> GameStats { get; } = new();
     public List<GameModeChoice> GameModeChoices { get; } = new();
     public List<GameLevelProgress> GameLevelProgress { get; } = new();
+    public List<string> GameGuidesSeen { get; } = new();
     public int DailyChallengeStreak { get; set; }
     public int DailyChallengeLastDay { get; set; }
     public ulong DailyChallengeHistory { get; set; }

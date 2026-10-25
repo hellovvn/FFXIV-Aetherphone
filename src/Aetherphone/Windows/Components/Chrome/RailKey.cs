@@ -19,7 +19,15 @@ internal static class RailKey
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         }
 
-        HoverTooltip.Show(hit, hint);
+        HoverTooltip.Show(hit, hint, LabelSide(side));
         return new RailKeyState(hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left), held);
     }
+
+    private static HoverLabelSide LabelSide(RailSide side) => side switch
+    {
+        RailSide.Left => HoverLabelSide.Left,
+        RailSide.Right => HoverLabelSide.Right,
+        RailSide.Top => HoverLabelSide.Above,
+        _ => HoverLabelSide.Below,
+    };
 }

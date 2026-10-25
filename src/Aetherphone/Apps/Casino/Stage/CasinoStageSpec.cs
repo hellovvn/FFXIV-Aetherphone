@@ -41,6 +41,7 @@ internal enum CasinoInfoRequest : byte
     Extra,
     History,
     Fairness,
+    AddToHome,
 }
 
 internal readonly struct CasinoStageFrame

@@ -1,6 +1,7 @@
 using Aetherphone.Core;
 using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
+using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Market;
@@ -32,6 +33,7 @@ internal sealed partial class MarketApp : IResumableApp
     private readonly GameData gameData;
     private readonly ITextureProvider textures;
     private readonly Configuration configuration;
+    private readonly ConfirmService confirm;
     private readonly AppSkin ui = new(AppPalettes.Market);
     private readonly ViewRouter<MarketView> router;
     private readonly RouterDraw<MarketView> drawView;
@@ -43,7 +45,7 @@ internal sealed partial class MarketApp : IResumableApp
 
     public MarketApp(MarketboardService market, MarketItemIndex index, MarketAlertService alerts,
         MarketWatchlist watchlist, MarketLauncher launcher, GameData gameData, ITextureProvider textures,
-        Configuration configuration)
+        Configuration configuration, ConfirmService confirm)
     {
         this.market = market;
         this.index = index;
@@ -53,6 +55,7 @@ internal sealed partial class MarketApp : IResumableApp
         this.gameData = gameData;
         this.textures = textures;
         this.configuration = configuration;
+        this.confirm = confirm;
         router = new ViewRouter<MarketView>(MarketView.Root());
         drawView = DrawView;
         back = () => router.Pop();
@@ -62,7 +65,7 @@ internal sealed partial class MarketApp : IResumableApp
     {
         router.Reset();
         search = string.Empty;
-        alertSheet.CloseImmediately();
+        CloseSheets();
         alerts.Acknowledge();
         index.EnsureBuilt();
         watchlist.RefreshScopes();
@@ -77,7 +80,13 @@ internal sealed partial class MarketApp : IResumableApp
 
     public void OnClosed()
     {
+        CloseSheets();
+    }
+
+    private void CloseSheets()
+    {
         alertSheet.CloseImmediately();
+        scopeSheet.CloseImmediately();
     }
 
     private MarketScope Scope => watchlist.Scope;
@@ -97,12 +106,13 @@ internal sealed partial class MarketApp : IResumableApp
         var scale = UiScale.Current;
         var screen = SceneChrome.ScreenFrom(context.Content, theme, scale);
         ui.Backdrop(screen);
-        using (InputShield.Engage(alertSheet.CapturesPointer))
+        using (InputShield.Engage(alertSheet.CapturesPointer || scopeSheet.CapturesPointer))
         {
             router.Draw(context.Content, AppSkin.Transparent, ImGui.GetIO().DeltaTime, drawView);
         }
 
         DrawAlertSheet(screen);
+        DrawScopeSheet(screen);
         if (router.Depth > 1)
         {
             TourHolds.Hold(Id);
@@ -124,7 +134,7 @@ internal sealed partial class MarketApp : IResumableApp
             else if (requestedSearch is not null)
             {
                 router.Reset();
-                alertSheet.CloseImmediately();
+                CloseSheets();
                 search = requestedSearch;
                 lastSearch = "\u0001";
             }
@@ -138,7 +148,7 @@ internal sealed partial class MarketApp : IResumableApp
         if (index.TryGet(pendingOpenId, out var pending))
         {
             router.Reset();
-            alertSheet.CloseImmediately();
+            CloseSheets();
             OpenItem(pending, false);
         }
 
@@ -205,37 +215,6 @@ internal sealed partial class MarketApp : IResumableApp
         }
 
         configuration.Save();
-    }
-
-    private float DrawScopeStrip(Vector2 origin, float width, string? anchor, float scale)
-    {
-        var scopes = watchlist.Scopes;
-        if (scopes.Count == 0)
-        {
-            return origin.Y;
-        }
-
-        scopeLabels.Clear();
-        for (var scopeIndex = 0; scopeIndex < scopes.Count; scopeIndex++)
-        {
-            scopeLabels.Add(scopes[scopeIndex].ApiName);
-        }
-
-        var row = new Rect(origin, new Vector2(origin.X + width, origin.Y + ScopeStripHeight * scale));
-        if (anchor is not null)
-        {
-            UiAnchors.Report(anchor, row);
-        }
-
-        var current = watchlist.ScopeIndex;
-        var selected = SegmentStrip.Draw(anchor ?? "market.scope.root", row, scopeLabels, current, ui.Palette);
-        if (selected != current && selected >= 0)
-        {
-            UiFeedback.Play(UiSound.Tap);
-            watchlist.SetScope(selected);
-        }
-
-        return row.Max.Y;
     }
 
     private static void ReserveTo(Vector2 origin, float width, float bottom)

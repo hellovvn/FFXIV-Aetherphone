@@ -91,9 +91,9 @@ internal sealed class SpotlightOverlay
         var field = SpotlightLayout.RestRect(content, scale);
         var interactive = open && progress > InteractiveThreshold;
         var overContent = interactive && UiInteract.Hover(field.Min, field.Max);
-        var fieldVertexStart = drawList.VtxBuffer.Size;
         Material.LiquidGlass(drawList, field.Min, field.Max, SpotlightLayout.FieldRadiusUnits * scale, scale,
-            GlassTone.Dark, 0f);
+            GlassTone.Dark, 0f, progress);
+        var fieldVertexStart = drawList.VtxBuffer.Size;
         DrawQueryField(drawList, field, scale);
         LayerCompositor.Fade(drawList, fieldVertexStart, progress);
         var listTop = field.Max.Y + SpotlightLayout.ListGapUnits * scale;
