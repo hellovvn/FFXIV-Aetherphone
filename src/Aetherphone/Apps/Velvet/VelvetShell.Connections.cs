@@ -14,6 +14,10 @@ internal sealed partial class VelvetShell
     private const float ConnectionsAvatarRadius = 22f;
     private const int ConnectionsSearchMaxLength = 40;
 
+    private static readonly SocialUserRowStyle ConnectionsRowStyle = new(ConnectionsRowHeight,
+        ConnectionsAvatarRadius, SocialChrome.CellPadX, 0f, 0f, TextStyles.Headline, TextStyles.Subheadline,
+        VelvetTheme.HoverWash);
+
     private readonly List<VelvetConnectionDto> connectionMatches = new();
     private string connectionsQuery = string.Empty;
     private string connectionsMatchedQuery = string.Empty;
@@ -65,6 +69,11 @@ internal sealed partial class VelvetShell
             Gap(2f);
             for (var index = 0; index < connectionMatches.Count; index++)
             {
+                if (SocialUserRow.SkipHidden(ConnectionsRowStyle))
+                {
+                    continue;
+                }
+
                 DrawConnectionRow(connectionMatches[index]);
             }
 
