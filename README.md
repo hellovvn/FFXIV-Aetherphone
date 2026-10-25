@@ -95,6 +95,7 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
         <li>Voice calls, one-on-one or in groups, with a mic test and a threshold you set</li>
         <li>The Aetherphone Team writes to you here, for example to set up the trade for a Prism gil prize, and you can reply</li>
         <li>End-to-end encrypted</li>
+        <li>Comfortable, Standard or Compact lists, so more chats and contacts fit on screen</li>
       </ul>
     </td>
     <td width="50%" valign="top">

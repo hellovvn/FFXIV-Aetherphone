@@ -91,6 +91,7 @@ Aethernet a ouvert ses portes le 2 juillet 2026. À la fin de la saison, les jou
         <li>Collez ou faites glisser une photo et ajoutez une légende avant l'envoi</li>
         <li>Appels vocaux, en tête-à-tête ou en groupe</li>
         <li>Chiffrement de bout en bout</li>
+        <li>Listes en taille Confortable, Standard ou Compact, pour afficher plus de discussions et de contacts</li>
       </ul>
     </td>
     <td width="50%" valign="top">
