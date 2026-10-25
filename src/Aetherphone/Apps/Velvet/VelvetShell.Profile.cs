@@ -225,8 +225,22 @@ internal sealed partial class VelvetShell
             return;
         }
 
-        DrawProfileStat(drawList, left + column, top, column, valueHeight, store.Connections.Length,
+        var connectionsLeft = left + column;
+        DrawProfileStat(drawList, connectionsLeft, top, column, valueHeight, ConnectedCount(),
             Loc.T(L.Velvet.ProfileConnections));
+        var hitMin = new Vector2(connectionsLeft, top);
+        var hitMax = new Vector2(connectionsLeft + column, top + valueHeight
+            + Typography.LineHeight(ProfileStatLabelStyle));
+        var hovered = UiInteract.Hover(hitMin, hitMax);
+        if (hovered)
+        {
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+        }
+
+        if (UiInteract.Click(hitMin, hitMax, hovered))
+        {
+            OpenConnections();
+        }
     }
 
     private static void DrawProfileStat(ImDrawListPtr drawList, float left, float top, float column, float valueHeight,

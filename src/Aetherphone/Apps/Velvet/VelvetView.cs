@@ -43,6 +43,7 @@ internal enum VelvetScreenId
     Archive,
     Liked,
     ArchivedChats,
+    Connections,
 }
 
 internal readonly record struct VelvetView(VelvetScreenId Screen, string? Arg = null)
@@ -62,6 +63,7 @@ internal readonly record struct VelvetView(VelvetScreenId Screen, string? Arg = 
     public static readonly VelvetView Archive = new(VelvetScreenId.Archive);
     public static readonly VelvetView Liked = new(VelvetScreenId.Liked);
     public static readonly VelvetView ArchivedChats = new(VelvetScreenId.ArchivedChats);
+    public static readonly VelvetView Connections = new(VelvetScreenId.Connections);
 
     public static VelvetView Profile(string userId) => new(VelvetScreenId.Profile, userId);
     public static VelvetView Thread(string userId) => new(VelvetScreenId.Thread, userId);

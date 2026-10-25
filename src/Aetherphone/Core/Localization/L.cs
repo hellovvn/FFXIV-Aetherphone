@@ -7683,6 +7683,10 @@ internal static class L
         public static readonly LocPlural ConnectToUnlockPosts =
             new("velvet.connectToUnlockPosts", "Connect to unlock {0} post", "Connect to unlock {0} posts");
         public static readonly LocString ProfileConnections = new("velvet.profileConnections", "Connections");
+        public static readonly LocString ConnectionsSearchHint = new("velvet.connectionsSearchHint", "Search by name or handle");
+        public static readonly LocString ConnectionsNone = new("velvet.connectionsNone", "No connections yet.");
+        public static readonly LocString ConnectionsNoneHint = new("velvet.connectionsNoneHint", "People you connect with show up here.");
+        public static readonly LocString ConnectionsNoMatches = new("velvet.connectionsNoMatches", "No one matches that name.");
         public static readonly LocString IntroTitle = new("velvet.introTitle", "Connect with");
         public static readonly LocString IntroduceYourselfTo = new("velvet.introduceYourselfTo", "Introduce yourself to {0}");
         public static readonly LocString YourIntro = new("velvet.yourIntro", "Your intro");

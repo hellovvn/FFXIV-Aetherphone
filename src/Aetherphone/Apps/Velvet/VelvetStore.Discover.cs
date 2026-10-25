@@ -18,6 +18,8 @@ namespace Aetherphone.Apps.Velvet;
 
 internal sealed partial class VelvetStore
 {
+    private const int ConnectionsLoadLimit = 2000;
+
     public void RefreshDiscover(VelvetDiscoverFilter filter, string tags, string region)
     {
         if (!session.IsSignedIn)
@@ -212,10 +214,27 @@ internal sealed partial class VelvetStore
         work.Run("connections", async token =>
         {
             var page = await client.ConnectionsAsync(null, token).ConfigureAwait(false);
-            if (page is not null)
+            if (page is null)
             {
-                connections = page.Items;
+                return;
             }
+
+            var loaded = page.Items;
+            while (page.NextCursor is { } cursor && loaded.Length < ConnectionsLoadLimit)
+            {
+                page = await client.ConnectionsAsync(cursor, token).ConfigureAwait(false);
+                if (page is null || page.Items.Length == 0)
+                {
+                    break;
+                }
+
+                var merged = new VelvetConnectionDto[loaded.Length + page.Items.Length];
+                Array.Copy(loaded, merged, loaded.Length);
+                Array.Copy(page.Items, 0, merged, loaded.Length, page.Items.Length);
+                loaded = merged;
+            }
+
+            connections = loaded;
         }, () =>
         {
             loadingConnections = false;
