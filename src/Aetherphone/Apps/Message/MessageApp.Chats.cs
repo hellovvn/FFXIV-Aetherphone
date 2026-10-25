@@ -362,54 +362,56 @@ internal sealed partial class MessageApp
     private void DrawConversationRow(ImDrawListPtr drawList, ConversationDto item, bool pinned)
     {
         var scale = UiScale.Current;
-        var row = BeginPersonRow(drawList, ChatRowHeight, ChatRowAvatarRadius, 0f, true, out var avatarCenter);
-        DrawConversationAvatar(drawList, item, avatarCenter, ChatRowAvatarRadius * scale);
+        var size = chrome.ListRow(ChatRowHeight, ChatRowAvatarRadius);
+        var glyph = size.Glyph * scale;
+        var row = BeginPersonRow(drawList, size.Height, size.AvatarRadius, 0f, true, out var avatarCenter);
+        DrawConversationAvatar(drawList, item, avatarCenter, size.AvatarRadius * scale);
         var title = store.DisplayTitle(item);
         var unread = item.UnreadCount > 0;
-        var lineTop = row.Bounds.Min.Y + ChatRowTitleTop * scale;
-        var titleHeight = Typography.LineHeight(RowTitleStyle);
+        var lineTop = size.TextTop(row.Bounds, ChatRowTitleTop);
+        var titleHeight = Typography.LineHeight(size.TitleStyle);
         var timeLabel = ChatTime(item.LastMessageAtUnix);
-        var timeSize = Typography.Measure(timeLabel, RowMetaStyle);
+        var timeSize = Typography.Measure(timeLabel, size.MetaStyle);
         var timeLeft = row.TextRight - timeSize.X;
         Typography.Draw(drawList, new Vector2(timeLeft, lineTop + (titleHeight - timeSize.Y) * 0.5f), timeLabel,
-            unread ? ink.AccentLink : ink.MutedInk, RowMetaStyle);
+            unread ? ink.AccentLink : ink.MutedInk, size.MetaStyle);
         var titleRight = timeLabel.Length > 0 ? timeLeft - TimeGap * scale : row.TextRight;
         var titleHovering = UiInteract.Hover(new Vector2(row.TextLeft, lineTop),
             new Vector2(titleRight, lineTop + titleHeight));
         Marquee.DrawLeft(drawList, new MarqueeId("messageapp.chats.title.", item.Id), title, row.TextLeft, lineTop,
-            MathF.Max(1f, titleRight - row.TextLeft), RowTitleStyle, ink.TitleInk, titleHovering);
+            MathF.Max(1f, titleRight - row.TextLeft), size.TitleStyle, ink.TitleInk, titleHovering);
 
-        var subHeight = Typography.LineHeight(RowSubStyle);
-        var subTop = lineTop + titleHeight + RowLineGap * scale;
+        var subHeight = Typography.LineHeight(size.SubStyle);
+        var subTop = lineTop + titleHeight + size.LineGap * scale;
         var subCenterY = subTop + subHeight * 0.5f;
         var right = row.TextRight;
         if (unread)
         {
-            right = DrawUnreadBadge(drawList, right, subCenterY, item.UnreadCount, item.Muted);
+            right = DrawUnreadBadge(drawList, right, subCenterY, item.UnreadCount, item.Muted, glyph);
         }
 
         if (item.Muted)
         {
-            PhoneIcon.Draw(drawList, new Vector2(right - RowStatusGlyph * 0.5f * scale, subCenterY), PhoneIcons.BellOff,
-                ink.MutedInk, RowStatusGlyph * scale);
-            right -= RowStatusPitch * scale;
+            PhoneIcon.Draw(drawList, new Vector2(right - RowStatusGlyph * 0.5f * glyph, subCenterY), PhoneIcons.BellOff,
+                ink.MutedInk, RowStatusGlyph * glyph);
+            right -= RowStatusPitch * glyph;
         }
 
         if (pinned)
         {
-            PhoneIcon.Draw(drawList, new Vector2(right - RowStatusGlyph * 0.5f * scale, subCenterY),
-                PhoneIcons.PinFilled, ink.MutedInk, RowStatusGlyph * scale);
-            right -= RowStatusPitch * scale;
+            PhoneIcon.Draw(drawList, new Vector2(right - RowStatusGlyph * 0.5f * glyph, subCenterY),
+                PhoneIcons.PinFilled, ink.MutedInk, RowStatusGlyph * glyph);
+            right -= RowStatusPitch * glyph;
         }
 
         if (!item.IsGroup && musters.ContactMusterFor(item.OtherUserId) is { } hosted)
         {
-            var musterCenter = new Vector2(right - RowStatusGlyph * 0.5f * scale, subCenterY);
-            var musterExtent = new Vector2(RowStatusGlyph * 0.6f * scale, RowStatusGlyph * 0.6f * scale);
+            var musterCenter = new Vector2(right - RowStatusGlyph * 0.5f * glyph, subCenterY);
+            var musterExtent = new Vector2(RowStatusGlyph * 0.6f * glyph, RowStatusGlyph * 0.6f * glyph);
             var musterRect = new Rect(musterCenter - musterExtent, musterCenter + musterExtent);
             var overMuster = UiInteract.Hover(musterRect.Min, musterRect.Max);
             PhoneIcon.Draw(drawList, musterCenter, PhoneIcons.Compass, AppAccents.For(MusterStore.AppId),
-                RowStatusGlyph * scale);
+                RowStatusGlyph * glyph);
             HoverTooltip.Show(musterRect, Loc.T(L.Message.HostingMuster), HoverLabelSide.Above);
             if (UiInteract.Click(musterRect.Min, musterRect.Max, overMuster))
             {
@@ -417,7 +419,7 @@ internal sealed partial class MessageApp
                 navigation.Open(MusterStore.AppId);
             }
 
-            right -= RowStatusPitch * scale;
+            right -= RowStatusPitch * glyph;
         }
 
         var previewRight = right - RowTrailingGap * scale;
@@ -426,23 +428,23 @@ internal sealed partial class MessageApp
         if (draft.Length > 0)
         {
             var prefix = Loc.T(L.Message.DraftPrefix);
-            var prefixStyle = new TextStyle(RowSubStyle.Scale, FontWeight.SemiBold);
+            var prefixStyle = new TextStyle(size.SubStyle.Scale, FontWeight.SemiBold);
             var prefixSize = Typography.Measure(prefix, prefixStyle);
             Typography.Draw(drawList, new Vector2(row.TextLeft, subTop), prefix, ink.AccentLink, prefixStyle);
             var draftLeft = row.TextLeft + prefixSize.X + PreviewGlyphGap * scale;
             Typography.Draw(drawList, new Vector2(draftLeft, subTop),
-                Typography.FitText(draft, MathF.Max(1f, previewRight - draftLeft), RowSubStyle), ink.MutedInk,
-                RowSubStyle);
+                Typography.FitText(draft, MathF.Max(1f, previewRight - draftLeft), size.SubStyle), ink.MutedInk,
+                size.SubStyle);
         }
         else
         {
             var previewLeft = row.TextLeft;
             if (item.LastMessageSenderId.Length > 0 && item.LastMessageSenderId == store.MyUserId)
             {
-                PhoneIcon.Draw(drawList, new Vector2(previewLeft + PreviewGlyph * 0.5f * scale, subCenterY),
+                PhoneIcon.Draw(drawList, new Vector2(previewLeft + PreviewGlyph * 0.5f * glyph, subCenterY),
                     item.LastMessageSeen ? PhoneIcons.Checks : PhoneIcons.Check,
-                    item.LastMessageSeen ? Core.Theme.ChatInk.SeenTick : ink.MutedInk, PreviewGlyph * scale);
-                previewLeft += PreviewGlyph * scale + PreviewGlyphGap * scale;
+                    item.LastMessageSeen ? Core.Theme.ChatInk.SeenTick : ink.MutedInk, PreviewGlyph * glyph);
+                previewLeft += PreviewGlyph * glyph + PreviewGlyphGap * scale;
             }
 
             var hidden = store.HidesLastMessage(item);
@@ -456,9 +458,9 @@ internal sealed partial class MessageApp
                 };
             if (kindGlyph.Length > 0)
             {
-                PhoneIcon.Draw(drawList, new Vector2(previewLeft + PreviewGlyph * 0.5f * scale, subCenterY), kindGlyph,
-                    previewInk, PreviewGlyph * scale);
-                previewLeft += PreviewGlyph * scale + PreviewGlyphGap * scale;
+                PhoneIcon.Draw(drawList, new Vector2(previewLeft + PreviewGlyph * 0.5f * glyph, subCenterY), kindGlyph,
+                    previewInk, PreviewGlyph * glyph);
+                previewLeft += PreviewGlyph * glyph + PreviewGlyphGap * scale;
             }
 
             var preview = hidden
@@ -472,8 +474,8 @@ internal sealed partial class MessageApp
                         _ => string.Empty,
                     };
             Typography.Draw(drawList, new Vector2(previewLeft, subTop),
-                Typography.FitText(preview, MathF.Max(1f, previewRight - previewLeft), RowSubStyle), previewInk,
-                RowSubStyle);
+                Typography.FitText(preview, MathF.Max(1f, previewRight - previewLeft), size.SubStyle), previewInk,
+                size.SubStyle);
         }
 
         if (UiInteract.Hover(row.Bounds.Min, row.Bounds.Max) && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
@@ -488,20 +490,20 @@ internal sealed partial class MessageApp
         EndPersonRow(drawList, row);
     }
 
-    private float DrawUnreadBadge(ImDrawListPtr drawList, float right, float centerY, int count, bool muted)
+    private float DrawUnreadBadge(ImDrawListPtr drawList, float right, float centerY, int count, bool muted,
+        float iconScale)
     {
-        var scale = UiScale.Current;
-        var badgeRadius = UnreadBadgeRadius * scale;
+        var badgeRadius = UnreadBadgeRadius * iconScale;
         var label = count > 99 ? "99+" : NumberText.Group(count);
         var labelWidth = Typography.Measure(label, UnreadCountStyle).X;
-        var badgeWidth = MathF.Max(badgeRadius * 2f, labelWidth + 10f * scale);
+        var badgeWidth = MathF.Max(badgeRadius * 2f, labelWidth + 10f * iconScale);
         var badgeMin = new Vector2(right - badgeWidth, centerY - badgeRadius);
         var badgeMax = new Vector2(right, centerY + badgeRadius);
         Squircle.Fill(drawList, badgeMin, badgeMax, badgeRadius,
             ImGui.GetColorU32(muted ? ink.MutedInk : activeTheme.Badge));
         Typography.DrawCentered(drawList, (badgeMin + badgeMax) * 0.5f, label, muted ? ChatThemes.Body : White,
             UnreadCountStyle);
-        return badgeMin.X - RowTrailingGap * scale;
+        return badgeMin.X - RowTrailingGap * UiScale.Current;
     }
 
     private void OpenChatSheet(ConversationDto conversation)

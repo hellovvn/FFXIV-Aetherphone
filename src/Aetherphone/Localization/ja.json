@@ -457,6 +457,7 @@
   "message.wallpaper": "壁紙",
   "message.chatTheme": "チャットのテーマ",
   "message.chatThemeHint": "ChocoChatでのメッセージ、ボタン、バッジの色です。",
+  "message.listSize": "リストのサイズ",
   "message.wallpaperHint": "チャットの背景です。色を選ぶか、パターンを加えるか、自分の写真を使えます。",
   "message.wallpaperChatOnly": "この選択はこのチャットにだけ適用されます。",
   "message.wallpaperUseDefault": "既定の壁紙を使う",

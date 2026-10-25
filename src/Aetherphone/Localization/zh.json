@@ -457,6 +457,7 @@
   "message.wallpaper": "壁纸",
   "message.chatTheme": "聊天主题",
   "message.chatThemeHint": "ChocoChat 中你的消息、按钮和角标的颜色。",
+  "message.listSize": "列表大小",
   "message.wallpaperHint": "聊天的背景。选一种颜色、加上图案，或使用你自己的照片。",
   "message.wallpaperChatOnly": "此选择仅对本聊天生效。",
   "message.wallpaperUseDefault": "使用默认壁纸",

@@ -254,6 +254,7 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
         threadSheet.Gate();
         memberSheet.Gate();
         groupPhotoSheet.Gate();
+        listSizeMenu.Gate();
         var screen = SceneChrome.ScreenFrom(context.Content, theme, UiScale.Current);
         screenRect = screen;
         chrome.ScreenRect = screen;

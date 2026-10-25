@@ -500,6 +500,7 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public string MessageWallpaper { get; set; } = string.Empty;
     public bool MessageWallpaperPattern { get; set; } = true;
     public Dictionary<string, string> MessageChatWallpapers { get; set; } = new();
+    public ListDensity MessageListDensity { get; set; }
     public float MessagePopoutOpacity { get; set; } = 1f;
     public float MessagePopoutTextScale { get; set; } = 1f;
     public bool MessagePopoutFade { get; set; }
@@ -509,6 +510,7 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public bool LinkpearlWallpaperPattern { get; set; } = true;
     public Dictionary<string, string> LinkpearlChatWallpapers { get; set; } = new();
     public int LinkpearlDefaultDensity { get; set; }
+    public ListDensity LinkpearlListDensity { get; set; }
     public float LinkpearlTextScale { get; set; } = 1f;
     public bool LinkpearlLogTimestamps { get; set; } = true;
     public bool LinkpearlLogWorldNames { get; set; } = true;

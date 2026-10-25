@@ -175,19 +175,21 @@ internal sealed partial class MessageApp
     private void DrawFavoriteCallRow(ImDrawListPtr drawList, ContactDto contact)
     {
         var scale = UiScale.Current;
+        var size = chrome.ListRow(CallRowHeight, CallRowAvatarRadius);
+        var glyph = size.Glyph * scale;
         var label = ContactBook.DisplayLabel(contact);
-        var row = BeginPersonRow(drawList, CallRowHeight, CallRowAvatarRadius, CallFavoriteRadius * 2f * scale, true,
+        var row = BeginPersonRow(drawList, size.Height, size.AvatarRadius, CallFavoriteRadius * 2f * glyph, true,
             out var avatarCenter);
-        DrawContactAvatar(drawList, contact, avatarCenter, CallRowAvatarRadius * scale);
+        DrawContactAvatar(drawList, contact, avatarCenter, size.AvatarRadius * scale);
         DrawRowTitleAndSub(drawList, new MarqueeId("messageapp.calls.favorite.", contact.UserId), label,
             ContactBook.Format(contact.PhoneNumber), row.TextLeft, row.TextRight, row.Bounds.Center.Y, ink.TitleInk,
-            ink.MutedInk);
-        var callCenter = new Vector2(row.Bounds.Max.X - CellPadX * scale - CallFavoriteRadius * scale,
+            ink.MutedInk, size);
+        var callCenter = new Vector2(row.Bounds.Max.X - CellPadX * scale - CallFavoriteRadius * glyph,
             row.Bounds.Center.Y);
-        var callExtent = new Vector2(CallFavoriteRadius * scale, CallFavoriteRadius * scale);
+        var callExtent = new Vector2(CallFavoriteRadius * glyph, CallFavoriteRadius * glyph);
         var callHovered = UiInteract.Hover(callCenter - callExtent, callCenter + callExtent);
         PhoneIcon.Draw(drawList, callCenter, PhoneIcons.Phone, callHovered ? ink.AccentLink : ink.Accent,
-            CallFavoriteGlyph * scale);
+            CallFavoriteGlyph * glyph);
         HoverTooltip.Show(new Rect(callCenter - callExtent, callCenter + callExtent), Loc.T(L.Friends.Call),
             HoverLabelSide.Above);
         if (UiInteract.Click(callCenter - callExtent, callCenter + callExtent, callHovered) || row.Tapped)
@@ -201,32 +203,34 @@ internal sealed partial class MessageApp
     private void DrawLogRow(ImDrawListPtr drawList, CallLogEntry entry)
     {
         var scale = UiScale.Current;
+        var size = chrome.ListRow(CallRowHeight, CallRowAvatarRadius);
+        var glyph = size.Glyph * scale;
         var known = contacts.Find(entry.UserId);
         var name = known is not null ? ContactBook.DisplayLabel(known) : entry.DisplayName;
         var title = entry.Count > 1 ? $"{name} ({entry.Count})" : name;
         var callable = known is not null && known.IsMutual;
-        var infoReserve = known is not null ? CallInfoRadius * 2f * scale + RowTrailingGap * scale : 0f;
-        var row = BeginPersonRow(drawList, CallRowHeight, CallRowAvatarRadius, infoReserve, known is not null,
+        var infoReserve = known is not null ? CallInfoRadius * 2f * glyph + RowTrailingGap * scale : 0f;
+        var row = BeginPersonRow(drawList, size.Height, size.AvatarRadius, infoReserve, known is not null,
             out var avatarCenter);
         if (known is not null && !string.IsNullOrEmpty(known.AvatarUrl))
         {
-            DrawContactAvatar(drawList, known, avatarCenter, CallRowAvatarRadius * scale);
+            DrawContactAvatar(drawList, known, avatarCenter, size.AvatarRadius * scale);
         }
         else
         {
-            AvatarView.Draw(drawList, avatarCenter, CallRowAvatarRadius * scale, theme.Accent, Initials.Of(name), 1f,
-                lodestone.Avatar(entry.Name, entry.World, CallRowAvatarRadius * 2f * scale), 32);
+            AvatarView.Draw(drawList, avatarCenter, size.AvatarRadius * scale, theme.Accent, Initials.Of(name), 1f,
+                lodestone.Avatar(entry.Name, entry.World, size.AvatarRadius * 2f * scale), 32);
         }
 
         var right = row.TextRight;
         if (known is not null)
         {
-            var infoCenter = new Vector2(row.Bounds.Max.X - CellPadX * scale - CallInfoRadius * scale,
+            var infoCenter = new Vector2(row.Bounds.Max.X - CellPadX * scale - CallInfoRadius * glyph,
                 row.Bounds.Center.Y);
-            var infoExtent = new Vector2(CallInfoRadius * scale, CallInfoRadius * scale);
+            var infoExtent = new Vector2(CallInfoRadius * glyph, CallInfoRadius * glyph);
             var infoHovered = UiInteract.Hover(infoCenter - infoExtent, infoCenter + infoExtent);
             PhoneIcon.Draw(drawList, infoCenter, PhoneIcons.InfoCircle, infoHovered ? ink.AccentLink : ink.MutedInk,
-                CallInfoGlyph * scale);
+                CallInfoGlyph * glyph);
             HoverTooltip.Show(new Rect(infoCenter - infoExtent, infoCenter + infoExtent), Loc.T(L.Phone.ContactInfo),
                 HoverLabelSide.Above);
             if (UiInteract.Click(infoCenter - infoExtent, infoCenter + infoExtent, infoHovered))
@@ -236,19 +240,19 @@ internal sealed partial class MessageApp
         }
 
         var time = TimeText.Short(entry.TimestampUnix);
-        var timeSize = Typography.Measure(time, RowMetaStyle);
+        var timeSize = Typography.Measure(time, size.MetaStyle);
         Typography.Draw(drawList, new Vector2(right - timeSize.X, row.Bounds.Center.Y - timeSize.Y * 0.5f), time,
-            ink.MutedInk, RowMetaStyle);
+            ink.MutedInk, size.MetaStyle);
         right -= timeSize.X + RowTrailingGap * scale;
 
         var missed = entry.Direction == CallDirection.Missed;
-        var titleHeight = Typography.LineHeight(RowTitleStyle);
-        var subHeight = Typography.LineHeight(RowSubStyle);
-        var top = row.Bounds.Center.Y - (titleHeight + RowLineGap * scale + subHeight) * 0.5f;
+        var titleHeight = Typography.LineHeight(size.TitleStyle);
+        var subHeight = Typography.LineHeight(size.SubStyle);
+        var top = row.Bounds.Center.Y - (titleHeight + size.LineGap * scale + subHeight) * 0.5f;
         var width = MathF.Max(1f, right - row.TextLeft);
         var hovering = UiInteract.Hover(new Vector2(row.TextLeft, top), new Vector2(right, top + titleHeight));
         Marquee.DrawLeft(drawList, new MarqueeId("messageapp.calls.title.", entry.UserId, entry.TimestampUnix), title,
-            row.TextLeft, top, width, RowTitleStyle, missed ? ink.Danger : ink.TitleInk, hovering);
+            row.TextLeft, top, width, size.TitleStyle, missed ? ink.Danger : ink.TitleInk, hovering);
         var directionGlyph = entry.Direction switch
         {
             CallDirection.Outgoing => PhoneIcons.PhoneOutgoing,
@@ -262,13 +266,13 @@ internal sealed partial class MessageApp
             CallDirection.Incoming => Loc.T(L.Phone.Incoming),
             _ => Loc.T(L.Phone.Missed),
         };
-        var subTop = top + titleHeight + RowLineGap * scale;
-        PhoneIcon.Draw(drawList, new Vector2(row.TextLeft + CallDirectionGlyph * 0.5f * scale, subTop + subHeight * 0.5f),
-            directionGlyph, directionInk, CallDirectionGlyph * scale);
-        var labelLeft = row.TextLeft + CallDirectionGlyph * scale + 5f * scale;
+        var subTop = top + titleHeight + size.LineGap * scale;
+        PhoneIcon.Draw(drawList, new Vector2(row.TextLeft + CallDirectionGlyph * 0.5f * glyph, subTop + subHeight * 0.5f),
+            directionGlyph, directionInk, CallDirectionGlyph * glyph);
+        var labelLeft = row.TextLeft + CallDirectionGlyph * glyph + 5f * scale;
         Typography.Draw(drawList, new Vector2(labelLeft, subTop),
-            Typography.FitText(directionLabel, MathF.Max(1f, right - labelLeft), RowSubStyle), ink.MutedInk,
-            RowSubStyle);
+            Typography.FitText(directionLabel, MathF.Max(1f, right - labelLeft), size.SubStyle), ink.MutedInk,
+            size.SubStyle);
 
         if (row.Tapped)
         {
@@ -368,16 +372,18 @@ internal sealed partial class MessageApp
     private void DrawPickerRow(ImDrawListPtr drawList, ContactDto contact, bool addMode)
     {
         var scale = UiScale.Current;
+        var size = chrome.ListRow(CallRowHeight, CallRowAvatarRadius);
+        var glyph = size.Glyph * scale;
         var label = ContactBook.DisplayLabel(contact);
-        var row = BeginPersonRow(drawList, CallRowHeight, CallRowAvatarRadius, CallFavoriteRadius * 2f * scale, true,
+        var row = BeginPersonRow(drawList, size.Height, size.AvatarRadius, CallFavoriteRadius * 2f * glyph, true,
             out var avatarCenter);
-        DrawContactAvatar(drawList, contact, avatarCenter, CallRowAvatarRadius * scale);
+        DrawContactAvatar(drawList, contact, avatarCenter, size.AvatarRadius * scale);
         DrawRowTitleAndSub(drawList, new MarqueeId("messageapp.calls.pick.", contact.UserId), label,
             ContactBook.Format(contact.PhoneNumber), row.TextLeft, row.TextRight, row.Bounds.Center.Y, ink.TitleInk,
-            ink.MutedInk);
-        var callCenter = new Vector2(row.Bounds.Max.X - CellPadX * scale - CallFavoriteRadius * scale,
+            ink.MutedInk, size);
+        var callCenter = new Vector2(row.Bounds.Max.X - CellPadX * scale - CallFavoriteRadius * glyph,
             row.Bounds.Center.Y);
-        PhoneIcon.Draw(drawList, callCenter, PhoneIcons.Phone, ink.Accent, CallFavoriteGlyph * scale);
+        PhoneIcon.Draw(drawList, callCenter, PhoneIcons.Phone, ink.Accent, CallFavoriteGlyph * glyph);
         if (row.Tapped)
         {
             Place(new CallContact(contact.UserId, string.Empty, string.Empty, label), addMode);

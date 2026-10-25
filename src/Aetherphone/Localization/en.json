@@ -457,6 +457,7 @@
   "message.wallpaper": "Wallpaper",
   "message.chatTheme": "Chat theme",
   "message.chatThemeHint": "The color of your messages, buttons and badges in ChocoChat.",
+  "message.listSize": "List size",
   "message.wallpaperHint": "The backdrop behind your chats. Pick a color, add the pattern, or use one of your photos.",
   "message.wallpaperChatOnly": "This choice applies to this chat only.",
   "message.wallpaperUseDefault": "Use default wallpaper",

@@ -457,6 +457,7 @@
   "message.wallpaper": "Обои",
   "message.chatTheme": "Тема чата",
   "message.chatThemeHint": "Цвет ваших сообщений, кнопок и значков в ChocoChat.",
+  "message.listSize": "Размер списка",
   "message.wallpaperHint": "Фон ваших чатов. Выберите цвет, добавьте узор или используйте одно из своих фото.",
   "message.wallpaperChatOnly": "Этот выбор действует только для этого чата.",
   "message.wallpaperUseDefault": "Использовать обои по умолчанию",

@@ -245,6 +245,7 @@ internal sealed partial class LinkpearlApp : IResumableApp
         ui.Theme = frameTheme;
         chrome.Ink = ink;
         chrome.Theme = frameTheme;
+        chrome.Density = configuration.LinkpearlListDensity;
     }
 
     private void DrawView(LinkpearlRoute route, Rect area, int depth)

@@ -457,6 +457,7 @@
   "message.wallpaper": "Duvar kağıdı",
   "message.chatTheme": "Sohbet teması",
   "message.chatThemeHint": "ChocoChat'teki mesajlarının, düğmelerin ve rozetlerin rengi.",
+  "message.listSize": "Liste boyutu",
   "message.wallpaperHint": "Sohbetlerinin arkasındaki zemin. Bir renk seç, deseni ekle ya da fotoğraflarından birini kullan.",
   "message.wallpaperChatOnly": "Bu seçim yalnızca bu sohbet için geçerli.",
   "message.wallpaperUseDefault": "Varsayılan duvar kağıdını kullan",

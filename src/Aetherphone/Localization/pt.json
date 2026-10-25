@@ -457,6 +457,7 @@
   "message.wallpaper": "Papel de parede",
   "message.chatTheme": "Tema da conversa",
   "message.chatThemeHint": "A cor das suas mensagens, botões e selos no ChocoChat.",
+  "message.listSize": "Tamanho da lista",
   "message.wallpaperHint": "O fundo por trás das suas conversas. Escolha uma cor, adicione o padrão ou use uma das suas fotos.",
   "message.wallpaperChatOnly": "Esta escolha vale só para esta conversa.",
   "message.wallpaperUseDefault": "Usar papel de parede padrão",

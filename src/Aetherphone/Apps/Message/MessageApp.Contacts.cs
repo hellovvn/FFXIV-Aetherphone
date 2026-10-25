@@ -228,24 +228,26 @@ internal sealed partial class MessageApp
     private void DrawContactRow(ImDrawListPtr drawList, ContactDto contact)
     {
         var scale = UiScale.Current;
+        var size = chrome.ListRow(ContactRowHeight, ContactRowAvatarRadius);
+        var glyph = size.Glyph * scale;
         var pendingLabel = contact.IsMutual ? string.Empty : Loc.T(L.Friends.PendingShort);
-        var pendingSize = pendingLabel.Length > 0 ? Typography.Measure(pendingLabel, RowMetaStyle) : Vector2.Zero;
-        var reserve = pendingLabel.Length > 0 ? pendingSize.X + PendingChipPadX * 2f * scale + RowTrailingGap * scale : 0f;
-        var row = BeginPersonRow(drawList, ContactRowHeight, ContactRowAvatarRadius, reserve, true, out var avatarCenter);
-        DrawContactAvatar(drawList, contact, avatarCenter, ContactRowAvatarRadius * scale);
+        var pendingSize = pendingLabel.Length > 0 ? Typography.Measure(pendingLabel, size.MetaStyle) : Vector2.Zero;
+        var reserve = pendingLabel.Length > 0 ? pendingSize.X + PendingChipPadX * 2f * glyph + RowTrailingGap * scale : 0f;
+        var row = BeginPersonRow(drawList, size.Height, size.AvatarRadius, reserve, true, out var avatarCenter);
+        DrawContactAvatar(drawList, contact, avatarCenter, size.AvatarRadius * scale);
         if (pendingLabel.Length > 0)
         {
             var chipMax = new Vector2(row.Bounds.Max.X - CellPadX * scale,
-                row.Bounds.Center.Y + pendingSize.Y * 0.5f + PendingChipPadY * scale);
-            var chipMin = new Vector2(chipMax.X - pendingSize.X - PendingChipPadX * 2f * scale,
-                row.Bounds.Center.Y - pendingSize.Y * 0.5f - PendingChipPadY * scale);
+                row.Bounds.Center.Y + pendingSize.Y * 0.5f + PendingChipPadY * glyph);
+            var chipMin = new Vector2(chipMax.X - pendingSize.X - PendingChipPadX * 2f * glyph,
+                row.Bounds.Center.Y - pendingSize.Y * 0.5f - PendingChipPadY * glyph);
             Squircle.Fill(drawList, chipMin, chipMax, (chipMax.Y - chipMin.Y) * 0.5f, ImGui.GetColorU32(ink.ChipFill));
-            Typography.DrawCentered(drawList, (chipMin + chipMax) * 0.5f, pendingLabel, ink.MutedInk, RowMetaStyle);
+            Typography.DrawCentered(drawList, (chipMin + chipMax) * 0.5f, pendingLabel, ink.MutedInk, size.MetaStyle);
         }
 
         DrawRowTitleAndSub(drawList, new MarqueeId("messageapp.contacts.name.", contact.UserId),
             ContactBook.DisplayLabel(contact), ContactBook.Format(contact.PhoneNumber), row.TextLeft, row.TextRight,
-            row.Bounds.Center.Y, ink.TitleInk, ink.MutedInk);
+            row.Bounds.Center.Y, ink.TitleInk, ink.MutedInk, size);
         if (row.Tapped)
         {
             router.Push(MessageRoute.Contact(contact.UserId));

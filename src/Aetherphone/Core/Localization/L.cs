@@ -816,6 +816,7 @@ internal static class L
         public static readonly LocString Wallpaper = new("message.wallpaper", "Wallpaper");
         public static readonly LocString ChatTheme = new("message.chatTheme", "Chat theme");
         public static readonly LocString ChatThemeHint = new("message.chatThemeHint", "The color of your messages, buttons and badges in ChocoChat.");
+        public static readonly LocString ListSize = new("message.listSize", "List size");
         public static readonly LocString WallpaperHint = new("message.wallpaperHint", "The backdrop behind your chats. Pick a color, add the pattern, or use one of your photos.");
         public static readonly LocString WallpaperChatOnly = new("message.wallpaperChatOnly", "This choice applies to this chat only.");
         public static readonly LocString WallpaperUseDefault = new("message.wallpaperUseDefault", "Use default wallpaper");

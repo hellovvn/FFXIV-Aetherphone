@@ -80,52 +80,54 @@ internal sealed partial class MessageApp
     private void DrawTeamRow(ImDrawListPtr drawList)
     {
         var scale = UiScale.Current;
-        var row = BeginPersonRow(drawList, ChatRowHeight, ChatRowAvatarRadius, 0f, true, out var avatarCenter);
-        BrandMark.DrawAvatar(drawList, avatarCenter, ChatRowAvatarRadius * scale);
+        var size = chrome.ListRow(ChatRowHeight, ChatRowAvatarRadius);
+        var iconScale = size.Glyph * scale;
+        var row = BeginPersonRow(drawList, size.Height, size.AvatarRadius, 0f, true, out var avatarCenter);
+        BrandMark.DrawAvatar(drawList, avatarCenter, size.AvatarRadius * scale);
         var newest = team.Newest;
         var unreadCount = team.Unread;
-        var lineTop = row.Bounds.Min.Y + ChatRowTitleTop * scale;
-        var titleHeight = Typography.LineHeight(RowTitleStyle);
+        var lineTop = size.TextTop(row.Bounds, ChatRowTitleTop);
+        var titleHeight = Typography.LineHeight(size.TitleStyle);
         var timeLabel = newest is null ? string.Empty : ChatTime(newest.CreatedAtUnix);
-        var timeSize = Typography.Measure(timeLabel, RowMetaStyle);
+        var timeSize = Typography.Measure(timeLabel, size.MetaStyle);
         var timeLeft = row.TextRight - timeSize.X;
         Typography.Draw(drawList, new Vector2(timeLeft, lineTop + (titleHeight - timeSize.Y) * 0.5f), timeLabel,
-            unreadCount > 0 ? ink.AccentLink : ink.MutedInk, RowMetaStyle);
-        var glyph = TeamVerifiedGlyph * scale;
+            unreadCount > 0 ? ink.AccentLink : ink.MutedInk, size.MetaStyle);
+        var glyph = TeamVerifiedGlyph * iconScale;
         var glyphGap = TeamVerifiedGap * scale;
         var titleRight = timeLabel.Length > 0 ? timeLeft - TimeGap * scale : row.TextRight;
         var title = Typography.FitText(Loc.T(L.TeamInbox.Name),
-            MathF.Max(1f, titleRight - row.TextLeft - glyph - glyphGap), RowTitleStyle);
-        Typography.Draw(drawList, new Vector2(row.TextLeft, lineTop), title, ink.TitleInk, RowTitleStyle);
-        var titleWidth = Typography.Measure(title, RowTitleStyle).X;
+            MathF.Max(1f, titleRight - row.TextLeft - glyph - glyphGap), size.TitleStyle);
+        Typography.Draw(drawList, new Vector2(row.TextLeft, lineTop), title, ink.TitleInk, size.TitleStyle);
+        var titleWidth = Typography.Measure(title, size.TitleStyle).X;
         PhoneIcon.Draw(drawList,
             new Vector2(row.TextLeft + titleWidth + glyphGap + glyph * 0.5f, lineTop + titleHeight * 0.5f),
             PhoneIcons.CircleCheckFilled, RoleInk.For(RoleKind.Verified, theme), glyph);
-        var subHeight = Typography.LineHeight(RowSubStyle);
-        var subTop = lineTop + titleHeight + RowLineGap * scale;
+        var subHeight = Typography.LineHeight(size.SubStyle);
+        var subTop = lineTop + titleHeight + size.LineGap * scale;
         var subCenterY = subTop + subHeight * 0.5f;
         var right = row.TextRight;
         if (unreadCount > 0)
         {
-            right = DrawUnreadBadge(drawList, right, subCenterY, unreadCount, false);
+            right = DrawUnreadBadge(drawList, right, subCenterY, unreadCount, false, iconScale);
         }
 
-        PhoneIcon.Draw(drawList, new Vector2(right - RowStatusGlyph * 0.5f * scale, subCenterY), PhoneIcons.PinFilled,
-            ink.MutedInk, RowStatusGlyph * scale);
-        right -= RowStatusPitch * scale;
+        PhoneIcon.Draw(drawList, new Vector2(right - RowStatusGlyph * 0.5f * iconScale, subCenterY), PhoneIcons.PinFilled,
+            ink.MutedInk, RowStatusGlyph * iconScale);
+        right -= RowStatusPitch * iconScale;
         var previewLeft = row.TextLeft;
         if (newest is { FromTeam: false })
         {
-            PhoneIcon.Draw(drawList, new Vector2(previewLeft + PreviewGlyph * 0.5f * scale, subCenterY),
+            PhoneIcon.Draw(drawList, new Vector2(previewLeft + PreviewGlyph * 0.5f * iconScale, subCenterY),
                 newest.Read ? PhoneIcons.Checks : PhoneIcons.Check,
-                newest.Read ? ChatInk.SeenTick : ink.MutedInk, PreviewGlyph * scale);
-            previewLeft += PreviewGlyph * scale + PreviewGlyphGap * scale;
+                newest.Read ? ChatInk.SeenTick : ink.MutedInk, PreviewGlyph * iconScale);
+            previewLeft += PreviewGlyph * iconScale + PreviewGlyphGap * scale;
         }
 
         var previewRight = right - RowTrailingGap * scale;
         Typography.Draw(drawList, new Vector2(previewLeft, subTop),
-            Typography.FitText(TeamPreview(), MathF.Max(1f, previewRight - previewLeft), RowSubStyle),
-            unreadCount > 0 ? ink.BodyInk : ink.MutedInk, RowSubStyle);
+            Typography.FitText(TeamPreview(), MathF.Max(1f, previewRight - previewLeft), size.SubStyle),
+            unreadCount > 0 ? ink.BodyInk : ink.MutedInk, size.SubStyle);
         if (row.Tapped)
         {
             OpenTeamThread();

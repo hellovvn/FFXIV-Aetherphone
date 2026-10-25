@@ -81,6 +81,10 @@ internal sealed class ChatListChrome
 
     public Rect ScreenRect { get; set; }
 
+    public ListDensity Density { get; set; }
+
+    public ListRowSize ListRow(float height, float avatarRadius) => ListRowSize.For(Density, height, avatarRadius);
+
     public Rect PaintHeaderBand(Rect area)
     {
         var scale = UiScale.Current;
@@ -161,25 +165,36 @@ internal sealed class ChatListChrome
     }
 
     public void DrawRowTitleAndSub(ImDrawListPtr drawList, MarqueeId id, string title, string subtitle,
-        float left, float right, float centerY, Vector4 titleInk, Vector4 subInk)
+        float left, float right, float centerY, Vector4 titleInk, Vector4 subInk) =>
+        DrawRowTitleAndSub(drawList, id, title, subtitle, left, right, centerY, titleInk, subInk, RowTitleStyle,
+            RowSubStyle, RowLineGap);
+
+    public void DrawRowTitleAndSub(ImDrawListPtr drawList, MarqueeId id, string title, string subtitle,
+        float left, float right, float centerY, Vector4 titleInk, Vector4 subInk, in ListRowSize size) =>
+        DrawRowTitleAndSub(drawList, id, title, subtitle, left, right, centerY, titleInk, subInk, size.TitleStyle,
+            size.SubStyle, size.LineGap);
+
+    private static void DrawRowTitleAndSub(ImDrawListPtr drawList, MarqueeId id, string title, string subtitle,
+        float left, float right, float centerY, Vector4 titleInk, Vector4 subInk, TextStyle titleStyle,
+        TextStyle subStyle, float lineGap)
     {
         var scale = UiScale.Current;
         var width = MathF.Max(1f, right - left);
-        var titleHeight = Typography.LineHeight(RowTitleStyle);
+        var titleHeight = Typography.LineHeight(titleStyle);
         if (subtitle.Length == 0)
         {
             var soloTop = centerY - titleHeight * 0.5f;
             var soloHovering = UiInteract.Hover(new Vector2(left, soloTop), new Vector2(right, soloTop + titleHeight));
-            Marquee.DrawLeft(drawList, id, title, left, soloTop, width, RowTitleStyle, titleInk, soloHovering);
+            Marquee.DrawLeft(drawList, id, title, left, soloTop, width, titleStyle, titleInk, soloHovering);
             return;
         }
 
-        var subHeight = Typography.LineHeight(RowSubStyle);
-        var top = centerY - (titleHeight + RowLineGap * scale + subHeight) * 0.5f;
+        var subHeight = Typography.LineHeight(subStyle);
+        var top = centerY - (titleHeight + lineGap * scale + subHeight) * 0.5f;
         var hovering = UiInteract.Hover(new Vector2(left, top), new Vector2(right, top + titleHeight));
-        Marquee.DrawLeft(drawList, id, title, left, top, width, RowTitleStyle, titleInk, hovering);
-        Typography.Draw(drawList, new Vector2(left, top + titleHeight + RowLineGap * scale),
-            Typography.FitText(subtitle, width, RowSubStyle), subInk, RowSubStyle);
+        Marquee.DrawLeft(drawList, id, title, left, top, width, titleStyle, titleInk, hovering);
+        Typography.Draw(drawList, new Vector2(left, top + titleHeight + lineGap * scale),
+            Typography.FitText(subtitle, width, subStyle), subInk, subStyle);
     }
 
     public bool DrawActionRow(ImDrawListPtr drawList, string marqueePrefix, string glyph, string label,
