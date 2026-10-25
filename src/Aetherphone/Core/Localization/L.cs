@@ -2372,6 +2372,8 @@ internal static class L
                 "Fixed a tall or narrow photo making its bubble narrow and cutting the caption short: the bubble keeps its full width and a tall photo is cropped to fit it"),
             new("changelog.r1311.30",
                 "Fixed unread counts and app badges coming back in ChocoChat, Aethergram and Velvet after a chat had been read"),
+            new("changelog.r1311.40",
+                "Fixed a new tell popping up while you typed in a Linkpearl pop-out sending your next keys to the game: it now opens without taking focus and you keep typing where you were"),
         };
 
         public static readonly LocString[] Release1311Chirper =

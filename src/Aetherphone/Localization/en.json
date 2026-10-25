@@ -7835,6 +7835,7 @@
   "changelog.r1311.37": "Fixed Halloween treat progress staying on one PC: the treats you found now follow your character to another PC once you sign in",
   "changelog.r1311.38": "Added MogCast to the expanded Dynamic Island: the video's thumbnail, a bar you can drag, the time played and left, and play, pause and next, on your own or in a watch party",
   "changelog.r1311.39": "Added automatic gain for your microphone in calls and voice messages, on by default: it evens out quiet and loud speech, and a toggle in Settings and in the call's audio options turns it off",
+  "changelog.r1311.40": "Fixed a new tell popping up while you typed in a Linkpearl pop-out sending your next keys to the game: it now opens without taking focus and you keep typing where you were",
   "changelog.r1310.0": "Added emoji suggestions while you type a :shortcode in any message, post or comment box: Enter or Tab picks the top one, contributed by t3sco",
   "changelog.r1310.1": "Added edit mode from inside a folder: hold an app in an open folder, the same as on the Home Screen, contributed by hellovvn",
   "changelog.r1310.2": "Added dragging an app out of a folder: hold it outside the folder for a moment, then drop it anywhere on the Home Screen, contributed by hellovvn",

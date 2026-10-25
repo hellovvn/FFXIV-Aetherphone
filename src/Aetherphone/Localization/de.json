@@ -7835,6 +7835,7 @@
   "changelog.r1311.37": "Behoben, dass der Halloween-Leckerli-Fortschritt auf einem PC blieb: Gefundene Leckerlis folgen deinem Charakter jetzt auf einen anderen PC, sobald du dich anmeldest",
   "changelog.r1311.38": "MogCast zur ausgeklappten Dynamic Island hinzugefügt: das Vorschaubild des Videos, ein Balken zum Ziehen, gespielte und verbleibende Zeit sowie Abspielen, Pause und Weiter, allein oder in einer Watch-Party",
   "changelog.r1311.39": "Automatische Verstärkung für dein Mikrofon in Anrufen und Sprachnachrichten hinzugefügt, standardmäßig an: Sie gleicht leise und laute Sprache aus, und ein Schalter in den Einstellungen und in den Audiooptionen des Anrufs schaltet sie aus",
+  "changelog.r1311.40": "Behoben, dass ein neuer Tell, der beim Tippen in einem Linkpearl-Pop-out aufging, deine nächsten Tasten an das Spiel schickte: Er öffnet sich jetzt, ohne den Fokus zu nehmen, und du tippst einfach weiter",
   "changelog.r1310.0": "Emoji-Vorschläge beim Tippen eines :Kürzels in jedem Nachrichten-, Beitrags- und Kommentarfeld hinzugefügt: Enter oder Tab übernimmt den ersten, beigetragen von t3sco",
   "changelog.r1310.1": "Bearbeitungsmodus aus Ordnern heraus hinzugefügt: eine App in einem geöffneten Ordner gedrückt halten, genau wie auf dem Home-Bildschirm, beigetragen von hellovvn",
   "changelog.r1310.2": "Apps aus Ordnern ziehen hinzugefügt: die App kurz außerhalb des Ordners halten und dann irgendwo auf dem Home-Bildschirm ablegen, beigetragen von hellovvn",

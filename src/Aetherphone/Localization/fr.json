@@ -7835,6 +7835,7 @@
   "changelog.r1311.37": "Correction de la progression des friandises d'Halloween qui restait sur un seul PC : les friandises trouvées suivent maintenant votre personnage sur un autre PC dès que vous vous connectez",
   "changelog.r1311.38": "Ajout de MogCast dans la Dynamic Island dépliée : la miniature de la vidéo, une barre que l'on peut faire glisser, le temps écoulé et restant, et lecture, pause et suivant, seul ou en séance partagée",
   "changelog.r1311.39": "Ajout du gain automatique pour votre micro dans les appels et les messages vocaux, activé par défaut : il équilibre les voix faibles et fortes, et un interrupteur dans Réglages et dans les options audio de l'appel le désactive",
+  "changelog.r1311.40": "Correction d'un nouveau tell qui, en s'ouvrant pendant que vous écriviez dans une fenêtre détachée de Linkpearl, envoyait vos touches suivantes au jeu : il s'ouvre désormais sans prendre le focus et vous continuez d'écrire là où vous étiez",
   "changelog.r1310.0": "Ajout de suggestions d'emoji pendant la saisie d'un :raccourci dans tous les champs de message, de publication et de commentaire : Entrée ou Tab choisit le premier, contribution de t3sco",
   "changelog.r1310.1": "Ajout du mode d'édition depuis un dossier : maintenez une app dans un dossier ouvert, comme sur l'écran d'accueil, contribution de hellovvn",
   "changelog.r1310.2": "Ajout du glisser d'une app hors d'un dossier : maintenez-la un instant hors du dossier, puis déposez-la n'importe où sur l'écran d'accueil, contribution de hellovvn",

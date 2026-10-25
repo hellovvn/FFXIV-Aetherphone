@@ -7835,6 +7835,7 @@
   "changelog.r1311.37": "Corregido que el progreso de dulces de Halloween se quedara en un solo PC: los dulces que encontraste ahora siguen a tu personaje a otro PC al iniciar sesión",
   "changelog.r1311.38": "Se añadió MogCast a la Dynamic Island expandida: la miniatura del vídeo, una barra que puedes arrastrar, el tiempo reproducido y restante, y reproducir, pausar y siguiente, a solas o en una sesión compartida",
   "changelog.r1311.39": "Se añadió la ganancia automática del micrófono en llamadas y mensajes de voz, activada por defecto: iguala la voz baja y la alta, y un interruptor en Ajustes y en las opciones de audio de la llamada la desactiva",
+  "changelog.r1311.40": "Se corrigió que un susurro nuevo que aparecía mientras escribías en una ventana emergente de Linkpearl enviara tus siguientes teclas al juego: ahora se abre sin quitar el foco y sigues escribiendo donde estabas",
   "changelog.r1310.0": "Se añadieron sugerencias de emoji al escribir un :atajo en cualquier campo de mensaje, publicación o comentario: Intro o Tab elige el primero, contribuido por t3sco",
   "changelog.r1310.1": "Se añadió el modo de edición desde dentro de una carpeta: mantén pulsada una app en una carpeta abierta, igual que en la Pantalla de inicio, contribuido por hellovvn",
   "changelog.r1310.2": "Se añadió sacar una app de una carpeta: mantenla un momento fuera de la carpeta y suéltala en cualquier lugar de la Pantalla de inicio, contribuido por hellovvn",

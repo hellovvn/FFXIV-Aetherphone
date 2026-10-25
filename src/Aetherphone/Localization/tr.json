@@ -7835,6 +7835,7 @@
   "changelog.r1311.37": "Cadılar Bayramı ikram ilerlemesinin tek bir bilgisayarda kalması düzeltildi: bulduğun ikramlar artık oturum açtığında karakterinle başka bir bilgisayara da gelir",
   "changelog.r1311.38": "Genişletilmiş Dynamic Island'a MogCast eklendi: videonun küçük resmi, sürükleyebileceğin bir çubuk, oynatılan ve kalan süre ile oynat, duraklat ve sonraki, tek başına ya da ortak izlemede",
   "changelog.r1311.39": "Aramalarda ve sesli mesajlarda mikrofonun için otomatik kazanç eklendi, varsayılan olarak açık: sessiz ve yüksek konuşmayı dengeler, Ayarlar'daki ve aramanın ses seçeneklerindeki bir anahtar onu kapatır",
+  "changelog.r1311.40": "Linkpearl açılır penceresinde yazarken gelen yeni bir tell'in sonraki tuşlarını oyuna göndermesi düzeltildi: artık odağı almadan açılıyor ve kaldığın yerden yazmaya devam ediyorsun",
   "changelog.r1310.0": "Herhangi bir mesaj, gönderi veya yorum kutusuna :kısaltma yazarken emoji önerileri eklendi: Enter veya Tab ilkini seçer, katkı: t3sco",
   "changelog.r1310.1": "Klasör içinden düzenleme modu eklendi: açık bir klasördeki uygulamayı Ana Ekran'daki gibi basılı tutun, katkı: hellovvn",
   "changelog.r1310.2": "Bir uygulamayı klasörden sürükleyip çıkarma eklendi: klasörün dışında kısa bir süre tutun, sonra Ana Ekran'da istediğiniz yere bırakın, katkı: hellovvn",
