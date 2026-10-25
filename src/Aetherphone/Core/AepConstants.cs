@@ -4,19 +4,25 @@ internal static class AepConstants
 {
     #if DEBUG
     public const string Name = "AetherphoneDev";
+    public const string DisplayName = "Aetherphone Dev";
     public const string ServerBarTag = "Dev";
     public const string PrimaryCommand = "/phonedev";
     public const string AliasCommand = "/aetherphonedev";
+    public const ushort ChatTagUiColor = 561;
     #elif BETA
     public const string Name = "AetherphoneBeta";
+    public const string DisplayName = "Aetherphone Beta";
     public const string ServerBarTag = "Beta";
     public const string PrimaryCommand = "/phonebeta";
     public const string AliasCommand = "/aetherphonebeta";
+    public const ushort ChatTagUiColor = 555;
     #else
     public const string Name = "Aetherphone";
+    public const string DisplayName = "Aetherphone";
     public const string ServerBarTag = "";
     public const string PrimaryCommand = "/phone";
     public const string AliasCommand = "/aetherphone";
+    public const ushort ChatTagUiColor = 576;
     #endif
 
     #if DEBUG || BETA

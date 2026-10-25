@@ -1,5 +1,6 @@
 using Aetherphone.Apps.Casino.Stage;
 using Aetherphone.Core;
+using Aetherphone.Core.Localization;
 using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
@@ -68,6 +69,57 @@ internal static class HostCards
             TextStyles.Subheadline, inner);
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, height));
+    }
+
+    public static int IconChoices(AppSkin ui, string id, ReadOnlySpan<LocString> titles,
+        ReadOnlySpan<FontAwesomeIcon> icons, int selected, float width, float scale)
+    {
+        var origin = ImGui.GetCursorScreenPos();
+        var drawList = ImGui.GetWindowDrawList();
+        var columns = titles.Length;
+        var gap = HostFlowLayout.ChoiceGap * scale;
+        var labelWidth = MathF.Max(1f,
+            HostFlowLayout.ColumnWidth(width, columns, gap) - HostFlowLayout.CardPad * scale);
+        var labelBlock = 0f;
+        for (var index = 0; index < titles.Length; index++)
+        {
+            labelBlock = MathF.Max(labelBlock, Typography.MeasureWrappedBlock(Loc.T(titles[index]),
+                TextStyles.SubheadlineEmphasized, labelWidth).Y);
+        }
+
+        var height = HostFlowLayout.JoinTileHeight(scale, labelBlock);
+        var radius = Metrics.Radius.Card * scale;
+        var icon = HostFlowLayout.JoinIcon * scale;
+        var innerGap = HostFlowLayout.JoinInnerGap * scale;
+        var tapped = -1;
+        for (var index = 0; index < titles.Length; index++)
+        {
+            var chosen = index == selected;
+            var cell = HostFlowLayout.GridCell(origin.X, origin.Y, width, index, columns, height, gap);
+            using (UiScope.PushId(index))
+            {
+                var hovered = CasinoArt.PressCard(ImGui.GetID(id), cell.Min, cell.Max, out var pressedMin,
+                    out var pressedMax);
+                var face = new Rect(pressedMin, pressedMax);
+                ChoiceSurface(drawList, ui, face, radius, ui.Accent, chosen, hovered, scale);
+                var ink = chosen ? ui.TitleInk : ui.BodyInk;
+                var title = Loc.T(titles[index]);
+                var titleBlock = Typography.MeasureWrappedBlock(title, TextStyles.SubheadlineEmphasized, labelWidth).Y;
+                var top = face.Center.Y - (icon + innerGap + titleBlock) * 0.5f;
+                ProgressRing.CenterIcon(drawList, new Vector2(face.Center.X, top + icon * 0.5f), icons[index], ink,
+                    icon);
+                Typography.DrawWrappedCentered(drawList, title, TextStyles.SubheadlineEmphasized, ink,
+                    new Vector2(face.Center.X, top + icon + innerGap), labelWidth);
+                if (UiInteract.Click(cell.Min, cell.Max, hovered))
+                {
+                    tapped = index;
+                }
+            }
+        }
+
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, height));
+        return tapped;
     }
 
     public static void Ladder(AppSkin ui, string id, string label, string value, string hint, LadderSpan span,

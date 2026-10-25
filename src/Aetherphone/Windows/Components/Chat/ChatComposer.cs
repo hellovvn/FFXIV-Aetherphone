@@ -7,7 +7,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Core.Wallpapers;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Windows.Components;
 
@@ -37,6 +36,7 @@ internal struct ChatComposerModel
     public Func<VoiceInput> ResolveVoiceInput;
     public Action<string> OnPickImage;
     public Action<string> OnShareLocation;
+    public Action<string>? OnSearchGif;
     public Action<string, string, string?> OnSendText;
     public Action<string, string, string> OnEditText;
     public Action<string, byte[], int> OnSendVoice;
@@ -47,7 +47,15 @@ internal struct ChatComposerModel
 
 internal sealed class ChatComposer : IDisposable
 {
+    private enum AttachAction : byte
+    {
+        Photo,
+        Gif,
+        Location,
+    }
+
     private const int TextKind = 0;
+    private const int AttachActionCount = 3;
     private const int MaxLines = 6;
     private const float AccessoryBarHeight = 46f;
     private const float ImageBarHeight = 64f;
@@ -87,7 +95,8 @@ internal sealed class ChatComposer : IDisposable
     private readonly EmojiPicker emojiPicker = new();
     private readonly EmojiSuggestions suggestions = new();
     private readonly DropdownMenu attachMenu = new();
-    private readonly DropdownMenu.Item[] attachItems = new DropdownMenu.Item[2];
+    private readonly DropdownMenu.Item[] attachItems = new DropdownMenu.Item[AttachActionCount];
+    private readonly AttachAction[] attachActions = new AttachAction[AttachActionCount];
     private readonly SoftWrapEditor editor = new();
     private readonly ImageIntake intake = new();
     private string? pendingImage;
@@ -127,6 +136,10 @@ internal sealed class ChatComposer : IDisposable
 
     private bool ReadyToSend => editor.HasContent || pendingImage is not null;
 
+    private bool CanAttachImage(in ChatComposerModel model) => model.CanImage && editTargetId is null;
+
+    private bool CanSearchGif(in ChatComposerModel model) => model.OnSearchGif is not null && editTargetId is null;
+
     private static float Height(ChatComposerStyle style) => style switch
     {
         ChatComposerStyle.Pill => PillComposerHeight * UiScale.Current,
@@ -155,6 +168,7 @@ internal sealed class ChatComposer : IDisposable
     {
         ClearReply();
         pendingImage = null;
+        intake.Discard();
         editTargetId = messageId;
         editBarPreview = ChatText.QuotePreview(body, TextKind);
         editor.Adopt(body);
@@ -166,6 +180,13 @@ internal sealed class ChatComposer : IDisposable
         replyTargetId = null;
         replyBarName = string.Empty;
         replyBarPreview = string.Empty;
+    }
+
+    public string? TakeReplyTarget()
+    {
+        var target = replyTargetId;
+        ClearReply();
+        return target;
     }
 
     public void ClearEdit()
@@ -194,8 +215,15 @@ internal sealed class ChatComposer : IDisposable
 
     public void PasteImage(PhotoLibrary library) => intake.Paste(library);
 
-    public void AcceptImageDrop(Rect area, PhotoLibrary library, Vector4 highlight) =>
+    public void AcceptImageDrop(Rect area, PhotoLibrary library, Vector4 highlight)
+    {
+        if (editTargetId is not null)
+        {
+            return;
+        }
+
         intake.AcceptDrop(area, library, highlight);
+    }
 
     public void AttachImage(string path)
     {
@@ -318,8 +346,8 @@ internal sealed class ChatComposer : IDisposable
         }
 
         bool submitted;
-        using (ImRaii.PushColor(ImGuiCol.FrameBg, new Vector4(0f, 0f, 0f, 0f)))
-        using (ImRaii.PushColor(ImGuiCol.Text, model.Ui.Theme.TextStrong))
+        using (UiScope.PushColor(ImGuiCol.FrameBg, new Vector4(0f, 0f, 0f, 0f)))
+        using (UiScope.PushColor(ImGuiCol.Text, model.Ui.Theme.TextStrong))
         {
             submitted = editor.Draw("##chatComposerInput", new Vector2(fieldWidth, fieldHeight), model.MaxLength, 0)
                         && !suggestions.Showing;
@@ -334,7 +362,7 @@ internal sealed class ChatComposer : IDisposable
 
         typing = EmojiSuggestions.FieldTyping();
 
-        if (model.CanImage && editTargetId is null && model.Library is { } library && ImGui.IsItemActive()
+        if (CanAttachImage(model) && model.Library is { } library && ImGui.IsItemActive()
             && ImageIntake.PasteRequested())
         {
             intake.Paste(library);
@@ -359,7 +387,7 @@ internal sealed class ChatComposer : IDisposable
         var drawList = ImGui.GetWindowDrawList();
         var edgePad = PlusEdgePad * scale;
         var centerY = area.Max.Y - PlusComposerHeight * scale * 0.5f;
-        var showAttach = model.CanImage || model.CanLocation;
+        var showAttach = CanAttachImage(model) || CanSearchGif(model) || model.CanLocation;
         var pillLeft = area.Min.X + edgePad;
         if (showAttach)
         {
@@ -480,14 +508,22 @@ internal sealed class ChatComposer : IDisposable
         }
 
         var count = 0;
-        if (model.CanImage)
+        if (CanAttachImage(model))
         {
-            attachItems[count++] = new DropdownMenu.Item(Loc.T(L.Common.SendPhoto), PhoneIcons.Photo);
+            attachItems[count] = new DropdownMenu.Item(Loc.T(L.Common.SendPhoto), PhoneIcons.Photo);
+            attachActions[count++] = AttachAction.Photo;
+        }
+
+        if (CanSearchGif(model))
+        {
+            attachItems[count] = new DropdownMenu.Item(Loc.T(L.Gifs.Search), PhoneIcons.Search);
+            attachActions[count++] = AttachAction.Gif;
         }
 
         if (model.CanLocation)
         {
-            attachItems[count++] = new DropdownMenu.Item(Loc.T(L.Message.ShareLocation), PhoneIcons.MapPin);
+            attachItems[count] = new DropdownMenu.Item(Loc.T(L.Message.ShareLocation), PhoneIcons.MapPin);
+            attachActions[count++] = AttachAction.Location;
         }
 
         var picked = attachMenu.Draw(model.Screen, model.Ui.Theme, attachItems.AsSpan(0, count));
@@ -496,13 +532,18 @@ internal sealed class ChatComposer : IDisposable
             return;
         }
 
-        if (model.CanImage && picked == 0)
+        switch (attachActions[picked])
         {
-            model.OnPickImage(model.ConversationId);
-            return;
+            case AttachAction.Photo:
+                model.OnPickImage(model.ConversationId);
+                break;
+            case AttachAction.Gif:
+                model.OnSearchGif?.Invoke(model.ConversationId);
+                break;
+            default:
+                model.OnShareLocation(model.ConversationId);
+                break;
         }
-
-        model.OnShareLocation(model.ConversationId);
     }
 
     private static Rect PaintSurface(Rect area, in ChatComposerModel model)
@@ -596,7 +637,7 @@ internal sealed class ChatComposer : IDisposable
 
         var textRight = pillMax.X - 14f * scale;
         var trailingIconX = pillMax.X - iconRadius - 5f * scale;
-        if (model.CanImage)
+        if (CanAttachImage(model))
         {
             var pictureCenter = new Vector2(trailingIconX, centerY);
             var pictureMin = pictureCenter - new Vector2(iconRadius, iconRadius);
@@ -703,7 +744,7 @@ internal sealed class ChatComposer : IDisposable
         var rowTop = pill.Max.Y - rowHeight;
         var centerY = pill.Max.Y - rowHeight * 0.5f;
         var textLeft = pill.Min.X + PillTextGap * scale;
-        if (model.CanImage)
+        if (CanAttachImage(model))
         {
             var cameraRadius = rowHeight * 0.5f - PillCameraInset * scale;
             var cameraCenter = new Vector2(pill.Min.X + PillCameraInset * scale + cameraRadius, centerY);
@@ -767,6 +808,12 @@ internal sealed class ChatComposer : IDisposable
                 model.OnShareLocation(model.ConversationId);
             }
 
+            if (CanSearchGif(model) && DrawPillGif(drawList, ref rightEdge, centerY, idleInk, theme.TextStrong,
+                    Loc.T(L.Gifs.Search), scale))
+            {
+                model.OnSearchGif?.Invoke(model.ConversationId);
+            }
+
             if (DrawPillIcon(drawList, ref rightEdge, centerY, PhoneIcons.MoodSmile,
                     emojiOpen ? ui.Accent : idleInk, theme.TextStrong, Loc.T(L.Common.Emoji), scale))
             {
@@ -798,13 +845,28 @@ internal sealed class ChatComposer : IDisposable
     private static bool DrawPillIcon(ImDrawListPtr drawList, ref float rightEdge, float centerY, string glyph,
         Vector4 idleInk, Vector4 hoverInk, string tooltip, float scale)
     {
+        var clicked = PillSlot(ref rightEdge, centerY, tooltip, scale, out var center, out var hovered);
+        PhoneIcon.Draw(drawList, center, glyph, hovered ? hoverInk : idleInk, PillIconGlyph * scale);
+        return clicked;
+    }
+
+    private static bool DrawPillGif(ImDrawListPtr drawList, ref float rightEdge, float centerY, Vector4 idleInk,
+        Vector4 hoverInk, string tooltip, float scale)
+    {
+        var clicked = PillSlot(ref rightEdge, centerY, tooltip, scale, out var center, out var hovered);
+        GifGlyph.Draw(drawList, center, hovered ? hoverInk : idleInk, PillIconGlyph * scale);
+        return clicked;
+    }
+
+    private static bool PillSlot(ref float rightEdge, float centerY, string tooltip, float scale, out Vector2 center,
+        out bool hovered)
+    {
         var half = PillIconHit * 0.5f * scale;
-        var center = new Vector2(rightEdge - half, centerY);
+        center = new Vector2(rightEdge - half, centerY);
         var extent = new Vector2(half, half);
         var min = center - extent;
         var max = center + extent;
-        var hovered = UiInteract.Hover(min, max);
-        PhoneIcon.Draw(drawList, center, glyph, hovered ? hoverInk : idleInk, PillIconGlyph * scale);
+        hovered = UiInteract.Hover(min, max);
         HoverTooltip.Show(new Rect(min, max), tooltip, HoverLabelSide.Above);
         rightEdge = min.X - PillIconGap * scale;
         if (!hovered)

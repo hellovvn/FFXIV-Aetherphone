@@ -1,3 +1,4 @@
+using Aetherphone.Core.Shell;
 using Dalamud.Bindings.ImGui;
 
 namespace Aetherphone.Core.Animation;
@@ -36,6 +37,8 @@ internal static class SceneCompositor
     public static void DrawLayer(Rect clip, in Layer layer)
     {
         var offset = new Vector2(MathF.Round(layer.Offset.X), MathF.Round(layer.Offset.Y));
+        var transform = LayerTransform.Translate(offset, clip);
+        using var glassPlacement = RealGlass.Transform(in transform);
         using var stage = ScreenLayer.Begin(layer.Id, clip, layer.Shield);
         if (layer.Background.W > 0f)
         {
@@ -48,6 +51,6 @@ internal static class SceneCompositor
             stage.Veil(ImGui.GetColorU32(new Vector4(0f, 0f, 0f, layer.Dim)));
         }
 
-        stage.Transform(LayerTransform.Translate(offset, clip));
+        stage.Transform(in transform);
     }
 }

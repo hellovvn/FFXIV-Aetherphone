@@ -109,6 +109,8 @@ internal static class HomeLookMirror
             StackIndex = item.StackIndex,
             SmartRotate = item.SmartRotate,
             ShortcutId = item.ShortcutId,
+            LinkAppId = item.LinkAppId,
+            LinkArgument = item.LinkArgument,
         };
         for (var index = 0; index < item.Members.Count; index++)
         {

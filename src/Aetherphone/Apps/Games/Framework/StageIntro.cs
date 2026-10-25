@@ -16,11 +16,12 @@ internal enum IntroAction : byte
     Play,
     Leaderboard,
     Levels,
+    HowToPlay,
 }
 
 internal sealed class StageIntro
 {
-    private const float IdleDim = 0.8f;
+    public const float IdleDim = 0.8f;
     private const float EntranceSpeed = 1.6f;
     private const float PlayHeight = 52f;
     private const float PillGap = 8f;
@@ -30,6 +31,7 @@ internal sealed class StageIntro
     private const float LiftDistance = 14f;
     private const float IconSize = 72f;
     private const int StackSlots = 7;
+    private const int MaxLinks = 3;
     private const string ModeStripId = "stage.mode";
     private const string SeatStripId = "stage.seats";
     private static readonly TextStyle TagStyle = TextStyles.FootnoteEmphasized;
@@ -37,6 +39,8 @@ internal sealed class StageIntro
     private static readonly TextStyle CaptionStyle = TextStyles.Footnote;
     private static readonly Vector4 HookInk = StageInks.Strong with { W = 0.82f };
 
+    private readonly IntroAction[] linkActions = new IntroAction[MaxLinks];
+    private readonly string[] linkLabels = new string[MaxLinks];
     private string[] modeLabels = Array.Empty<string>();
     private string[] seatLabels = Array.Empty<string>();
     private LanguageInfo? modeLanguage;
@@ -165,8 +169,8 @@ internal sealed class StageIntro
         {
             var pop = 0.85f + 0.15f * GameJuice.PopIn(playPhase);
             var size = layout.Play.Size * pop;
-            if (GameHud.Button(Lifted(layout.Play.Center, playPhase, scale), size, Loc.T(L.Games.Play), accent, theme) &&
-                playPhase > 0.6f)
+            if (GameHud.Button(Lifted(layout.Play.Center, playPhase, scale), size, Loc.T(L.Games.Play), accent, theme,
+                    layout.Play) && playPhase > 0.6f)
             {
                 action = IntroAction.Play;
             }
@@ -175,7 +179,8 @@ internal sealed class StageIntro
         var linksPhase = Phase(slot);
         if (linksPhase > 0.6f)
         {
-            var linksAction = DrawLinks(layout.Links.Center, session.HasLevels, session.RankedMode, muted, scale);
+            var linksAction = DrawLinks(layout.Links.Center, session.HasLevels, session.RankedMode,
+                spec.Guide is not null, muted, scale);
             if (linksAction != IntroAction.None)
             {
                 action = linksAction;
@@ -206,41 +211,65 @@ internal sealed class StageIntro
         var center = Lifted(rect.Center, phase, scale);
         var half = rect.Size * 0.5f;
         var firstVertex = drawList.VtxBuffer.Size;
-        GameIconArt.Draw(drawList, gameId, accent, center - half, center + half, IconAppearance.Default, true);
+        GameIconArt.Draw(drawList, gameId, accent, center - half, center + half, true);
         LayerCompositor.Fade(drawList, firstVertex, phase);
     }
 
     private static int StageStrip(string id, Rect row, string[] labels, int selected, PhoneTheme theme) =>
         SegmentStrip.Draw(id, row, labels, selected, StageInks.Track, theme.Accent, StageInks.Muted, StageInks.Strong);
 
-    private static IntroAction DrawLinks(Vector2 center, bool levels, bool leaderboardShown, Vector4 muted,
+    private IntroAction DrawLinks(Vector2 center, bool levels, bool leaderboardShown, bool guide, Vector4 muted,
         float scale)
     {
-        var levelsLabel = Loc.T(L.Stage.Levels);
-        var leaderboard = Loc.T(L.Stage.Leaderboard);
-        if (!levels || !leaderboardShown)
+        var count = 0;
+        if (guide)
         {
-            if (levels)
+            count = AddLink(count, IntroAction.HowToPlay, Loc.T(L.Stage.HowToPlay));
+        }
+
+        if (levels)
+        {
+            count = AddLink(count, IntroAction.Levels, Loc.T(L.Stage.Levels));
+        }
+
+        if (leaderboardShown)
+        {
+            count = AddLink(count, IntroAction.Leaderboard, Loc.T(L.Stage.Leaderboard));
+        }
+
+        if (count == 0)
+        {
+            return IntroAction.None;
+        }
+
+        var gap = Metrics.Space.Sm * scale;
+        var total = gap * (count - 1);
+        for (var index = 0; index < count; index++)
+        {
+            total += TextButton.Width(linkLabels[index], scale);
+        }
+
+        var left = center.X - total * 0.5f;
+        var pressed = IntroAction.None;
+        for (var index = 0; index < count; index++)
+        {
+            var width = TextButton.Width(linkLabels[index], scale);
+            if (TextButton.Draw(new Vector2(left + width * 0.5f, center.Y), linkLabels[index], muted, scale))
             {
-                return TextButton.Draw(center, levelsLabel, muted, scale) ? IntroAction.Levels : IntroAction.None;
+                pressed = linkActions[index];
             }
 
-            return leaderboardShown && TextButton.Draw(center, leaderboard, muted, scale)
-                ? IntroAction.Leaderboard
-                : IntroAction.None;
+            left += width + gap;
         }
 
-        var levelsWidth = TextButton.Width(levelsLabel, scale);
-        var leaderboardWidth = TextButton.Width(leaderboard, scale);
-        var gap = Metrics.Space.Sm * scale;
-        var left = center.X - (levelsWidth + gap + leaderboardWidth) * 0.5f;
-        if (TextButton.Draw(new Vector2(left + levelsWidth * 0.5f, center.Y), levelsLabel, muted, scale))
-        {
-            return IntroAction.Levels;
-        }
+        return pressed;
+    }
 
-        var leaderboardCenter = new Vector2(left + levelsWidth + gap + leaderboardWidth * 0.5f, center.Y);
-        return TextButton.Draw(leaderboardCenter, leaderboard, muted, scale) ? IntroAction.Leaderboard : IntroAction.None;
+    private int AddLink(int count, IntroAction action, string label)
+    {
+        linkActions[count] = action;
+        linkLabels[count] = label;
+        return count + 1;
     }
 
     private void SyncModeLabels(in GameSpec spec)

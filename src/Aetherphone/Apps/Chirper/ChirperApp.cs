@@ -7,6 +7,7 @@ using Aetherphone.Core.Conduct;
 using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Emoji;
 using Aetherphone.Core.Game;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Honorific;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
@@ -31,7 +32,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Chirper;
 
-internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INameplateHandleSource
+internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INameplateHandleSource, ISocialFeed
 {
     private enum SheetKind
     {
@@ -56,6 +57,8 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         BadgeProgress,
         Pin,
         Unpin,
+        Save,
+        Unsave,
     }
 
     private enum ActionGlyph
@@ -76,7 +79,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     private const int MaxPostLength = 300;
     private const int MaxCommentLength = 500;
     private const int FeedBodyMaxLines = 6;
-    private const int PostSheetMaxItems = 5;
+    private const int PostSheetMaxItems = 6;
     private const float TopBarButtonRadius = 18f;
     private const float FeedTabRowHeight = 44f;
     private const float LatestScopeRowHeight = 40f;
@@ -182,6 +185,14 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     public string Glyph => "Ch";
     public int BadgeCount => social.UnseenCount(Id);
     public bool HasBadge => true;
+    public SocialFeedScope LatestScope => latestScope;
+
+    public PostDto[] Feed(SocialFeedScope scope) => store.Feed(scope);
+
+    public bool IsLoading(SocialFeedScope scope) => store.IsLoading(scope);
+
+    public void Load(SocialFeedScope scope) => store.RefreshFeed(scope);
+
     public ShareKindSet AcceptedShares => store.IsSignedIn ? ShareKindSet.Photo : ShareKindSet.None;
     private readonly ChirperStore store;
     private readonly SocialLauncher launcher;
@@ -225,6 +236,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         { SocialFeedScope.Latest, new() },
         { SocialFeedScope.Following, new() }
     };
+    private readonly Dictionary<SocialFeedScope, Action> feedRefreshers;
     private readonly InfoSheet feedExplainer = new();
     private readonly string[] feedExplainerParagraphs = new string[4];
     private readonly ViewRouter<ChirperRoute> router;
@@ -272,6 +284,8 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     private readonly List<string> composeAttachments = new();
     private bool composePicking;
     private string[] composePickerPaths = Array.Empty<string>();
+    private PhotoLibraryWatch composePickerLibraryWatch;
+    private bool composePickerGifsOnly;
     private string? pendingComposePickedPath;
     private readonly ImageIntake composeIntake = new();
     private bool composeFieldActive;
@@ -286,16 +300,18 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     private bool trendingRequested;
     private readonly RetryGate[] tabRevalidateGates = BuildTabRevalidateGates();
     private readonly RetryGate likedRevalidateGate = new(TimeSpan.FromSeconds(TabRevalidateCooldownSeconds));
+    private readonly RetryGate savedRevalidateGate = new(TimeSpan.FromSeconds(TabRevalidateCooldownSeconds));
 
     public ChirperApp(AethernetSession session, AethernetApi net, LodestoneService lodestone,
         RemoteImageCache images, PhotoLibrary library, SocialLauncher launcher, GameData gameData,
         Configuration configuration, SocialNotificationService social, WallpaperImageCache wallpaperImages,
         ConfirmService confirm, TranslationService translation, ReportService report, ConductGateService conduct,
-        RealtimeSignalBus realtimeSignals)
+        RealtimeSignalBus realtimeSignals, GifSearch gifs)
     {
         this.translation = translation;
         this.confirm = confirm;
         store = new ChirperStore(session, net.Account, net.Social, net.Safety, net.Media, realtimeSignals);
+        gifSearch = gifs;
         store.SetFeedRegions(SocialRegion.FilterCsv(configuration.ChirperFeedRegionMask));
         composeMentions = new MentionAutocomplete(store.NewMentionSuggestions());
         commentMentions = new MentionAutocomplete(store.NewMentionSuggestions());
@@ -320,6 +336,12 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         router = new ViewRouter<ChirperRoute>(ChirperRoute.Home);
         drawView = DrawView;
         back = () => router.Pop();
+        feedRefreshers = new()
+        {
+            { SocialFeedScope.ForYou, () => RefreshFeed(SocialFeedScope.ForYou) },
+            { SocialFeedScope.Latest, () => RefreshFeed(SocialFeedScope.Latest) },
+            { SocialFeedScope.Following, () => RefreshFeed(SocialFeedScope.Following) }
+        };
         closeComposePicker = () => composePicking = false;
         profile = new SocialProfilePages(store, new SocialProfileStyle
         {
@@ -343,6 +365,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         ResetReactionsExpansion();
         sheet.Close();
         filterSheet.Close();
+        CloseGifSheets();
         homeTab = HomeTab.Feed;
         sheetKind = SheetKind.None;
         sheetPost = null;
@@ -351,6 +374,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         composeAttachments.Clear();
         composePicking = false;
         composeSensitive = false;
+        composePoll.Reset();
         store.ClearDiscover();
         trendingRequested = false;
         feedScrollY = 0f;
@@ -371,6 +395,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         }
 
         likedRevalidateGate.Reset();
+        savedRevalidateGate.Reset();
 
         if (store.IsSignedIn)
         {
@@ -429,7 +454,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         DrawNight(screen, context.Content.Min.Y);
         var appArea = new Rect(new Vector2(screen.Min.X, context.Content.Min.Y),
             new Vector2(screen.Max.X, context.Content.Max.Y));
-        using (InputShield.Engage(avatarLightbox.Expanded))
+        using (InputShield.Engage(avatarLightbox.Expanded || GifSheetsCapture))
         using (intro.FadeContent())
         {
             router.Draw(appArea, AppSkin.Transparent, ImGui.GetIO().DeltaTime, drawView);
@@ -442,6 +467,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         }
 
         DrawSheet(screen);
+        DrawGifSheets(screen);
         DrawFilterSheet(screen);
         DrawFeedExplainer(screen);
         DrawClaw(screen);
@@ -517,7 +543,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         }
 
         using (TabBar.ReserveContent(scale))
-        using (ImRaii.PushId((int)homeTab))
+        using (UiScope.PushId((int)homeTab))
         {
             switch (homeTab)
             {
@@ -589,6 +615,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         composeIntake.Discard();
         composePicking = false;
         composeSensitive = false;
+        composePoll.Reset();
         composeFocus = true;
         router.Push(ChirperRoute.Compose);
     }
@@ -887,10 +914,19 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             AddSheetItem(PostSheetAction.Reactions, Loc.T(L.Chirper.ViewReactions), false);
         }
 
+        if (post.Saved)
+        {
+            AddSheetItem(PostSheetAction.Unsave, Loc.T(L.Chirper.UnsaveChirp), false);
+        }
+        else
+        {
+            AddSheetItem(PostSheetAction.Save, Loc.T(L.Chirper.SaveChirp), false);
+        }
+
         var mine = store.Me is { } me && me.Id == post.AuthorId;
         if (mine)
         {
-            var canVeil = !post.SensitiveLocked && PostMedia.Photos(post.MediaUrls, post.MediaUrl).Length > 0;
+            var canVeil = !post.SensitiveLocked && PostMedia.Photos(post).Length > 0;
             if (canVeil)
             {
                 AddSheetItem(PostSheetAction.Sensitive,
@@ -966,7 +1002,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
                 TranslateLink.Activate(translation, confirm, key, post.Text, translation.Peek(key));
                 break;
             case PostSheetAction.Report:
-                profile.OpenReport("post", post.Id, Loc.T(L.Report.PostTitle));
+                profile.OpenReport("post", post.Id, Loc.T(L.Report.PostTitle), GifReportForwarder(post));
                 break;
             case PostSheetAction.Block:
                 profile.AskBlock(post.AuthorDisplayName, post.AuthorHandle, post.AuthorId);
@@ -983,6 +1019,14 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             case PostSheetAction.Unpin:
                 store.UnpinPost(post.Id,
                     unpinned => toast.Show(Loc.T(unpinned ? L.Social.UnpinnedToast : L.Social.UnpinFailed)));
+                break;
+            case PostSheetAction.Save:
+                store.SetSaved(post.Id, true);
+                savedRevalidateGate.Reset();
+                toast.Show(Loc.T(L.Chirper.SavedToast));
+                break;
+            case PostSheetAction.Unsave:
+                store.SetSaved(post.Id, false);
                 break;
         }
     }
@@ -1148,7 +1192,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             }
 
             pullToRefresh[scope].Draw(listRect, surface.Pull, surface.Dragging,
-                store.IsLoading(scope), ChirperInk.MutedInk, () => RefreshFeed(scope));
+                store.IsLoading(scope), ChirperInk.MutedInk, feedRefreshers[scope]);
 
             if (snapshot.Length == 0)
             {
@@ -1309,13 +1353,14 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             ? 10f * scale + Typography.LineHeight(DateStyle)
             : 0f;
         var afterText = textTop + textHeight + translateHeight + dateHeight;
-        var photos = PostMedia.Photos(post.MediaUrls, post.MediaUrl);
+        var photos = PostMedia.Photos(post);
         var mediaHeight = MediaBlockHeight(photos.Length, isThreadHead);
         var mediaTop = afterText + (photos.Length > 0 ? 9f * scale : 0f);
         var hasQuote = post.QuotedPostId is not null;
         var quoteHeight = hasQuote ? QuotedCardHeight(post.ReferencedPost, contentWidth) : 0f;
         var quoteTop = mediaTop + mediaHeight + (hasQuote ? 9f * scale : 0f);
-        var contentBody = quoteTop + quoteHeight;
+        var pollHeight = PollBlockHeight(post, isThreadHead);
+        var contentBody = quoteTop + quoteHeight + pollHeight;
         var hasReactions = post.TotalReactions > 0;
         var reactionsTop = contentBody + (hasReactions ? (isThreadHead ? 12f : 9f) * scale : 0f);
         var expandProgress = isThreadHead ? 1f : ReactionsExpandProgress(post);
@@ -1375,7 +1420,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         Typography.Draw(drawList, new Vector2(metaLeft, headerTop + (nameHeight - metaSize.Y) * 0.5f), metaFitted,
             ChirperInk.MutedInk, MetaStyle);
 
-        var moreExtent = new Vector2(moreRadius, moreRadius);
+        var moreExtent = new Vector2(MathF.Max(moreRadius, Metrics.Size.TapTarget * 0.5f * scale));
         var moreHovered = UiInteract.Hover(moreCenter - moreExtent, moreCenter + moreExtent);
         if (moreHovered)
         {
@@ -1397,7 +1442,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             ImGui.SetCursorScreenPos(new Vector2(contentLeft, textTop));
             using (Typography.WrapAt(contentRight))
             using (Plugin.Fonts.Push(bodyStyle.Scale))
-            using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.BodyInk))
+            using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.BodyInk))
             {
                 Typography.Wrapped(bodyText);
             }
@@ -1448,6 +1493,11 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         {
             DrawQuotedCard(drawList, new Vector2(contentLeft, quoteTop), contentWidth, quoteHeight,
                 post.ReferencedPost, true, post.Id);
+        }
+
+        if (pollHeight > 0f)
+        {
+            DrawPollBlock(drawList, post, contentLeft, quoteTop + quoteHeight, contentWidth, isThreadHead);
         }
 
         if (hasReactions)
@@ -2215,7 +2265,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             return padY * 2f + headerHeight;
         }
 
-        var quotedPhotos = PostMedia.Photos(quoted.MediaUrls, quoted.MediaUrl);
+        var quotedPhotos = PostMedia.Photos(quoted);
         var hasMedia = quotedPhotos.Length > 0 && !HiddenByMediaPreference(quotedPhotos);
         var innerWidth = width - padX * 2f - (hasMedia ? QuoteThumbSize * scale + 8f * scale : 0f);
         var bodyLine = Typography.LineHeight(QuoteBodyStyle);
@@ -2252,7 +2302,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             return;
         }
 
-        var quotedPhotos = PostMedia.Photos(quoted.MediaUrls, quoted.MediaUrl);
+        var quotedPhotos = PostMedia.Photos(quoted);
         if (HiddenByMediaPreference(quotedPhotos))
         {
             quotedPhotos = Array.Empty<string>();
@@ -2288,7 +2338,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             ImGui.SetCursorScreenPos(new Vector2(min.X + padX, bodyTop));
             using (Typography.WrapAt(min.X + padX + innerWidth))
             using (Plugin.Fonts.Push(QuoteBodyStyle.Scale))
-            using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.QuoteBodyInk))
+            using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.QuoteBodyInk))
             {
                 Typography.Wrapped(quoted.Text);
             }
@@ -2338,7 +2388,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     private bool HiddenByMediaPreference(PostDto post)
     {
         var target = post.RepostOfId is not null && post.ReferencedPost is not null ? post.ReferencedPost : post;
-        return HiddenByMediaPreference(PostMedia.Photos(target.MediaUrls, target.MediaUrl));
+        return HiddenByMediaPreference(PostMedia.Photos(target));
     }
 
     private bool HiddenByMediaPreference(string[] photos)
@@ -2353,7 +2403,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
 
     private bool HiddenByMediaPreference(CommentDto comment)
     {
-        return comment.Text.Length == 0 && CommentMediaHidden(comment.MediaUrl);
+        return comment.Text.Length == 0 && CommentMediaHidden(comment.Media);
     }
 
     private bool CommentMediaHidden(string? mediaUrl)
@@ -2457,6 +2507,11 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     private void DrawMediaTile(ImDrawListPtr drawList, string url, Rect rect, float rounding, ImDrawFlags corners,
         string? scanStatus)
     {
+        if (DrawHeldGifTile(drawList, url, rect, rounding, corners))
+        {
+            return;
+        }
+
         var texture = MediaTexture(url);
         if (texture is null)
         {
@@ -2482,7 +2537,8 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         }
     }
 
-    private IDalamudTextureWrap? MediaTexture(string? url) => GifMedia.Texture(images, url, ImGui.GetTime());
+    private IDalamudTextureWrap? MediaTexture(string? url) =>
+        HeldGif(url) ? null : GifMedia.Texture(images, url, ImGui.GetTime());
 
     private void BeginQuote(PostDto post)
     {
@@ -2496,6 +2552,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         composeIntake.Discard();
         composePicking = false;
         composeSensitive = false;
+        composePoll.Reset();
         composeFocus = true;
         router.Push(ChirperRoute.Compose);
     }
@@ -2590,6 +2647,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         composeIntake.Discard();
         composePicking = false;
         composeSensitive = false;
+        composePoll.Reset();
         AddComposeAttachment(path);
         composeFocus = true;
         router.Push(ChirperRoute.Compose);

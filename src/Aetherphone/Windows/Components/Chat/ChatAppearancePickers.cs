@@ -60,6 +60,7 @@ internal sealed class ChatAppearancePickers
     private readonly WallpaperImageCache images;
     private readonly PhotoLibrary library;
     private string[] wallpaperPhotos = Array.Empty<string>();
+    private PhotoLibraryWatch wallpaperLibraryWatch;
     private int lastWallpaperFrame = -100;
 
     public ChatAppearancePickers(ChatListChrome chrome, WallpaperImageCache images, PhotoLibrary library)
@@ -127,6 +128,11 @@ internal sealed class ChatAppearancePickers
         var scale = UiScale.Current;
         var frame = ImGui.GetFrameCount();
         if (frame - lastWallpaperFrame > ScreenResumeFrameGap)
+        {
+            wallpaperLibraryWatch.Mark(library);
+            wallpaperPhotos = library.List();
+        }
+        else if (wallpaperLibraryWatch.Changed(library))
         {
             wallpaperPhotos = library.List();
         }

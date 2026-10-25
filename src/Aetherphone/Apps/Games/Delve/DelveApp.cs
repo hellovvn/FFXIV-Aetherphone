@@ -27,7 +27,7 @@ internal sealed class DelveApp : IMiniGame
     private const ulong PreviewSeed = 11;
     private static readonly GameSpec StageSpec = new(GameId, L.Delve.Title, GameGenre.Action, L.Delve.Hook,
         Backdrop.Cavern, HudStyle.Standard, ScoreKind.Level, clocked: true, countdown: true, keyboard: true,
-        levelCount: DelveLevels.Count);
+        levelCount: DelveLevels.Count, guide: DelveGuide.Guide);
     private static readonly ImGuiKey[] Keys = { ImGuiKey.W, ImGuiKey.D, ImGuiKey.S, ImGuiKey.A };
     private static readonly ImGuiKey[] Arrows =
     {

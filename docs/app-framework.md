@@ -38,6 +38,7 @@ src/Aetherphone/Core/Apps/IPhoneApp.cs lists the members; most have a default. T
 | `HasBadge` | False means the badge always shows. True adds a Badges switch to the app's Settings page |
 | `WantsSystemTheme` | False means the app always gets the dark theme |
 | `IsAvailable` | Read every frame on the home screen, so keep it cheap |
+| `TileEffect` | Read every frame on the home screen. `Glow`, `Aura` (accent motes) or `Spectrum` (rainbow glints) marks a new app |
 | `OnShare` | Called before the app opens, not after |
 
 The server can switch an app off. The default `IsAvailable` then returns false, which hides the tile and blocks opening it. A new app is on until the server says otherwise, and overriding `IsAvailable` opts out of the switch.
@@ -131,11 +132,15 @@ private void DrawView(RecipeScreen screen, Rect area, int depth)
 
 Most apps paint their own dark gradient. `AppPalette` is a readonly struct of colors, `AppPalettes` holds one preset per themed app, and `AppSkin` paints with it: construct it once, assign `ui.Theme = context.Theme` each frame, then call `ui.Backdrop`, `ui.Body`, `ui.Card` and the button helpers. [Design accents](design-accents.md) explains where accents and palettes come from.
 
-Only apps drawn on plain system surfaces set `WantsSystemTheme => true`: Settings, Notes, Calendar, Maps, Photos and Announcements. The others always get the dark theme, because the gradient backdrops are designed against dark chrome.
+Only apps drawn on plain system surfaces set `WantsSystemTheme => true`: Settings, Notes, Calendar, Maps, Photos and Updates (app id `announcements`). The others always get the dark theme, because the gradient backdrops are designed against dark chrome.
 
 ## Badges
 
 The home tile reads `BadgeCount` every frame and draws the badge when the count is above zero and the user has not turned it off; `BadgeAsDot` draws a dot instead of the number. A folder sums its apps' numbers. Real badges are cheap reads of counters the app already keeps (MessageApp adds unread messages to missed calls) and never check the user's preference, because the tile does that. See [Notifications](notifications.md).
+
+## Showcasing a new app
+
+An app listed in `HomeLayoutService.ArrivingApps` stays out of the known baseline, so the first time the server switches it on it lands in the first free home slot on every phone, new and existing alike, and the player can remove it. `TileEffect` makes the tile stand out while it is new. Love Island drives `Aura` and `Glow` from its campaign. Prism shows `Spectrum` for three days from the first time its tile is drawn and drops to `Glow` once the player opens it (`PrismShowcase`).
 
 ## Receiving shares
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Net;
 using Dalamud.Interface.Textures.TextureWraps;
 
@@ -51,6 +52,9 @@ internal sealed class RemoteImageCache : IDisposable
         Request(resolved, TextureSizes.Native);
         return null;
     }
+
+    public IDalamudTextureWrap? Nearest(string? url, float drawnPixels) =>
+        Fetchable(url) ? ready.Nearest(LegacyMediaHosts.Normalize(url!), TextureSizes.LevelFor(drawnPixels)) : null;
 
     public IDalamudTextureWrap? Sized(string? url, float drawnPixels)
     {
@@ -105,7 +109,8 @@ internal sealed class RemoteImageCache : IDisposable
         }
 
         var resolved = LegacyMediaHosts.Normalize(url!);
-        var cached = disk.Get(resolved, DiskMaxAge);
+        var keepOnDisk = KeepsOnDisk(resolved);
+        var cached = keepOnDisk ? disk.Get(resolved, DiskMaxAge) : null;
         if (cached is not null)
         {
             return cached;
@@ -113,13 +118,16 @@ internal sealed class RemoteImageCache : IDisposable
 
         using var slot = await downloads.EnterAsync(token).ConfigureAwait(false);
         var bytes = await http.GetBytesAsync(new Uri(resolved), token).ConfigureAwait(false);
-        if (bytes is not null)
+        if (bytes is not null && keepOnDisk)
         {
             disk.Set(resolved, bytes);
         }
 
         return bytes;
     }
+
+    // KLIPY's integration requirements forbid keeping copies of its media, so it stays in memory only.
+    private static bool KeepsOnDisk(string url) => !KlipyMedia.IsHosted(url);
 
     private void Request(string resolved, int level)
     {
@@ -155,7 +163,8 @@ internal sealed class RemoteImageCache : IDisposable
 
     private async Task<byte[]?> FetchThroughDiskAsync(LedgerKey key, string url, CancellationToken token)
     {
-        var cached = disk.Get(url, DiskMaxAge);
+        var keepOnDisk = KeepsOnDisk(url);
+        var cached = keepOnDisk ? disk.Get(url, DiskMaxAge) : null;
         if (cached is not null)
         {
             return cached;
@@ -169,7 +178,7 @@ internal sealed class RemoteImageCache : IDisposable
         }
 
         var bytes = await http.GetBytesAsync(new Uri(url), token).ConfigureAwait(false);
-        if (bytes is not null)
+        if (bytes is not null && keepOnDisk)
         {
             disk.Set(url, bytes);
         }

@@ -23,7 +23,7 @@ This tutorial builds Tap, a 15-second game where you tap the lit cell as fast as
 
 Tap is a four by five grid with one lit cell. Tapping it scores, and quick taps in a row raise a combo multiplier. The round runs on a 15-second clock, so the spec is clocked (losing focus pauses it) and has a countdown. It scores higher-is-better points, so its kind is Score, and it sits on the Arcade shelf over the Nebula backdrop.
 
-When you plan your own game, pick Landscape only when the world is wide (Doom, Moogle War) and the Compact HUD only when the board is tall. Name the game for what it does, as Whack, Snake and Water Sort are, and never use the word Aether in a game's name.
+When you plan your own game, pick Landscape only when the world is wide (Doom, Moogle War) and the Compact HUD only when the board is tall. Name the game for what it does, as Whack, Snake and Water Sort are, and never use the word Aether in a game's name. A game whose rules need more than the one-line hook also gets an animated How to play guide, three or four pages drawn with its own pieces, as [Games framework](games-framework.md#how-to-play) describes; Tap's hook says it all, so it has none.
 
 ## 2. Write the class
 

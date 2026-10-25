@@ -20,7 +20,7 @@ public sealed class ScoresWireContractTests
         "casino.barkeep", "mahjong.easy", "mahjong.medium", "mahjong.hard", "gloop", "gloop.versus", "slice",
         "slice.arcade", "spiral", "drift", "crawler", "trails", "moogleclicker", "pinball", "pegfall", "fling",
         "snip", "crater", "siege", "siege.endless", "trailblaze", "thrust", "crates", "delve", "luckydraw",
-        "broadside", "herd", "claim", "tempo", "fuse", "lander", "minigolf",
+        "broadside", "herd", "claim", "tempo", "fuse", "lander", "minigolf", "cluster", "harvest",
     };
 
     [Fact]

@@ -75,7 +75,6 @@ internal static class WallpaperBackdrop
     private static float flatTop;
     private static float flatSpan;
     private static bool appGround;
-    private static int requestedFrame = -1;
 
     public static bool Available => ImGui.GetFrameCount() - recordedFrame <= FrameTolerance && quad.Width > 0f &&
                                     quad.Height > 0f;
@@ -83,8 +82,6 @@ internal static class WallpaperBackdrop
     public static bool FlatAvailable => ImGui.GetFrameCount() - flatFrame <= FrameTolerance;
 
     public static bool OnAppGround => appGround && !Available && FlatAvailable;
-
-    public static bool Requested => ImGui.GetFrameCount() - requestedFrame <= FrameTolerance;
 
     public static void Clear() => recordedFrame = -1;
 
@@ -167,33 +164,6 @@ internal static class WallpaperBackdrop
         appGround = snapshot.AppGround;
     }
 
-    public static bool FillEdge(ImDrawListPtr drawList, Vector2 min, Vector2 max, float radius, float band,
-        float opacity)
-    {
-        if (opacity <= 0f)
-        {
-            return false;
-        }
-
-        requestedFrame = ImGui.GetFrameCount();
-        if (!Available)
-        {
-            return false;
-        }
-
-        var (lightMin, lightMax) = Map(min, max, lightUv0, lightUv1);
-        Squircle.FillImageEdge(drawList, min, max, radius, band, lightHandle, Tint(opacity), lightMin, lightMax, 0f);
-        if (!hasDark || darkness <= 0.001f)
-        {
-            return true;
-        }
-
-        var (darkMin, darkMax) = Map(min, max, darkUv0, darkUv1);
-        Squircle.FillImageEdge(drawList, min, max, radius, band, darkHandle, Tint(opacity * darkness), darkMin,
-            darkMax, 0f);
-        return true;
-    }
-
     public static bool Fill(ImDrawListPtr drawList, Vector2 min, Vector2 max, float radius, float opacity, float lens,
         float band, float refraction)
     {
@@ -202,7 +172,6 @@ internal static class WallpaperBackdrop
             return false;
         }
 
-        requestedFrame = ImGui.GetFrameCount();
         if (!Available)
         {
             if (!FlatAvailable)

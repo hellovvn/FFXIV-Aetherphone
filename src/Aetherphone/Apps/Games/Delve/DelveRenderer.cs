@@ -29,7 +29,7 @@ internal static class DelveRenderer
     public static readonly Vector4 Ember = new(1f, 0.58f, 0.22f, 1f);
     public static readonly Vector4 Flame = new(1f, 0.92f, 0.62f, 1f);
     public static readonly Vector4 Rock = new(0.58f, 0.55f, 0.52f, 1f);
-    private static readonly Vector4 Tunnel = new(0.065f, 0.05f, 0.045f, 0.94f);
+    public static readonly Vector4 Tunnel = new(0.065f, 0.05f, 0.045f, 0.94f);
     private static readonly Vector4 Dirt = new(0.42f, 0.29f, 0.18f, 1f);
     private static readonly Vector4 DirtDark = new(0.30f, 0.20f, 0.12f, 1f);
     private static readonly Vector4 DirtEdge = new(0.66f, 0.50f, 0.32f, 1f);
@@ -72,7 +72,8 @@ internal static class DelveRenderer
                 switch (tile)
                 {
                     case DelveTile.Dirt:
-                        DrawDirt(drawList, board, column, row, min, cell);
+                        DrawDirt(drawList, column, row, min, cell, Open(board, column, row - 1),
+                            Open(board, column, row + 1));
                         break;
                     case DelveTile.Wall:
                         DrawWall(drawList, min, cell);
@@ -129,7 +130,8 @@ internal static class DelveRenderer
                         break;
                     case DelveTile.Blast:
                     case DelveTile.GemBlast:
-                        DrawBlast(drawList, center, cell, board.BlastLeft(index), tile == DelveTile.GemBlast);
+                        DrawBlast(drawList, center, cell, board.BlastLeft(index) / (float)DelveBoard.BlastTicks,
+                            tile == DelveTile.GemBlast);
                         break;
                     case DelveTile.Player:
                         DrawMiner(drawList, center, cell, board.Facing, squash, time, lampGlow);
@@ -196,8 +198,8 @@ internal static class DelveRenderer
             ImGui.GetColorU32(Pompom with { W = 0.75f }), 8);
     }
 
-    private static void DrawDirt(ImDrawListPtr drawList, DelveBoard board, int column, int row, Vector2 min,
-        float cell)
+    public static void DrawDirt(ImDrawListPtr drawList, int column, int row, Vector2 min, float cell, bool openAbove,
+        bool openBelow)
     {
         var hash = (uint)((column * 92837111) ^ (row * 689287499));
         var shade = ((hash >> 3) & 15) / 15f;
@@ -214,18 +216,18 @@ internal static class DelveRenderer
         }
 
         var edge = MathF.Max(1f, cell * 0.08f);
-        if (board.TileAt(column, row - 1) is not DelveTile.Dirt and not DelveTile.Wall)
+        if (openAbove)
         {
             drawList.AddRectFilled(min, new Vector2(max.X, min.Y + edge), ImGui.GetColorU32(DirtEdge));
         }
 
-        if (board.TileAt(column, row + 1) is not DelveTile.Dirt and not DelveTile.Wall)
+        if (openBelow)
         {
             drawList.AddRectFilled(new Vector2(min.X, max.Y - edge), max, ImGui.GetColorU32(DirtDark));
         }
     }
 
-    private static void DrawWall(ImDrawListPtr drawList, Vector2 min, float cell)
+    public static void DrawWall(ImDrawListPtr drawList, Vector2 min, float cell)
     {
         var max = min + new Vector2(cell, cell);
         var inset = cell * 0.04f;
@@ -241,7 +243,7 @@ internal static class DelveRenderer
         drawList.AddCircleFilled(center + new Vector2(reach, reach), cell * 0.045f, rivet, 6);
     }
 
-    private static void DrawExit(ImDrawListPtr drawList, Vector2 center, float cell, bool open, float time,
+    public static void DrawExit(ImDrawListPtr drawList, Vector2 center, float cell, bool open, float time,
         Vector4 accent, float flash)
     {
         var half = new Vector2(cell * 0.44f, cell * 0.46f);
@@ -272,7 +274,7 @@ internal static class DelveRenderer
         drawList.AddCircleFilled(center, cell * (0.1f + 0.03f * pulse), ImGui.GetColorU32(White with { W = 0.9f }), 12);
     }
 
-    private static void DrawBoulder(ImDrawListPtr drawList, Vector2 center, float cell, int seed)
+    public static void DrawBoulder(ImDrawListPtr drawList, Vector2 center, float cell, int seed)
     {
         var radius = cell * 0.45f;
         drawList.AddCircleFilled(center + new Vector2(0f, cell * 0.05f), radius, ImGui.GetColorU32(Shadow), 20);
@@ -291,7 +293,7 @@ internal static class DelveRenderer
         drawList.AddLine(bend, finish, crack, thickness);
     }
 
-    private static void DrawGem(ImDrawListPtr drawList, Vector2 center, float cell, float time, int seed)
+    public static void DrawGem(ImDrawListPtr drawList, Vector2 center, float cell, float time, int seed)
     {
         var half = cell * 0.30f;
         var tall = cell * 0.40f;
@@ -342,7 +344,7 @@ internal static class DelveRenderer
         drawList.AddCircleFilled(center + new Vector2(body * 0.35f, -body * 0.1f), body * 0.2f, ImGui.GetColorU32(BatEye), 8);
     }
 
-    private static void DrawSlime(ImDrawListPtr drawList, Vector2 center, float cell, float time, int seed)
+    public static void DrawSlime(ImDrawListPtr drawList, Vector2 center, float cell, float time, int seed)
     {
         var wobble = MathF.Sin(time * 6f + (seed & 15));
         var radii = new Vector2(cell * (0.38f + 0.04f * wobble), cell * (0.30f - 0.04f * wobble));
@@ -358,15 +360,17 @@ internal static class DelveRenderer
         drawList.AddCircleFilled(blob + new Vector2(radii.X * 0.3f, -radii.Y * 0.05f), cell * 0.05f, eye, 8);
     }
 
-    private static void DrawBlast(ImDrawListPtr drawList, Vector2 center, float cell, int ticksLeft, bool gems)
+    public static void DrawBlast(ImDrawListPtr drawList, Vector2 center, float cell, float life, bool gems)
     {
-        var life = ticksLeft / (float)DelveBoard.BlastTicks;
         var outer = gems ? GemCore : Ember;
         var inner = gems ? GemLight : Flame;
         ProgressRing.Glow(center, cell * (0.9f + 0.4f * (1f - life)), outer, 0.7f * life + 0.2f);
         drawList.AddCircleFilled(center, cell * 0.42f * (0.6f + 0.4f * life), ImGui.GetColorU32(outer with { W = 0.85f }), 16);
         drawList.AddCircleFilled(center, cell * 0.22f * life, ImGui.GetColorU32(inner), 12);
     }
+
+    private static bool Open(DelveBoard board, int column, int row) =>
+        board.TileAt(column, row) is not DelveTile.Dirt and not DelveTile.Wall;
 
     private static void DrawWing(ImDrawListPtr drawList, Vector2 root, float side, float cell, float flap)
     {

@@ -31,6 +31,7 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
     private readonly AethernetSession session;
     private readonly Core.Casino.CasinoFloorStore floor;
     private readonly Configuration configuration;
+    private readonly Core.Home.HomeLinks homeLinks;
     private readonly Core.Casino.CasinoPreferences preferences;
     private readonly Strip.StripHero stripHero = new();
     private readonly Strip.StripLightClock floorLights = new();
@@ -116,11 +117,16 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
         Core.Lodestone.LodestoneService lodestone, Core.Casino.HoldemStore holdemStore,
         Core.Casino.CasinoVenueStore casinoVenue, Core.Casino.CasinoTradeSync tradeSync,
         Core.Report.ReportService report, Core.Casino.CasinoFloorStore floor, Configuration configuration,
-        Core.Casino.CasinoFameChoiceStore fameChoice)
+        Core.Casino.CasinoFameChoiceStore fameChoice, Core.Casino.Rolls.ChatRolls chatRolls,
+        Core.Home.HomeLinks homeLinks)
     {
         this.floor = floor;
         this.configuration = configuration;
+        this.homeLinks = homeLinks;
         this.fameChoice = fameChoice;
+        this.chatRolls = chatRolls;
+        rollSetup = new Rolls.RollSetupPage(chatRolls);
+        rollGame = new Rolls.RollGamePage(chatRolls, casinoTables);
         fameView = new Strip.FameView(floor);
         fameConsent = new Strip.FameConsentSheet(fameChoice);
         stage.Feed = floor;
@@ -300,7 +306,7 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
 
     private void ConsumeLaunch()
     {
-        if (!launcher.TryConsume(out var launch))
+        if (!launcher.TryConsume(casino.State is not null, out var launch))
         {
             return;
         }
@@ -317,6 +323,13 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
             }
 
             awaited = new CasinoLaunchWait(launch.TableId, ledger, routes.Current, routes.Depth, routes.Tab);
+            return;
+        }
+
+        if (launch.Kind == Core.Casino.CasinoLaunchKind.Code && launch.Code.Length > 0)
+        {
+            SelectTab(CasinoTab.Live);
+            casinoTables.JoinByCode(launch.Code);
             return;
         }
 
@@ -866,6 +879,9 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
             case CasinoInfoRequest.Fairness:
                 OpenFairness();
                 break;
+            case CasinoInfoRequest.AddToHome:
+                AddToHome(StageSpecFor(current).GameId);
+                break;
         }
     }
 
@@ -909,6 +925,12 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
                 break;
             case CasinoScreen.HostRules:
                 DrawHostRules(navBar.Body);
+                break;
+            case CasinoScreen.RollSetup:
+                DrawRollSetup(navBar.Body);
+                break;
+            case CasinoScreen.RollGame:
+                DrawRollGame(navBar.Body);
                 break;
         }
 
@@ -976,6 +998,7 @@ internal sealed partial class CasinoApp : IPhoneApp, ITabRouteTarget, INameplate
         CasinoScreen.RoundDetail => Loc.T(L.Casino.RoundDetailTitle),
         CasinoScreen.Fame => Loc.T(L.Club.FameTitle),
         CasinoScreen.HostRules => Loc.T(L.HostSetup.RulesTitle),
+        CasinoScreen.RollSetup or CasinoScreen.RollGame => RollTitle(route.Screen),
         CasinoScreen.DailySpin => Loc.T(L.Casino.GameDailySpin),
         CasinoScreen.Cabinet => Loc.T(GameName(route.GameId)),
         _ => TabTitle(routes.Tab),

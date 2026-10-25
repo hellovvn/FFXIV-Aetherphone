@@ -16,6 +16,7 @@ internal static class FuseRenderer
     private const float BombRadius = 0.33f;
     private const float ItemRadius = 0.3f;
     private const float FallDrop = 5f;
+    public const int FlameLayers = 3;
     private const float OuterFlame = 0.82f;
     private const float MiddleFlame = 0.58f;
     private const float CoreFlame = 0.3f;
@@ -47,9 +48,11 @@ internal static class FuseRenderer
     public static Rect WorldRect => new(new Vector2(-ArenaMargin, -ArenaMargin * 1.6f),
         new Vector2(FuseBoard.Columns + ArenaMargin, FuseBoard.Rows + ArenaMargin));
 
-    public static float ScoreboardWidth =>
-        ScoreboardPad * 2f + FuseBoard.MaxMoogles * (DotSize + PipGap + FuseBoard.WinsNeeded * (PipSize + PipGap)) +
-        (FuseBoard.MaxMoogles - 1) * EntryGap;
+    public static float ScoreboardWidth => ScoreboardWidthFor(FuseBoard.MaxMoogles);
+
+    public static float ScoreboardWidthFor(int entries) =>
+        ScoreboardPad * 2f + entries * (DotSize + PipGap + FuseBoard.WinsNeeded * (PipSize + PipGap)) +
+        (entries - 1) * EntryGap;
 
     public static Vector4 TeamColor(int index) => GameSeats.Color(index);
 
@@ -84,40 +87,66 @@ internal static class FuseRenderer
     public static void DrawScoreboard(ImDrawListPtr drawList, Rect rect, FuseBoard board, float scale)
     {
         StageHud.Capsule(drawList, rect, scale);
-        var centerY = rect.Center.Y;
         var x = rect.Min.X + ScoreboardPad * scale;
         for (var index = 0; index < FuseBoard.MaxMoogles; index++)
         {
             ref readonly var moogle = ref board.MoogleAt(index);
-            var color = TeamColor(index);
-            var dotRadius = DotSize * 0.5f * scale;
-            var dotCenter = new Vector2(x + dotRadius, centerY);
             var alive = moogle.Alive || board.Phase != FusePhase.Fighting;
-            drawList.AddCircleFilled(dotCenter, dotRadius, ImGui.GetColorU32(alive ? color : KnockedOut with { W = 0.6f }), 14);
-            if (index == FuseBoard.Player)
-            {
-                drawList.AddCircle(dotCenter, dotRadius + 1.5f * scale, ImGui.GetColorU32(FuseArt.White with { W = 0.85f }),
-                    16, 1.2f * scale);
-            }
-
-            x += DotSize * scale + PipGap * scale;
-            for (var pip = 0; pip < FuseBoard.WinsNeeded; pip++)
-            {
-                var pipCenter = new Vector2(x + PipSize * 0.5f * scale, centerY);
-                var filled = pip < moogle.Wins;
-                drawList.AddCircleFilled(pipCenter, PipSize * 0.5f * scale,
-                    ImGui.GetColorU32(filled ? FuseArt.Gold : FuseArt.White with { W = 0.22f }), 10);
-                x += (PipSize + PipGap) * scale;
-            }
-
-            x += EntryGap * scale;
+            x = DrawScoreEntry(drawList, x, rect.Center.Y, index, alive, moogle.Wins, scale);
         }
+    }
+
+    public static float DrawScoreEntry(ImDrawListPtr drawList, float x, float centerY, int index, bool alive, int wins,
+        float scale)
+    {
+        var dotRadius = DotSize * 0.5f * scale;
+        var dotCenter = new Vector2(x + dotRadius, centerY);
+        drawList.AddCircleFilled(dotCenter, dotRadius,
+            ImGui.GetColorU32(alive ? TeamColor(index) : KnockedOut with { W = 0.6f }), 14);
+        if (index == FuseBoard.Player)
+        {
+            drawList.AddCircle(dotCenter, dotRadius + 1.5f * scale, ImGui.GetColorU32(FuseArt.White with { W = 0.85f }),
+                16, 1.2f * scale);
+        }
+
+        x += DotSize * scale + PipGap * scale;
+        for (var pip = 0; pip < FuseBoard.WinsNeeded; pip++)
+        {
+            var pipCenter = new Vector2(x + PipSize * 0.5f * scale, centerY);
+            var filled = pip < wins;
+            drawList.AddCircleFilled(pipCenter, PipSize * 0.5f * scale,
+                ImGui.GetColorU32(filled ? FuseArt.Gold : FuseArt.White with { W = 0.22f }), 10);
+            x += (PipSize + PipGap) * scale;
+        }
+
+        return x + EntryGap * scale;
     }
 
     private static void DrawGround(ImDrawListPtr drawList, FuseBoard board, in Camera2D camera, float cell)
     {
         var arenaMin = camera.ToScreen(Vector2.Zero);
-        var arenaMax = camera.ToScreen(new Vector2(FuseBoard.Columns, FuseBoard.Rows));
+        DrawFloor(drawList, arenaMin, FuseBoard.Columns, FuseBoard.Rows, cell);
+        var scorch = ImGui.GetColorU32(Scorch);
+        for (var row = 0; row < FuseBoard.Rows; row++)
+        {
+            for (var column = 0; column < FuseBoard.Columns; column++)
+            {
+                if (board.FireAt(FuseBoard.CellIndex(column, row)) <= 0f)
+                {
+                    continue;
+                }
+
+                var min = arenaMin + new Vector2(column * cell, row * cell);
+                drawList.AddCircleFilled(min + new Vector2(cell * 0.5f, cell * 0.5f), cell * 0.42f, scorch, 14);
+            }
+        }
+
+        DrawFloorEdge(drawList, arenaMin, FuseBoard.Columns, cell);
+    }
+
+    public static void DrawFloor(ImDrawListPtr drawList, Vector2 arenaMin, int columns, int rows, float cell)
+    {
+        var arenaMax = arenaMin + new Vector2(columns * cell, rows * cell);
         var wall = cell * WallThickness;
         var lift = cell * TileLift;
         var outerMin = arenaMin - new Vector2(wall, wall + lift);
@@ -129,29 +158,26 @@ internal static class FuseRenderer
         drawList.AddRectFilled(outerMin, outerMax - new Vector2(0f, lift), ImGui.GetColorU32(WallTop), radius);
         drawList.AddRectFilled(arenaMin, arenaMax, ImGui.GetColorU32(SandDark), cell * 0.08f);
         var light = ImGui.GetColorU32(SandLight);
-        var scorch = ImGui.GetColorU32(Scorch);
-        for (var row = 0; row < FuseBoard.Rows; row++)
+        for (var row = 0; row < rows; row++)
         {
-            for (var column = 0; column < FuseBoard.Columns; column++)
+            for (var column = 0; column < columns; column++)
             {
-                var min = arenaMin + new Vector2(column * cell, row * cell);
-                if (((column + row) & 1) == 0)
+                if (((column + row) & 1) != 0)
                 {
-                    drawList.AddRectFilled(min, min + new Vector2(cell, cell), light);
+                    continue;
                 }
 
-                if (board.FireAt(FuseBoard.CellIndex(column, row)) > 0f)
-                {
-                    drawList.AddCircleFilled(min + new Vector2(cell * 0.5f, cell * 0.5f), cell * 0.42f, scorch, 14);
-                }
+                var min = arenaMin + new Vector2(column * cell, row * cell);
+                drawList.AddRectFilled(min, min + new Vector2(cell, cell), light);
             }
         }
-
-        drawList.AddRectFilled(arenaMin, new Vector2(arenaMax.X, arenaMin.Y + cell * 0.12f),
-            ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.18f)));
     }
 
-    private static void DrawTile(ImDrawListPtr drawList, FuseTile tile, Vector2 min, float cell)
+    public static void DrawFloorEdge(ImDrawListPtr drawList, Vector2 arenaMin, int columns, float cell) =>
+        drawList.AddRectFilled(arenaMin, new Vector2(arenaMin.X + columns * cell, arenaMin.Y + cell * 0.12f),
+            ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.18f)));
+
+    public static void DrawTile(ImDrawListPtr drawList, FuseTile tile, Vector2 min, float cell)
     {
         switch (tile)
         {
@@ -221,13 +247,17 @@ internal static class FuseRenderer
     }
 
     private static void DrawItem(ImDrawListPtr drawList, in Camera2D camera, int index, PowerUp kind, float age, float cell,
-        float time)
+        float time) =>
+        DrawItemAt(drawList, camera.ToScreen(FuseBoard.CellCenter(index)), cell, kind, age, time, index);
+
+    public static void DrawItemAt(ImDrawListPtr drawList, Vector2 cellCenter, float cell, PowerUp kind, float age,
+        float time, int seed)
     {
         var pop = GameJuice.PopIn(Math.Clamp(age / 0.35f, 0f, 1f));
-        var bob = MathF.Sin(time * 3f + index) * 0.07f;
-        var ground = camera.ToScreen(FuseBoard.CellCenter(index) + new Vector2(0f, 0.28f));
+        var bob = MathF.Sin(time * 3f + seed) * 0.07f;
+        var ground = cellCenter + new Vector2(0f, 0.28f * cell);
         Shapes.FillEllipse(drawList, ground, cell * 0.24f * (1f - bob), cell * 0.08f, FuseArt.Color(FuseArt.Shadow, 0.8f));
-        var center = camera.ToScreen(FuseBoard.CellCenter(index) + new Vector2(0f, -0.12f + bob));
+        var center = cellCenter + new Vector2(0f, (-0.12f + bob) * cell);
         FuseArt.DrawPowerUp(drawList, center, cell * ItemRadius * MathF.Max(0.01f, pop), kind, 1f, time);
     }
 
@@ -242,15 +272,21 @@ internal static class FuseRenderer
                 continue;
             }
 
-            var progress = 1f - Math.Clamp(bomb.Fuse / FuseBoard.FuseSeconds, 0f, 1f);
-            var wave = MathF.Sin(bomb.Pulse * MathF.Tau);
-            var squash = wave * (0.05f + 0.11f * progress);
-            var heat = bomb.Fuse < 0.6f ? (0.5f + 0.5f * wave) * (1f - bomb.Fuse / 0.6f) : 0f;
-            var pop = GameJuice.PopIn(Math.Clamp(bomb.Age / 0.2f, 0f, 1f));
-            var radius = cell * BombRadius * MathF.Max(0.01f, pop);
             var center = camera.ToScreen(bomb.Position + new Vector2(0f, 0.02f));
-            FuseArt.DrawBomb(drawList, center, radius, squash, heat, 1f, time + slot);
+            DrawLiveBomb(drawList, center, cell, bomb.Fuse, bomb.Pulse, bomb.Age, time + slot);
         }
+    }
+
+    public static void DrawLiveBomb(ImDrawListPtr drawList, Vector2 center, float cell, float fuse, float pulse, float age,
+        float time)
+    {
+        var progress = 1f - Math.Clamp(fuse / FuseBoard.FuseSeconds, 0f, 1f);
+        var wave = MathF.Sin(pulse * MathF.Tau);
+        var squash = wave * (0.05f + 0.11f * progress);
+        var heat = fuse < 0.6f ? (0.5f + 0.5f * wave) * (1f - fuse / 0.6f) : 0f;
+        var pop = GameJuice.PopIn(Math.Clamp(age / 0.2f, 0f, 1f));
+        var radius = cell * BombRadius * MathF.Max(0.01f, pop);
+        FuseArt.DrawBomb(drawList, center, radius, squash, heat, 1f, time);
     }
 
     private static void DrawMooglesInRow(ImDrawListPtr drawList, FuseBoard board, in Camera2D camera, int row, float cell,
@@ -265,33 +301,39 @@ internal static class FuseRenderer
             }
 
             var winner = board.Phase == FusePhase.Ended && board.LastWinner == index;
-            var hop = winner ? MathF.Abs(MathF.Sin(time * 7f)) * 0.5f : 0f;
             var feet = camera.ToScreen(moogle.Position + new Vector2(0f, 0.34f));
-            var radius = cell * MoogleRadius;
-            if (index == FuseBoard.Player)
-            {
-                Shapes.FillEllipse(drawList, feet, radius * 1.15f, radius * 0.42f,
-                    FuseArt.Color(TeamColor(index), 0.35f + 0.15f * MathF.Sin(time * 4f)));
-            }
+            DrawMoogleAt(drawList, feet, cell, index, moogle.Facing, moogle.Stride, moogle.Moving, winner, time);
+        }
+    }
 
-            FuseArt.DrawMoogle(drawList, feet, radius, TeamColor(index), moogle.Facing, moogle.Stride, moogle.Moving, 1f, hop,
-                time + index);
-            if (winner)
-            {
-                FuseArt.DrawCrown(drawList, feet - new Vector2(0f, radius * (2.75f + hop)), radius * 0.9f, 1f);
-            }
+    public static void DrawMoogleAt(ImDrawListPtr drawList, Vector2 feet, float cell, int index, FuseDirection facing,
+        float stride, bool moving, bool winner, float time)
+    {
+        var hop = winner ? MathF.Abs(MathF.Sin(time * 7f)) * 0.5f : 0f;
+        var radius = cell * MoogleRadius;
+        if (index == FuseBoard.Player)
+        {
+            Shapes.FillEllipse(drawList, feet, radius * 1.15f, radius * 0.42f,
+                FuseArt.Color(TeamColor(index), 0.35f + 0.15f * MathF.Sin(time * 4f)));
+        }
+
+        FuseArt.DrawMoogle(drawList, feet, radius, TeamColor(index), facing, stride, moving, 1f, hop, time + index);
+        if (winner)
+        {
+            FuseArt.DrawCrown(drawList, feet - new Vector2(0f, radius * (2.75f + hop)), radius * 0.9f, 1f);
         }
     }
 
     private static void DrawFire(ImDrawListPtr drawList, FuseBoard board, in Camera2D camera, float cell, float time)
     {
-        DrawFirePass(drawList, board, in camera, cell, time, OuterFlame, FireOuter);
-        DrawFirePass(drawList, board, in camera, cell, time, MiddleFlame, FireMiddle);
-        DrawFirePass(drawList, board, in camera, cell, time, CoreFlame, FireCore);
+        for (var layer = 0; layer < FlameLayers; layer++)
+        {
+            DrawFirePass(drawList, board, in camera, cell, time, layer);
+        }
     }
 
     private static void DrawFirePass(ImDrawListPtr drawList, FuseBoard board, in Camera2D camera, float cell, float time,
-        float widthFraction, Vector4 color)
+        int layer)
     {
         for (var index = 0; index < FuseBoard.CellCount; index++)
         {
@@ -301,37 +343,56 @@ internal static class FuseRenderer
                 continue;
             }
 
-            var age = 1f - seconds / FuseBoard.FireSeconds;
-            var envelope = MathF.Min(1f, age / 0.12f) * (age > 0.55f ? 1f - (age - 0.55f) / 0.45f : 1f);
-            var flicker = 0.84f + 0.16f * MathF.Sin(time * 31f + index * 1.7f + widthFraction * 9f);
-            var width = cell * widthFraction * envelope * flicker;
-            if (width < 0.5f)
+            var center = camera.ToScreen(FuseBoard.CellCenter(index) - new Vector2(0f, 0.08f));
+            DrawFlame(drawList, center, cell, board.FireArmsAt(index), FireEnvelope(1f - seconds / FuseBoard.FireSeconds),
+                time, index, layer);
+        }
+    }
+
+    public static float FireEnvelope(float age) =>
+        MathF.Min(1f, age / 0.12f) * (age > 0.55f ? 1f - (age - 0.55f) / 0.45f : 1f);
+
+    public static void DrawFlame(ImDrawListPtr drawList, Vector2 center, float cell, byte arms, float envelope, float time,
+        int seed, int layer)
+    {
+        var widthFraction = layer switch
+        {
+            0 => OuterFlame,
+            1 => MiddleFlame,
+            _ => CoreFlame,
+        };
+        var color = layer switch
+        {
+            0 => FireOuter,
+            1 => FireMiddle,
+            _ => FireCore,
+        };
+        var flicker = 0.84f + 0.16f * MathF.Sin(time * 31f + seed * 1.7f + widthFraction * 9f);
+        var width = cell * widthFraction * envelope * flicker;
+        if (width < 0.5f)
+        {
+            return;
+        }
+
+        var tint = ImGui.GetColorU32(color with { W = MathF.Min(1f, 0.35f + envelope) });
+        var core = (arms & FuseBoard.ArmCore) != 0;
+        drawList.AddCircleFilled(center, width * (core ? 0.62f : 0.5f), tint, 16);
+        var directions = FuseBoard.Directions;
+        for (var directionIndex = 0; directionIndex < directions.Length; directionIndex++)
+        {
+            var direction = directions[directionIndex];
+            if ((arms & FuseBoard.ArmFlag(direction)) == 0)
             {
                 continue;
             }
 
-            var center = camera.ToScreen(FuseBoard.CellCenter(index) - new Vector2(0f, 0.08f));
-            var arms = board.FireArmsAt(index);
-            var tint = ImGui.GetColorU32(color with { W = MathF.Min(1f, 0.35f + envelope) });
-            var core = (arms & FuseBoard.ArmCore) != 0;
-            drawList.AddCircleFilled(center, width * (core ? 0.62f : 0.5f), tint, 16);
-            var directions = FuseBoard.Directions;
-            for (var directionIndex = 0; directionIndex < directions.Length; directionIndex++)
-            {
-                var direction = directions[directionIndex];
-                if ((arms & FuseBoard.ArmFlag(direction)) == 0)
-                {
-                    continue;
-                }
+            var edge = center + FuseBoard.Vector(direction) * cell * 0.52f;
+            drawList.AddLine(center, edge, tint, width);
+        }
 
-                var edge = center + FuseBoard.Vector(direction) * cell * 0.52f;
-                drawList.AddLine(center, edge, tint, width);
-            }
-
-            if (core && widthFraction >= OuterFlame)
-            {
-                ProgressRing.Glow(center, cell * 0.9f * envelope, FireMiddle, 0.6f);
-            }
+        if (core && layer == 0)
+        {
+            ProgressRing.Glow(center, cell * 0.9f * envelope, FireMiddle, 0.6f);
         }
     }
 
@@ -354,13 +415,19 @@ internal static class FuseRenderer
             var progress = Math.Clamp(1f - left / FuseBoard.FallWarning, 0f, 1f);
             var target = FallCells[entry];
             var min = camera.ToScreen(new Vector2(FuseBoard.ColumnOf(target), FuseBoard.RowOf(target)));
-            var inset = cell * (0.5f - 0.4f * progress);
-            drawList.AddRectFilled(min + new Vector2(inset, inset), min + new Vector2(cell - inset, cell - inset),
-                ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.4f * progress)), cell * 0.1f);
-            var drop = (1f - progress) * (1f - progress) * FallDrop * cell;
-            DrawSolid(drawList, min - new Vector2(0f, drop), cell, BlockTop, BlockFront, out var face, MathF.Min(1f, progress * 3f));
-            DrawHazard(drawList, face, cell, MathF.Min(1f, progress * 3f));
+            DrawFallingBlock(drawList, min, cell, progress);
         }
+    }
+
+    public static void DrawFallingBlock(ImDrawListPtr drawList, Vector2 min, float cell, float progress)
+    {
+        var inset = cell * (0.5f - 0.4f * progress);
+        drawList.AddRectFilled(min + new Vector2(inset, inset), min + new Vector2(cell - inset, cell - inset),
+            ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.4f * progress)), cell * 0.1f);
+        var drop = (1f - progress) * (1f - progress) * FallDrop * cell;
+        DrawSolid(drawList, min - new Vector2(0f, drop), cell, BlockTop, BlockFront, out var face,
+            MathF.Min(1f, progress * 3f));
+        DrawHazard(drawList, face, cell, MathF.Min(1f, progress * 3f));
     }
 
     private static void DrawGhosts(ImDrawListPtr drawList, FuseBoard board, in Camera2D camera, float cell, float time)

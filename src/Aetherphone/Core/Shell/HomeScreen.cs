@@ -25,6 +25,7 @@ internal sealed class HomeScreen
     private readonly HomeChrome chrome;
     private readonly SpotlightOverlay spotlight;
     private readonly Configuration configuration;
+    private readonly HomeLaunchTrace launches = new();
     private float sidePaddingUnits = PhoneTheme.Default.SidePadding;
 
     public HomeScreen(IReadOnlyList<IPhoneApp> apps, WidgetRegistry widgets, WidgetActions widgetActions,
@@ -34,18 +35,20 @@ internal sealed class HomeScreen
         this.configuration = configuration;
         var widgetHost = new WidgetHost(widgetActions, configuration);
         layout = new HomeLayoutService(apps, widgets, shortcuts, configuration);
-        folder = new FolderOverlay(layout, shortcuts, runner, configuration);
+        folder = new FolderOverlay(layout, shortcuts, runner, configuration, launches);
         widgetMenu = new WidgetContextMenu(layout, widgetHost);
         gallery = new WidgetGallery(layout, widgets, widgetHost);
         spotlight = new SpotlightOverlay(spotlightIndex, configuration);
         interaction = new HomeInteractionController(layout, pager, folder, widgetMenu, gallery, spotlight, poses,
-            runner, widgetHost);
+            runner, widgetHost, launches);
         renderer = new HomeGridRenderer(layout, pager, poses, interaction, shortcuts, confirm, configuration,
             widgetHost);
         chrome = new HomeChrome(pager, interaction, spotlight);
     }
 
     public bool Editing => interaction.Editing;
+
+    public float EditPresence => chrome.EditPresence;
 
     public HomeLayoutService Layout => layout;
 
@@ -54,15 +57,14 @@ internal sealed class HomeScreen
         layout.EnsureCurrent();
         var delta = FrameClock.Delta;
         interaction.Advance(delta);
-        var editReserve = interaction.Editing && motion.Interactive ? HomeMetrics.EditToolbarBandUnits : 0f;
         sidePaddingUnits = theme.SidePadding;
         var metrics = HomeMetrics.Compute(content, HomeLayoutService.Columns, layout.Rows, UiScale.Current,
-            motion, sidePaddingUnits, editReserve);
+            motion, sidePaddingUnits);
         pager.Step(delta, interaction.DisplayPageCount());
         var chromeAlpha = 1f - motion.Recession;
         if (motion.Interactive)
         {
-            interaction.HandleInput(content, metrics, navigation, theme, delta);
+            interaction.HandleInput(screen, content, metrics, navigation, theme, delta);
         }
         else
         {
@@ -82,10 +84,7 @@ internal sealed class HomeScreen
             LayerCompositor.Fade(tileDrawList, tileVertexStart, chromeAlpha);
         }
 
-        if (interaction.Editing && motion.Interactive)
-        {
-            chrome.DrawEditChrome(content, metrics, theme);
-        }
+        chrome.DrawEditChrome(screen, theme, interaction.RemoveBadgesLive(motion));
 
         folder.Draw(screen, content, metrics, theme, navigation, interaction.Editing, pager.Page, delta);
         var ghostDrawList = ImGui.GetWindowDrawList();
@@ -110,14 +109,15 @@ internal sealed class HomeScreen
         }
     }
 
+    public void ForgetLaunch(string _) => launches.Forget();
+
     public void PrepareReveal(string appId)
     {
         gallery.CloseImmediate();
         spotlight.CloseImmediate();
         widgetMenu.CloseImmediate();
         interaction.ResetForReveal();
-        var page = PageContaining(appId);
-        if (page >= 0)
+        if (FindRevealTile(appId, out var page, out _))
         {
             pager.SnapTo(page, layout.PageCount);
         }
@@ -128,6 +128,11 @@ internal sealed class HomeScreen
         kind = LaunchOrigin.Icon;
         var metrics = HomeMetrics.Compute(content, HomeLayoutService.Columns, layout.Rows, UiScale.Current,
             HomeMotion.Rest, sidePaddingUnits);
+        if (FindLaunchedLink(appId, out var linkPage, out var linkIndex))
+        {
+            return PageTileRect(metrics, linkPage, linkIndex, out kind);
+        }
+
         var dock = layout.Dock;
         for (var index = 0; index < dock.Count; index++)
         {
@@ -137,24 +142,106 @@ internal sealed class HomeScreen
             }
         }
 
-        for (var page = 0; page < layout.PageCount; page++)
-        {
-            var tiles = layout.Page(page);
-            var cells = layout.Placements(page);
-            for (var index = 0; index < tiles.Count && index < cells.Count; index++)
-            {
-                var tile = tiles[index];
-                if (!TileTargets(tile, appId))
-                {
-                    continue;
-                }
+        return FindRevealTile(appId, out var page, out var tileIndex)
+            ? PageTileRect(metrics, page, tileIndex, out kind)
+            : null;
+    }
 
-                kind = tile.App is not null ? LaunchOrigin.Icon : LaunchOrigin.Surface;
-                return metrics.TileRect(page, pager.Value, cells[index], tile);
+    private Rect? PageTileRect(in HomeMetrics metrics, int page, int index, out LaunchOrigin kind)
+    {
+        kind = LaunchOrigin.Icon;
+        var tiles = layout.Page(page);
+        var cells = layout.Placements(page);
+        if (index >= tiles.Count || index >= cells.Count)
+        {
+            return null;
+        }
+
+        var tile = tiles[index];
+        kind = tile.App is not null ? LaunchOrigin.Icon : LaunchOrigin.Surface;
+        return metrics.TileRect(page, pager.Value, cells[index], tile);
+    }
+
+    private bool FindRevealTile(string appId, out int page, out int index)
+    {
+        if (FindLaunchedLink(appId, out page, out index))
+        {
+            return true;
+        }
+
+        page = Math.Clamp((int)MathF.Round(pager.Value), 0, Math.Max(0, layout.PageCount - 1));
+        index = page < layout.PageCount ? IndexOnPage(page, appId) : -1;
+        if (index >= 0)
+        {
+            return true;
+        }
+
+        for (page = 0; page < layout.PageCount; page++)
+        {
+            index = IndexOnPage(page, appId);
+            if (index >= 0)
+            {
+                return true;
             }
         }
 
-        return null;
+        page = -1;
+        index = -1;
+        return false;
+    }
+
+    private bool FindLaunchedLink(string appId, out int page, out int index)
+    {
+        if (launches.Launched is { } launched && string.Equals(launched.AppId, appId, StringComparison.Ordinal))
+        {
+            for (page = 0; page < layout.PageCount; page++)
+            {
+                var tiles = layout.Page(page);
+                for (index = 0; index < tiles.Count; index++)
+                {
+                    if (HoldsLink(tiles[index], launched))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        page = -1;
+        index = -1;
+        return false;
+    }
+
+    private static bool HoldsLink(HomeTile tile, HomeLink launched)
+    {
+        if (tile.Link is { } link)
+        {
+            return link.Matches(launched.AppId, launched.Argument);
+        }
+
+        for (var index = 0; index < tile.Members.Count; index++)
+        {
+            if (tile.Members[index].Link is { } member && member.Matches(launched.AppId, launched.Argument))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int IndexOnPage(int page, string appId)
+    {
+        var tiles = layout.Page(page);
+        for (var index = 0; index < tiles.Count; index++)
+        {
+            if (TileTargets(tiles[index], appId))
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private static bool TileTargets(HomeTile tile, string appId)
@@ -169,32 +256,21 @@ internal sealed class HomeScreen
             return tile.Widget!.AppId == appId;
         }
 
+        if (tile.Link is { } link)
+        {
+            return link.AppId == appId;
+        }
+
         for (var index = 0; index < tile.Members.Count; index++)
         {
-            if (tile.Members[index].App?.Id == appId)
+            var member = tile.Members[index];
+            if (member.App?.Id == appId || member.Link?.AppId == appId)
             {
                 return true;
             }
         }
 
         return false;
-    }
-
-    private int PageContaining(string appId)
-    {
-        for (var page = 0; page < layout.PageCount; page++)
-        {
-            var tiles = layout.Page(page);
-            for (var index = 0; index < tiles.Count; index++)
-            {
-                if (TileTargets(tiles[index], appId))
-                {
-                    return page;
-                }
-            }
-        }
-
-        return -1;
     }
 
     private void DrawWidgetMenu(Rect content, in HomeMetrics metrics, PhoneTheme theme, float delta)

@@ -23,6 +23,8 @@ internal sealed class MarketWatchWidget : IHomeWidget
     private const float SparkUnits = 40f;
     private const float SparkHeightUnits = 18f;
     private const float SparkMinimumRowUnits = 300f;
+    private const float ScopeGlyphUnits = 11f;
+    private const float ScopeEyebrowFloorUnits = 48f;
 
     private static readonly float[][] SamplePoints =
     {
@@ -73,8 +75,20 @@ internal sealed class MarketWatchWidget : IHomeWidget
         var sample = context.Preview && triggered.Count == 0 && watched.Count == 0;
         var shownTriggered = sample ? 1 : triggered.Count;
         var trailing = shownTriggered > 0 ? Trailing(shownTriggered) : string.Empty;
-        var top = WidgetChrome.Header(context, ink, AppKey, Loc.T(L.WidgetsUtility.MarketName), accentRaw,
-            trailing, accent);
+        var name = Loc.T(L.WidgetsUtility.MarketName);
+        var scopeLabel = !sample && watchlist.IsRemote ? watchlist.Title(watchlist.Scope) : string.Empty;
+        var trailingWidth = trailing.Length > 0
+            ? Typography.Measure(trailing, WidgetType.Caption).X + WidgetMetrics.Gutter * scale
+            : 0f;
+        var scopeWidth = ScopeWidth(scopeLabel, content.Width - trailingWidth, scale);
+        var top = WidgetChrome.Header(context, ink, AppKey, name, accentRaw, trailing, accent,
+            scopeWidth > 0f ? scopeWidth + WidgetMetrics.Gutter * scale : 0f);
+        if (scopeWidth > 0f)
+        {
+            DrawScope(context, ink, scopeLabel, content.Max.X - trailingWidth - scopeWidth,
+                (content.Min.Y + top) * 0.5f, scopeWidth, scale);
+        }
+
         var body = new Rect(new Vector2(content.Min.X, top + WidgetMetrics.RowGap * scale), content.Max);
         var total = sample ? WidgetSamples.MarketItems.Length : triggered.Count + watched.Count;
         if (total == 0)
@@ -230,6 +244,39 @@ internal sealed class MarketWatchWidget : IHomeWidget
         Squircle.Fill(drawList, icon.Min, icon.Max, icon.Width * Metrics.Radius.TileFactor,
             ImGui.GetColorU32(ink.Fill));
         ProgressRing.CenterIcon(drawList, icon.Center, FontAwesomeIcon.Coins, accent, icon.Height * 0.5f);
+    }
+
+    private static float ScopeWidth(string label, float room, float scale)
+    {
+        if (label.Length == 0)
+        {
+            return 0f;
+        }
+
+        var glyph = ScopeGlyphUnits * scale;
+        var spacing = Metrics.Space.Xxs * scale;
+        var lead = (WidgetMetrics.GlyphSmall + WidgetMetrics.Gutter * 1.5f + ScopeEyebrowFloorUnits) * scale;
+        var available = room - lead;
+        if (available <= glyph + spacing)
+        {
+            return 0f;
+        }
+
+        return MathF.Min(glyph + spacing + Typography.Measure(label, WidgetType.Caption).X, available);
+    }
+
+    private static void DrawScope(in WidgetContext context, in WidgetInk ink, string label, float left,
+        float centerY, float width, float scale)
+    {
+        var glyph = ScopeGlyphUnits * scale;
+        var spacing = Metrics.Space.Xxs * scale;
+        PhoneIcon.Draw(context.DrawList, new Vector2(left + glyph * 0.5f, centerY), PhoneIcons.World, ink.Secondary,
+            glyph);
+        var textLeft = left + glyph + spacing;
+        var text = Typography.FitText(label, MathF.Max(1f, left + width - textLeft), WidgetType.Caption);
+        Typography.Draw(context.DrawList,
+            new Vector2(textLeft, centerY - Typography.LineHeight(WidgetType.Caption) * 0.5f), text, ink.Secondary,
+            WidgetType.Caption);
     }
 
     private static Rect Icon(Rect rowRect, float scale)

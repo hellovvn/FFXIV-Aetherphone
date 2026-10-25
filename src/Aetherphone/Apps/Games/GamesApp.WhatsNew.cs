@@ -30,13 +30,12 @@ internal sealed partial class GamesApp
 
     private static readonly LocString[] WhatsNewLines =
     {
-        L.GamesHub.WhatsNewGames, L.GamesHub.WhatsNewLeaderboards, L.GamesHub.WhatsNewRooms,
-        L.GamesHub.WhatsNewRedesign,
+        L.GamesHub.WhatsNewClusterHarvest, L.GamesHub.WhatsNewHowToPlay,
     };
 
     private static readonly string[] WhatsNewGlyphs =
     {
-        PhoneIcons.Gamepad, PhoneIcons.Crown, PhoneIcons.Users, PhoneIcons.Sparkles,
+        PhoneIcons.Gamepad, PhoneIcons.Sparkles,
     };
 
     private bool whatsNewShowing;

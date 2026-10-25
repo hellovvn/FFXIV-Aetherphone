@@ -7,7 +7,6 @@ using Aetherphone.Core.Localization;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Casino.Tables;
 
@@ -212,7 +211,11 @@ internal sealed partial class TableDoor
         return false;
     }
 
-    public void Gate() => menu.Gate();
+    public void Gate()
+    {
+        menu.Gate();
+        inviteSheet.Gate();
+    }
 
     public void DrawOverlay(Rect screen, AppSkin ui, bool active)
     {
@@ -223,8 +226,15 @@ internal sealed partial class TableDoor
                 menu.Close();
             }
 
+            if (inviteSheet.IsOpen)
+            {
+                inviteSheet.Close();
+            }
+
             return;
         }
+
+        inviteSheet.Draw(screen, ui);
 
         if (!menu.IsOpen && !menu.CapturesPointer)
         {
@@ -337,7 +347,7 @@ internal sealed partial class TableDoor
                     new Vector2(row.Max.X, row.Min.Y), ImGui.GetColorU32(ui.Hairline), Metrics.Stroke.Hairline);
             }
 
-            using (ImRaii.PushId(index))
+            using (UiScope.PushId(index))
             {
                 DrawMember(drawList, ui, card, members[index], memberLines[index], row, nameHeight, lineHeight, scale);
             }

@@ -24,6 +24,12 @@ internal sealed class SocialActivityFeed
 
     public NotificationDto[] Items => items;
 
+    public bool Loaded => loaded;
+
+    public bool Loading => loading;
+
+    public bool HasOlder => nextCursor is not null;
+
     public void Invalidate()
     {
         loaded = false;
@@ -100,6 +106,7 @@ internal sealed class SocialActivityFeed
             }
             finally
             {
+                loaded = true;
                 loading = false;
             }
         });

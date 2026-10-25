@@ -221,16 +221,15 @@ internal sealed class ClaimRenderer
         uint bottom;
         if (mode == RunMode.Cover)
         {
-            top = ImGui.GetColorU32(Vector4.Lerp(CoverTop, CoverBottom, topShade) with { W = alpha });
-            bottom = ImGui.GetColorU32(Vector4.Lerp(CoverTop, CoverBottom, bottomShade) with { W = alpha });
+            CoverInks(topShade, bottomShade, alpha, out top, out bottom);
         }
         else
         {
-            top = ImGui.GetColorU32(GamePalette.Lighten(accent, 0.6f) with { W = 0.75f });
+            top = WaveInk(accent);
             bottom = top;
         }
 
-        var grid = ImGui.GetColorU32(accent with { W = 0.07f * alpha });
+        var grid = GridInk(accent, alpha);
         for (var index = 0; index < activeCount; index++)
         {
             var min = camera.ToScreen(new Vector2(activeStart[index], activeTop));
@@ -245,7 +244,18 @@ internal sealed class ClaimRenderer
         }
     }
 
-    private static void DrawGrid(ImDrawListPtr drawList, in Camera2D camera, int left, int right, int top, int bottom,
+    internal static void CoverInks(float topShade, float bottomShade, float alpha, out uint top, out uint bottom)
+    {
+        top = ImGui.GetColorU32(Vector4.Lerp(CoverTop, CoverBottom, topShade) with { W = alpha });
+        bottom = ImGui.GetColorU32(Vector4.Lerp(CoverTop, CoverBottom, bottomShade) with { W = alpha });
+    }
+
+    internal static uint WaveInk(Vector4 accent) =>
+        ImGui.GetColorU32(GamePalette.Lighten(accent, 0.6f) with { W = 0.75f });
+
+    internal static uint GridInk(Vector4 accent, float alpha) => ImGui.GetColorU32(accent with { W = 0.07f * alpha });
+
+    internal static void DrawGrid(ImDrawListPtr drawList, in Camera2D camera, int left, int right, int top, int bottom,
         uint color)
     {
         var firstColumn = (left + GridPitch - 1) / GridPitch * GridPitch;
@@ -270,10 +280,7 @@ internal sealed class ClaimRenderer
             return;
         }
 
-        var glow = ImGui.GetColorU32(accent with { W = 0.3f * alpha });
-        var core = ImGui.GetColorU32(GamePalette.Lighten(accent, 0.55f) with { W = alpha });
-        var glowWidth = MathF.Max(2f, camera.Px(1.6f));
-        var coreWidth = MathF.Max(1f, MathF.Min(camera.Px(0.6f), 1.6f * scale));
+        EdgeStyle(in camera, accent, alpha, scale, out var glow, out var core, out var glowWidth, out var coreWidth);
         var cells = board.Cells;
         for (var row = 1; row < ClaimBoard.Height; row++)
         {
@@ -317,12 +324,23 @@ internal sealed class ClaimRenderer
             }
         }
 
-        var field = FieldRect(in camera);
-        drawList.AddRect(field.Min, field.Max, ImGui.GetColorU32(accent with { W = 0.5f * alpha }), 0f,
-            ImDrawFlags.None, MathF.Max(1f, scale));
+        DrawFrame(drawList, FieldRect(in camera), accent, alpha, scale);
     }
 
-    private static void Edge(ImDrawListPtr drawList, Vector2 from, Vector2 to, uint glow, uint core, float glowWidth,
+    internal static void EdgeStyle(in Camera2D camera, Vector4 accent, float alpha, float scale, out uint glow,
+        out uint core, out float glowWidth, out float coreWidth)
+    {
+        glow = ImGui.GetColorU32(accent with { W = 0.3f * alpha });
+        core = ImGui.GetColorU32(GamePalette.Lighten(accent, 0.55f) with { W = alpha });
+        glowWidth = MathF.Max(2f, camera.Px(1.6f));
+        coreWidth = MathF.Max(1f, MathF.Min(camera.Px(0.6f), 1.6f * scale));
+    }
+
+    internal static void DrawFrame(ImDrawListPtr drawList, Rect field, Vector4 accent, float alpha, float scale) =>
+        drawList.AddRect(field.Min, field.Max, ImGui.GetColorU32(accent with { W = 0.5f * alpha }), 0f,
+            ImDrawFlags.None, MathF.Max(1f, scale));
+
+    internal static void Edge(ImDrawListPtr drawList, Vector2 from, Vector2 to, uint glow, uint core, float glowWidth,
         float coreWidth)
     {
         drawList.AddLine(from, to, glow, glowWidth);
@@ -337,19 +355,35 @@ internal sealed class ClaimRenderer
             return;
         }
 
-        var color = dying ? Danger : board.LineSlow ? SlowColor : GamePalette.Lighten(accent, 0.35f);
         var count = Corners(board, in camera, float.MaxValue);
-        Stroke(drawList, count, ImGui.GetColorU32(color with { W = 0.3f }), MathF.Max(3f, camera.Px(2.2f)));
-        Stroke(drawList, count, ImGui.GetColorU32(color), MathF.Max(1.5f, camera.Px(0.9f)));
+        StrokeLine(drawList, corners.AsSpan(0, count), LineColor(accent, board.LineSlow, dying), in camera);
         if (!board.FuseLit)
         {
             return;
         }
 
         var burnt = Corners(board, in camera, board.FuseTravel);
-        Stroke(drawList, burnt, ImGui.GetColorU32(Ash), MathF.Max(2f, camera.Px(1.2f)));
-        var fuse = camera.ToScreen(board.FusePosition);
-        var flicker = 0.7f + 0.3f * MathF.Sin((float)ImGui.GetTime() * 40f);
+        StrokeAsh(drawList, corners.AsSpan(0, burnt), in camera);
+        DrawFuse(drawList, camera.ToScreen(board.FusePosition), in camera, FuseFlicker((float)ImGui.GetTime()));
+    }
+
+    internal static Vector4 LineColor(Vector4 accent, bool slow, bool dying) =>
+        dying ? Danger : slow ? SlowColor : GamePalette.Lighten(accent, 0.35f);
+
+    internal static void StrokeLine(ImDrawListPtr drawList, ReadOnlySpan<Vector2> points, Vector4 color,
+        in Camera2D camera)
+    {
+        Stroke(drawList, points, ImGui.GetColorU32(color with { W = 0.3f }), MathF.Max(3f, camera.Px(2.2f)));
+        Stroke(drawList, points, ImGui.GetColorU32(color), MathF.Max(1.5f, camera.Px(0.9f)));
+    }
+
+    internal static void StrokeAsh(ImDrawListPtr drawList, ReadOnlySpan<Vector2> points, in Camera2D camera) =>
+        Stroke(drawList, points, ImGui.GetColorU32(Ash), MathF.Max(2f, camera.Px(1.2f)));
+
+    internal static float FuseFlicker(float time) => 0.7f + 0.3f * MathF.Sin(time * 40f);
+
+    internal static void DrawFuse(ImDrawListPtr drawList, Vector2 fuse, in Camera2D camera, float flicker)
+    {
         ProgressRing.Glow(fuse, camera.Px(3.4f) * flicker, FuseColor, 1f);
         drawList.AddCircleFilled(fuse, MathF.Max(2f, camera.Px(1.1f)) * flicker, ImGui.GetColorU32(White), 12);
     }
@@ -384,16 +418,16 @@ internal sealed class ClaimRenderer
         return count;
     }
 
-    private void Stroke(ImDrawListPtr drawList, int count, uint color, float width)
+    private static void Stroke(ImDrawListPtr drawList, ReadOnlySpan<Vector2> points, uint color, float width)
     {
-        if (count < 2)
+        if (points.Length < 2)
         {
             return;
         }
 
-        for (var index = 0; index < count; index++)
+        for (var index = 0; index < points.Length; index++)
         {
-            drawList.PathLineTo(corners[index]);
+            drawList.PathLineTo(points[index]);
         }
 
         drawList.PathStroke(color, ImDrawFlags.None, width);
@@ -409,17 +443,29 @@ internal sealed class ClaimRenderer
 
         var history = board.BossHistoryCount;
         var phase = board.BossPhase;
-        var width = MathF.Max(1f, camera.Px(BossWidth));
         for (var age = history - 1; age >= 1; age--)
         {
             board.BossHistoryAt(age, out var head, out var tail);
-            var fade = 1f - age / (float)history;
-            var color = BossColor(accent, phase + age * 0.35f) with { W = alpha * fade * fade * 0.8f };
-            drawList.AddLine(camera.ToScreen(head), camera.ToScreen(tail), ImGui.GetColorU32(color), width);
+            DrawBossTrace(drawList, camera.ToScreen(head), camera.ToScreen(tail), in camera, accent, phase, age, history,
+                alpha);
         }
 
-        var headScreen = camera.ToScreen(board.BossHead);
-        var tailScreen = camera.ToScreen(board.BossTail);
+        DrawBossBody(drawList, camera.ToScreen(board.BossHead), camera.ToScreen(board.BossTail), in camera, accent,
+            phase, alpha);
+    }
+
+    internal static void DrawBossTrace(ImDrawListPtr drawList, Vector2 head, Vector2 tail, in Camera2D camera,
+        Vector4 accent, float phase, int age, int history, float alpha)
+    {
+        var fade = 1f - age / (float)history;
+        var color = BossColor(accent, phase + age * 0.35f) with { W = alpha * fade * fade * 0.8f };
+        drawList.AddLine(head, tail, ImGui.GetColorU32(color), BossLineWidth(in camera));
+    }
+
+    internal static void DrawBossBody(ImDrawListPtr drawList, Vector2 headScreen, Vector2 tailScreen,
+        in Camera2D camera, Vector4 accent, float phase, float alpha)
+    {
+        var width = BossLineWidth(in camera);
         var live = BossColor(accent, phase);
         drawList.AddLine(headScreen, tailScreen, ImGui.GetColorU32(live with { W = 0.35f * alpha }), width * 4f);
         var span = tailScreen - headScreen;
@@ -439,6 +485,8 @@ internal sealed class ClaimRenderer
         drawList.AddCircleFilled(headScreen, MathF.Max(1.5f, camera.Px(1f)), ImGui.GetColorU32(White with { W = alpha }), 10);
         drawList.AddCircleFilled(tailScreen, MathF.Max(1.5f, camera.Px(1f)), ImGui.GetColorU32(White with { W = alpha }), 10);
     }
+
+    private static float BossLineWidth(in Camera2D camera) => MathF.Max(1f, camera.Px(BossWidth));
 
     public static Vector4 BossColor(Vector4 accent, float phase)
     {
@@ -461,18 +509,23 @@ internal sealed class ClaimRenderer
     {
         for (var index = 0; index < board.SparkCount; index++)
         {
-            var center = camera.ToScreen(board.SparkPosition(index));
-            var spin = time * 7f + index * 1.3f;
-            var radius = camera.Px(SparkRadius) * (0.85f + 0.15f * MathF.Sin(time * 18f + index));
-            ProgressRing.Glow(center, radius * 2f, FuseColor, 0.9f);
-            var axis = new Vector2(MathF.Cos(spin), MathF.Sin(spin)) * radius * 1.6f;
-            var cross = new Vector2(-axis.Y, axis.X);
-            var line = ImGui.GetColorU32(SparkColor);
-            var thickness = MathF.Max(1f, 1.4f * scale);
-            drawList.AddLine(center - axis, center + axis, line, thickness);
-            drawList.AddLine(center - cross, center + cross, line, thickness);
-            drawList.AddCircleFilled(center, MathF.Max(1.5f, radius * 0.45f), ImGui.GetColorU32(White), 10);
+            DrawSpark(drawList, camera.ToScreen(board.SparkPosition(index)), in camera, time, index, scale);
         }
+    }
+
+    internal static void DrawSpark(ImDrawListPtr drawList, Vector2 center, in Camera2D camera, float time, int index,
+        float scale)
+    {
+        var spin = time * 7f + index * 1.3f;
+        var radius = camera.Px(SparkRadius) * (0.85f + 0.15f * MathF.Sin(time * 18f + index));
+        ProgressRing.Glow(center, radius * 2f, FuseColor, 0.9f);
+        var axis = new Vector2(MathF.Cos(spin), MathF.Sin(spin)) * radius * 1.6f;
+        var cross = new Vector2(-axis.Y, axis.X);
+        var line = ImGui.GetColorU32(SparkColor);
+        var thickness = MathF.Max(1f, 1.4f * scale);
+        drawList.AddLine(center - axis, center + axis, line, thickness);
+        drawList.AddLine(center - cross, center + cross, line, thickness);
+        drawList.AddCircleFilled(center, MathF.Max(1.5f, radius * 0.45f), ImGui.GetColorU32(White), 10);
     }
 
     public static void DrawPlayer(ImDrawListPtr drawList, ClaimBoard board, in Camera2D camera, Vector4 accent,
@@ -488,11 +541,17 @@ internal sealed class ClaimRenderer
             return;
         }
 
-        var center = camera.ToScreen(board.PlayerPosition);
+        DrawMarker(drawList, camera.ToScreen(board.PlayerPosition), in camera, accent, board.Drawing, board.LineSlow,
+            time, scale);
+    }
+
+    internal static void DrawMarker(ImDrawListPtr drawList, Vector2 center, in Camera2D camera, Vector4 accent,
+        bool drawing, bool slow, float time, float scale)
+    {
         var radius = MathF.Max(4f * scale, camera.Px(PlayerRadius));
-        var color = board.Drawing ? board.LineSlow ? SlowColor : GamePalette.Lighten(accent, 0.35f) : accent;
+        var color = drawing ? LineColor(accent, slow, false) : accent;
         ProgressRing.Glow(center, radius * 1.8f, color, 0.9f);
-        if (board.Drawing)
+        if (drawing)
         {
             var pulse = 0.5f + 0.5f * MathF.Sin(time * 10f);
             drawList.AddCircle(center, radius * (1.4f + 0.3f * pulse), ImGui.GetColorU32(color with { W = 0.6f }), 20,

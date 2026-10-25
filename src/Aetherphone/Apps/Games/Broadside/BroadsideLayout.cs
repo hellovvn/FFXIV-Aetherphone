@@ -73,9 +73,6 @@ internal sealed class BroadsideLayout
         return BroadsideFleet.InBounds(column, row);
     }
 
-    public static Rect Lerp(Rect from, Rect to, float amount) =>
-        new(Vector2.Lerp(from.Min, to.Min, amount), Vector2.Lerp(from.Max, to.Max, amount));
-
     public void Build(Rect area, float scale)
     {
         Area = area;

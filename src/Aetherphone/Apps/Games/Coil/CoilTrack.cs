@@ -5,11 +5,23 @@ internal sealed class CoilTrack
     public const int RawCapacity = 2400;
     public const int SampleCapacity = 4096;
 
-    private readonly Vector2[] raw = new Vector2[RawCapacity];
-    private readonly float[] rawArc = new float[RawCapacity];
-    private readonly Vector2[] samples = new Vector2[SampleCapacity];
+    private readonly Vector2[] raw;
+    private readonly float[] rawArc;
+    private readonly Vector2[] samples;
     private int rawCount;
     private int sampleCount;
+
+    public CoilTrack()
+        : this(RawCapacity, SampleCapacity)
+    {
+    }
+
+    public CoilTrack(int rawCapacity, int sampleCapacity)
+    {
+        raw = new Vector2[rawCapacity];
+        rawArc = new float[rawCapacity];
+        samples = new Vector2[sampleCapacity];
+    }
 
     public float Length { get; private set; }
     public float SampleSpacing { get; private set; }
@@ -25,6 +37,19 @@ internal sealed class CoilTrack
     {
         rawCount = CoilShapes.Sample(shapeIndex, raw, out var launcher);
         Launcher = Fit(launcher, fieldWidth, fieldHeight, margin);
+        Measure(spacing);
+    }
+
+    public void Build(ReadOnlySpan<Vector2> points, Vector2 launcher, float spacing)
+    {
+        rawCount = Math.Min(points.Length, raw.Length);
+        points[..rawCount].CopyTo(raw);
+        Launcher = launcher;
+        Measure(spacing);
+    }
+
+    private void Measure(float spacing)
+    {
         rawArc[0] = 0f;
         for (var index = 1; index < rawCount; index++)
         {
@@ -61,7 +86,7 @@ internal sealed class CoilTrack
     private void Resample(float spacing)
     {
         var count = (int)MathF.Ceiling(Length / spacing) + 1;
-        count = Math.Clamp(count, 2, SampleCapacity);
+        count = Math.Clamp(count, 2, samples.Length);
         SampleSpacing = Length / (count - 1);
         var cursor = 1;
         for (var index = 0; index < count; index++)

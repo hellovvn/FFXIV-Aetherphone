@@ -91,7 +91,7 @@ The entry gives the app a row on Settings > Notifications and Badges and the All
 
 ## The notification center and banners
 
-Two hosts draw the notification list with one engine, `NotificationDeck`: the panel in the pull-down Control Center, and the Notifications app with its day sections, per-app filter chips, and mute card. Both group by `StackKey`, newest first, and rebuild groups only when the list or the language changes, never per frame.
+Two hosts draw the notification list with one engine, `NotificationDeck`: the panel in the pull-down Control Center, and the Alerts app (app id `notifications`) with its day sections, per-app filter chips, and mute card. Both group by `StackKey`, newest first, and rebuild groups only when the list or the language changes, never per frame.
 
 A collapsed stack shows its newest card with layers behind it, and a tap expands it. Swiping left reveals Clear, a long swipe or a right-click clears at once, and on a collapsed stack the swipe clears the whole group. Clearing a social notification acknowledges it on the server up to that item.
 
@@ -113,9 +113,9 @@ Everything that holds a notification back, in pipeline order:
 | Phone hidden, or the app already on screen | No banner; the center still gets it |
 | Chat gates: a muted channel or conversation, the thread on screen | No notification; see [Messaging and chat](messaging-and-chat.md) and [Linkpearl](linkpearl.md) |
 
-Quiet While Busy is on by default, so out of the box, alerts are silent in combat, duties, cutscenes, and zoning, while the notification still lands in the center. Players often report this as a bug; the switch is on Settings > Notifications and Badges. The timed mute (Mute 1 Hour, Mute Today, Unmute) comes from the per-app card in the Notifications app.
+Quiet While Busy is on by default, so out of the box, alerts are silent in combat, duties, cutscenes, and zoning, while the notification still lands in the center. Players often report this as a bug; the switch is on Settings > Notifications and Badges. The timed mute (Mute 1 Hour, Mute Today, Unmute) comes from the per-app card in the Alerts app.
 
-Do Not Disturb has one setting, `Configuration.DoNotDisturb`, and many switches: the Action key on the phone, the switch on the main Settings page, the Control Center tile, the moon button and Turn Off pill in the Notifications app, the Quick Toggles widget, the Spotlight action, and the `/phone dnd` chat command (`/phonedev dnd` on Debug builds). While it is on, a moon shows in the status bar and the coin earn pill holds its toasts.
+Do Not Disturb has one setting, `Configuration.DoNotDisturb`, and many switches: the Action key on the phone, the switch on the main Settings page, the Control Center tile, the moon button and Turn Off pill in the Alerts app, the Quick Toggles widget, the Spotlight action, and the `/phone dnd` chat command (`/phonedev dnd` on Debug builds). While it is on, a moon shows in the status bar and the coin earn pill holds its toasts.
 
 ## Sounds
 
@@ -178,7 +178,7 @@ Because the hooks re-run, keep them cheap and safe to repeat: `OnOpened` resets 
 
 A home screen badge is `IPhoneApp.BadgeCount`, computed by each app; the notification center does not drive it. `BadgeAsDot` draws a dot instead of a number. Setting `HasBadge` to true gives the app a Badges switch in Settings, and the home screen checks that switch before drawing, so your `BadgeCount` never needs to.
 
-The Notifications app's badge, the unread count, also shows in two more places, and turning that badge off clears all three:
+The Alerts app's badge, the unread count, also shows in two more places, and turning that badge off clears all three:
 
 - The minimized phone shows the count on its puck.
 - The server info bar entry (`ServerBarEntry`) in the game's top bar shows the game's Aethernet icon (with a Dev or Beta tag on those builds), then the unread count. Settings > General picks one of three styles: icon only (the default, the same as before the setting existed), icon and text, or text only, and the text is a label the player can edit (default "Aetherphone"). Its tooltip names the plugin and the unread count, and clicking it toggles the phone.
@@ -204,9 +204,9 @@ The notification center lives in memory only: a plugin reload or game restart st
 
 - `Notify` only enqueues. Do not look for the notification in the recent list right after the call.
 - Heavy work or a scroll reset in `OnOpened` repeats on every deep link, because the hook re-runs. A resumable app that consumes only in `OnOpened` leaves the deep link waiting until a later full open.
-- The timed mute is keyed by `AppId`, unlike every other setting. Muting ChocoChat from the Notifications app also silences call notifications.
+- The timed mute is keyed by `AppId`, unlike every other setting. Muting ChocoChat from the Alerts app also silences call notifications.
 - Do not "fix" a call notification by editing the ChocoChat channel; calls resolve under `phone`.
-- Opening the Notifications app or the Control Center marks everything read and acknowledges every social app, so a badge does not survive a peek at the pull-down.
+- Opening the Alerts app or the Control Center marks everything read and acknowledges every social app, so a badge does not survive a peek at the pull-down.
 - The banner queue is short. A burst lands in the center, but most of it never shows a banner.
 - A new social type added only to `SocialActivity` renders but routes nowhere: the tap opens the app's root.
 - The Vibration setting vibrates nothing: it shakes the minimized phone and the open phone, and fires even with banners off.

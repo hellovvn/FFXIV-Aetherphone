@@ -4,6 +4,7 @@ using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Confirm;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Message;
 using Aetherphone.Core.Theme;
@@ -761,6 +762,8 @@ internal sealed partial class MessagePopoutWindow : Window
         protected override Action BackAction => back;
 
         protected override ChatTheme ChatTheme => ChatThemes.Resolve(configuration.MessageChatTheme);
+
+        protected override GifSearch? Gifs => window.services.Gifs;
 
         protected override float BackdropAlpha => window.Opacity();
 

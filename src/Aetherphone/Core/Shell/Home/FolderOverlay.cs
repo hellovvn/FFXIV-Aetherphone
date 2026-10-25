@@ -39,6 +39,7 @@ internal sealed class FolderOverlay
     private readonly ShortcutStore shortcuts;
     private readonly ShortcutRunner runner;
     private readonly Configuration configuration;
+    private readonly HomeLaunchTrace launches;
     private HomeTile? folder;
     private bool closing;
     private Spring anim;
@@ -64,12 +65,13 @@ internal sealed class FolderOverlay
     private Spring[] slideY = Array.Empty<Spring>();
 
     public FolderOverlay(HomeLayoutService layout, ShortcutStore shortcuts, ShortcutRunner runner,
-        Configuration configuration)
+        Configuration configuration, HomeLaunchTrace launches)
     {
         this.layout = layout;
         this.shortcuts = shortcuts;
         this.runner = runner;
         this.configuration = configuration;
+        this.launches = launches;
     }
 
     public bool Active => folder is not null;
@@ -198,11 +200,11 @@ internal sealed class FolderOverlay
             return;
         }
 
-        var vertexStart = drawList.VtxBuffer.Size;
         var nameField = new Rect(header.Min,
             new Vector2(header.Max.X, header.Min.Y + GlassField.HeightUnits * scale));
         GlassField.Surface(drawList, nameField, GlassField.Radius(nameField), scale,
-            WallpaperLegibility.Strength(theme), 1f);
+            WallpaperLegibility.Strength(theme), alpha);
+        var vertexStart = drawList.VtxBuffer.Size;
         if (GlassField.Title(nameField, "##folderName", Loc.T(L.Home.NewFolder), ref nameBuffer, theme, scale,
                 NameMaxLength, ImGuiInputTextFlags.EnterReturnsTrue))
         {
@@ -398,6 +400,10 @@ internal sealed class FolderOverlay
         {
             runner.Run(member.Shortcut!);
         }
+        else if (member.Link is { } link)
+        {
+            launches.Open(link, navigation, pressRect);
+        }
         else
         {
             navigation.OpenAppFrom(member.App!, pressRect, LaunchOrigin.Icon);
@@ -542,6 +548,10 @@ internal sealed class FolderOverlay
         {
             HomeTileView.DrawShortcut(center, iconSize, member.Shortcut!, shortcuts.Icon(member.Shortcut!), theme,
                 1f, labelAlpha, true, cell);
+        }
+        else if (member.Link is { } link)
+        {
+            HomeTileView.DrawLink(center, iconSize, link, theme, 1f, labelAlpha, true, cell);
         }
         else
         {

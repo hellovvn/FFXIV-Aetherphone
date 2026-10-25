@@ -3,6 +3,7 @@ using Aetherphone.Core;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Crypto;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Home;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Media;
@@ -44,6 +45,7 @@ internal sealed class MessagePopoutServices
     public required WallpaperImageCache WallpaperImages { get; init; }
     public required EncryptionHelpService EncryptionHelp { get; init; }
     public required ThemeProvider Themes { get; init; }
+    public required GifSearch Gifs { get; init; }
 
     public DirectMessagesStore CreateDetachedStore() =>
         new(Session, Net.Chats, Net.Safety, Net.Media, Notifications, Vault, ConversationKeys, PeerKeys, ChatHistory,

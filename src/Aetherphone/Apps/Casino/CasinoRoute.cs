@@ -28,6 +28,8 @@ internal enum CasinoScreen
     Fame,
     GilLedger,
     HostRules,
+    RollSetup,
+    RollGame,
 }
 
 internal readonly record struct CasinoRoute(

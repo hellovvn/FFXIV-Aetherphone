@@ -485,7 +485,7 @@ internal sealed partial class GamesApp
 
         var icon = LeaderboardIdentityIcon * scale;
         var iconRect = new Rect(new Vector2(left, top), new Vector2(left + icon, top + icon));
-        GameIconArt.Draw(drawList, game.Id, game.Accent, iconRect.Min, iconRect.Max, null, true);
+        GameIconArt.Draw(drawList, game.Id, game.Accent, iconRect.Min, iconRect.Max, true);
         var playLabel = Loc.T(L.Games.Play);
         var showPlay = currentGame is null;
         var buttonWidth = showPlay ? Button.WidthFor(playLabel, ButtonSize.Small) : 0f;
@@ -690,9 +690,10 @@ internal sealed partial class GamesApp
         using var layer = ScreenLayer.Begin(LeaderboardSelfLayerId, bar, false);
         UiInteract.HoverOverlay(bar);
         var drawList = ImGui.GetWindowDrawList();
-        var firstVertex = drawList.VtxBuffer.Size;
         var radius = HubMetrics.CardRadius * scale;
-        Material.ThemedGlass(drawList, bar.Min, bar.Max, radius, scale, ui.BackdropColor, TabBar.GlassOpacity);
+        Material.ThemedGlass(drawList, bar.Min, bar.Max, radius, scale, ui.BackdropColor,
+            TabBar.GlassOpacity * alpha);
+        var firstVertex = drawList.VtxBuffer.Size;
         var pad = Metrics.Space.Lg * scale;
         var content = new Rect(new Vector2(bar.Min.X + pad, bar.Min.Y), new Vector2(bar.Max.X - pad, bar.Max.Y));
         if (leaderboardSelfMode == SelfBarMode.Join)

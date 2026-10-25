@@ -1,3 +1,4 @@
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Maps;
 using Dalamud.Bindings.ImGui;
 
@@ -19,12 +20,19 @@ internal static class ChatActions
                 return;
             }
 
-            var body = messages[index].Body ?? string.Empty;
-            ImGui.SetClipboardText(LocationShare.TryParse(body, out var location)
-                ? LocationShare.Summary(location)
-                : body);
+            ImGui.SetClipboardText(ClipboardText(messages[index].Body ?? string.Empty));
             ShellToast.Show();
             return;
         }
+    }
+
+    private static string ClipboardText(string body)
+    {
+        if (LocationShare.TryParse(body, out var location))
+        {
+            return LocationShare.Summary(location);
+        }
+
+        return GifShare.TryParse(body, out var gif) ? gif.Url : body;
     }
 }

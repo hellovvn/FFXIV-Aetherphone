@@ -26,9 +26,6 @@ internal sealed class HerdApp : IMiniGame
     private const float RowGap = 6f;
     private const float TileGap = 6f;
     private const float ViewGap = 4f;
-    private const float TileRadius = 14f;
-    private const float IconSize = 22f;
-    private const float BadgeRadius = 9f;
     private const float PickRadius = 0.8f;
     private const float FastFactor = 3f;
     private const float NukeArmSeconds = 2f;
@@ -41,7 +38,7 @@ internal sealed class HerdApp : IMiniGame
     private const ulong IdleSeed = 0x48455244UL;
     private static readonly GameSpec StageSpec = new(GameId, L.Herd.Title, GameGenre.Strategy, L.Herd.Hook,
         Backdrop.Meadow, HudStyle.Standard, ScoreKind.Level, clocked: true, keyboard: true,
-        levelCount: HerdLevels.Count);
+        levelCount: HerdLevels.Count, guide: HerdGuide.Guide);
     private static readonly Rect WorldRect = new(Vector2.Zero, new Vector2(HerdBoard.WorldWidth, HerdBoard.WorldHeight));
     private static readonly HerdSkill[] Skills =
     {
@@ -60,8 +57,8 @@ internal sealed class HerdApp : IMiniGame
         ImGuiKey.Key1, ImGuiKey.Key2, ImGuiKey.Key3, ImGuiKey.Key4, ImGuiKey.Key5, ImGuiKey.Key6,
     };
     private static readonly Vector4 White = new(1f, 1f, 1f, 1f);
-    private static readonly Vector4 Gold = new(1f, 0.84f, 0.36f, 1f);
-    private static readonly Vector4 Danger = new(0.95f, 0.3f, 0.3f, 1f);
+    private static readonly Vector4 Gold = HerdRenderer.Gold;
+    private static readonly Vector4 Danger = HerdRenderer.Danger;
     private static readonly Vector4 Success = new(0.44f, 0.86f, 0.52f, 1f);
     private static readonly Vector4 Muted = new(1f, 1f, 1f, 0.6f);
     private static readonly Vector4 Earth = new(0.55f, 0.4f, 0.27f, 1f);
@@ -621,47 +618,18 @@ internal sealed class HerdApp : IMiniGame
     private void DrawTile(ImDrawListPtr drawList, int index, bool interactive, Vector2 mouse, float scale)
     {
         var skill = Skills[index];
-        var count = board.SkillsLeft(skill);
         var isSelected = skill == selected;
         var rect = TileRect(index);
         var shake = tileShakes[index] > 0f ? MathF.Sin(time * 60f) * 3f * scale * tileShakes[index] : 0f;
         var pop = 1f + 0.12f * MathF.Sin(tilePops[index] * MathF.PI);
         var lift = isSelected ? 4f * scale : 0f;
-        var half = rect.Size * 0.5f * pop;
-        var center = rect.Center + new Vector2(shake, -lift);
-        var min = center - half;
-        var max = center + half;
-        var radius = TileRadius * scale;
         var hoveredTile = interactive && UiInteract.Hover(rect.Min, rect.Max);
-        if (isSelected)
-        {
-            ProgressRing.Glow(center, half.X * 1.1f, Accent, 0.35f);
-        }
-
-        Material.Frosted(drawList, min, max, radius, scale, isSelected ? 1f : hoveredTile ? 0.95f : 0.82f);
-        if (isSelected)
-        {
-            Squircle.Fill(drawList, min, max, radius, ImGui.GetColorU32(Accent with { W = 0.34f }));
-            Squircle.Stroke(drawList, min, max, radius, ImGui.GetColorU32(Accent with { W = 0.95f }), 1.5f * scale);
-        }
-        else if (hoveredTile)
-        {
-            Squircle.Stroke(drawList, min, max, radius, ImGui.GetColorU32(Accent with { W = 0.45f }), 1f * scale);
-        }
-
+        HerdRenderer.DrawSkillTile(drawList, rect.Center + new Vector2(shake, -lift), rect.Size * 0.5f * pop, skill,
+            board.SkillsLeft(skill), isSelected, hoveredTile, Accent, scale);
         if (hoveredTile)
         {
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         }
-
-        var inkAlpha = count > 0 ? 1f : 0.35f;
-        HerdArt.DrawSkillIcon(drawList, skill, center + new Vector2(0f, 2f * scale), IconSize * scale,
-            ImGui.GetColorU32(White with { W = inkAlpha }));
-        var badgeCenter = new Vector2(max.X - BadgeRadius * scale * 0.9f, min.Y + BadgeRadius * scale * 0.9f);
-        var badgeFill = count > 0 ? (isSelected ? Accent : new Vector4(0.2f, 0.22f, 0.28f, 0.95f)) : Danger with { W = 0.6f };
-        drawList.AddCircleFilled(badgeCenter, BadgeRadius * scale, ImGui.GetColorU32(badgeFill), 16);
-        Typography.DrawCentered(drawList, badgeCenter, GameNumber.Label(count), GamePalette.InkOn(badgeFill),
-            TextStyles.Caption2);
     }
 
     private void DrawLabel(ImDrawListPtr drawList, float scale)
@@ -738,48 +706,14 @@ internal sealed class HerdApp : IMiniGame
                                  Vector2.DistanceSquared(mouse, center) <= radius * radius;
             var active = control switch
             {
-                0 => assignPause,
-                1 => fast,
+                HerdRenderer.PauseControl => assignPause,
+                HerdRenderer.FastControl => fast,
                 _ => nukeArmed > 0f || board.Nuking,
             };
-            var tint = control == 2 ? Danger : Accent;
-            if (active)
-            {
-                ProgressRing.Glow(center, radius * 1.3f, tint, 0.4f + (control == 2 ? 0.3f * Pulse.Wave(Pulse.Fast) : 0f));
-            }
-
-            Material.Frosted(drawList, center - corner, center + corner, radius, scale, hoveredControl || active ? 1f : 0.82f);
-            if (active)
-            {
-                Squircle.Fill(drawList, center - corner, center + corner, radius, ImGui.GetColorU32(tint with { W = 0.4f }));
-            }
-
+            HerdRenderer.DrawControl(drawList, center, radius, control, active, hoveredControl, Accent, scale);
             if (hoveredControl)
             {
                 ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-            }
-
-            var ink = ImGui.GetColorU32(White);
-            var size = radius * 0.95f;
-            switch (control)
-            {
-                case 0:
-                    if (assignPause)
-                    {
-                        HerdArt.DrawPlay(drawList, center, size, ink);
-                    }
-                    else
-                    {
-                        HerdArt.DrawPause(drawList, center, size, ink);
-                    }
-
-                    break;
-                case 1:
-                    HerdArt.DrawFast(drawList, center, size, ink);
-                    break;
-                default:
-                    HerdArt.DrawBomb(drawList, center, size, ink, ImGui.GetColorU32(Gold));
-                    break;
             }
         }
     }

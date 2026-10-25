@@ -5,6 +5,7 @@ using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Crypto;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Media;
@@ -14,6 +15,7 @@ using Aetherphone.Core.Notifications;
 using Aetherphone.Core.Onboarding;
 using Aetherphone.Core.Photos;
 using Aetherphone.Core.Report;
+using Aetherphone.Core.Team;
 using Aetherphone.Core.Telephony;
 using Aetherphone.Core.Theme;
 using Aetherphone.Core.Translation;
@@ -43,7 +45,7 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
     public string Id => "message";
     public string DisplayName => Loc.T(L.Apps.Message);
     public string Glyph => "Me";
-    public int BadgeCount => store.UnreadTotal + calls.UnseenMissed;
+    public int BadgeCount => store.UnreadTotal + calls.UnseenMissed + team.Unread;
     public bool HasBadge => true;
     public ConversationDto[] SearchableConversations => store.Conversations;
 
@@ -71,6 +73,7 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
     private readonly EncryptionSetupLauncher encryptionSetup;
     private readonly SettingsLauncher settingsLauncher;
     private readonly MessagePopouts popouts;
+    private readonly GifSearch gifs;
     private readonly AppSkin ui = new(AppPalettes.Message);
     private readonly TabBar tabBar = new();
     private readonly TabItem[] tabItems = new TabItem[TabCount];
@@ -107,9 +110,14 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
         ReportService report,
         WallpaperImageCache wallpaperImages, MusterStore musters, MusterLauncher musterLauncher,
         SocialNotificationService socialNotifications, EncryptionSetupLauncher encryptionSetup,
-        EncryptionHelpService encryptionHelp, SettingsLauncher settingsLauncher, MessagePopouts popouts)
+        EncryptionHelpService encryptionHelp, SettingsLauncher settingsLauncher, MessagePopouts popouts,
+        GifSearch gifs, TeamInboxStore team)
     {
+        this.team = team;
+        teamPaging = new TeamPaging(team);
+        sendTeamText = (_, text, _) => SendTeamText(text);
         this.popouts = popouts;
+        this.gifs = gifs;
         this.translation = translation;
         this.socialNotifications = socialNotifications;
         this.musterLauncher = musterLauncher;
@@ -169,6 +177,7 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
     {
         contacts.Refresh(force: forceContacts);
         store.RefreshConversations();
+        team.Refresh();
         ConsumeLaunchRequests();
     }
 
@@ -203,7 +212,9 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
     private void ShowLaunchedThread(string conversationId)
     {
         activeTab = MessageTab.Chats;
-        var target = MessageRoute.Thread(conversationId);
+        var target = string.Equals(conversationId, TeamInboxStore.ThreadKey, StringComparison.Ordinal)
+            ? MessageRoute.Team
+            : MessageRoute.Thread(conversationId);
         if (router.Current == target)
         {
             return;
@@ -421,6 +432,9 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
             case MessageScreen.Wallpaper:
                 DrawWallpaper(area, route.Id ?? string.Empty);
                 break;
+            case MessageScreen.Team:
+                DrawTeamThread(area, depth == router.Depth);
+                break;
             default:
                 DrawRoot(area);
                 break;
@@ -536,7 +550,7 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
     private void DrawTabBar(Rect area)
     {
         tabItems[(int)MessageTab.Chats] = new TabItem(Loc.T(L.Message.TabChats), PhoneIcons.MessageCircle,
-            PhoneIcons.MessageCircleFilled, store.UnreadTotal, "message.tab.chats");
+            PhoneIcons.MessageCircleFilled, store.UnreadTotal + team.Unread, "message.tab.chats");
         tabItems[(int)MessageTab.Calls] = new TabItem(Loc.T(L.Phone.Calls), PhoneIcons.Phone, PhoneIcons.PhoneFilled,
             calls.UnseenMissed, "message.tab.calls");
         tabItems[(int)MessageTab.Contacts] = new TabItem(Loc.T(L.Apps.Contacts), PhoneIcons.Users,
@@ -563,6 +577,8 @@ internal sealed partial class MessageApp : IResumableApp, ISpotlightConversation
     public void Dispose()
     {
         threadView.Dispose();
+        teamComposer.Dispose();
         store.Dispose();
+        team.Dispose();
     }
 }

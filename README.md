@@ -60,7 +60,9 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
       <ul>
         <li>For You and Latest timelines, with a Following filter</li>
         <li>Rechirps, quotes, replies and hashtags</li>
+        <li>Save chirps to find them again on your profile</li>
         <li>Photos, GIFs and thirteen reactions</li>
+        <li>Polls, and GIF search from KLIPY once you turn it on</li>
         <li>Paste an image with Ctrl+V or drag one in from File Explorer</li>
         <li>Chirps in other languages translated with one tap</li>
       </ul>
@@ -88,8 +90,10 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
       <ul>
         <li>Message players on any world or data center</li>
         <li>Voice notes, photos and group chats</li>
-        <li>Paste or drag in a photo and add a caption before it sends</li>
-        <li>Voice calls, one-on-one or in groups</li>
+        <li>People you block stay hidden in group chats, behind a row you can tap to show</li>
+        <li>Pick, paste or drag in a photo and add a caption before it sends</li>
+        <li>Voice calls, one-on-one or in groups, with a mic test and a threshold you set</li>
+        <li>The Aetherphone Team writes to you here, for example to set up the trade for a Prism gil prize, and you can reply</li>
         <li>End-to-end encrypted</li>
       </ul>
     </td>
@@ -156,11 +160,11 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
 
 **Plays the game with you**<br>
 <img src="docs/media/readme/icons/messages.png" width="36" alt="Linkpearl" title="Linkpearl" /> <img src="docs/media/readme/icons/strats.png" width="36" alt="Strats" title="Strats" /> <img src="docs/media/readme/icons/hunts.png" width="36" alt="Hunts" title="Hunts" /> <img src="docs/media/readme/icons/market.png" width="36" alt="Market" title="Market" /> <img src="docs/media/readme/icons/housing.png" width="36" alt="Housing" title="Housing" /> <img src="docs/media/readme/icons/fishing.png" width="36" alt="Fishing" title="Fishing" /> <img src="docs/media/readme/icons/jobs.png" width="36" alt="Jobs" title="Jobs" /> <img src="docs/media/readme/icons/inventory.png" width="36" alt="Inventory" title="Inventory" /> <img src="docs/media/readme/icons/dailies.png" width="36" alt="Dailies" title="Dailies" /> <img src="docs/media/readme/icons/timers.png" width="36" alt="Timers" title="Timers" /><br>
-<sub>Linkpearl chat tabs · raid Strats · live Hunts · Market prices and alerts · Housing lottery · Fishing windows · Jobs and gearsets · Inventory search · Dailies · retainer Timers · Maps · mount and minion Collections</sub>
+<sub>Linkpearl chat tabs · raid Strats · live Hunts · Market prices for any world, data center or region, with alerts · Housing lottery · Fishing windows · Jobs and gearsets · Inventory search · Dailies · retainer Timers · Maps · mount and minion Collections</sub>
 
 **Brings people together**<br>
-<img src="docs/media/readme/icons/muster.png" width="36" alt="Muster" title="Muster" /> <img src="docs/media/readme/icons/yellowpages.png" width="36" alt="Yellow Pages" title="Yellow Pages" /> <img src="docs/media/readme/icons/announcements.png" width="36" alt="Announcements" title="Announcements" /> <img src="docs/media/readme/icons/polls.png" width="36" alt="Polls" title="Polls" /> <img src="docs/media/readme/icons/coin.png" width="36" alt="Aether Coin" title="Aether Coin" /><br>
-<sub>Muster meetups · Yellow Pages classifieds · Announcements · Polls · Aether Coin badges and frames</sub>
+<img src="docs/media/readme/icons/muster.png" width="36" alt="Muster" title="Muster" /> <img src="docs/media/readme/icons/yellowpages.png" width="36" alt="Yellow Pages" title="Yellow Pages" /> <img src="docs/media/readme/icons/announcements.png" width="36" alt="Updates" title="Updates" /> <img src="docs/media/readme/icons/polls.png" width="36" alt="Polls" title="Polls" /> <img src="docs/media/readme/icons/coin.png" width="36" alt="Aether Coin" title="Aether Coin" /> <img src="docs/media/readme/icons/loveisland.png" width="36" alt="Love Island Eclipse" title="Love Island Eclipse" /><br>
+<sub>Muster meetups · Yellow Pages classifieds · Updates from the team · Polls · Aether Coin badges and frames · Love Island Eclipse, PNX's Halloween festival companion</sub>
 
 **Everyday utilities**<br>
 <img src="docs/media/readme/icons/camera.png" width="36" alt="Camera" title="Camera" /> <img src="docs/media/readme/icons/photos.png" width="36" alt="Photos" title="Photos" /> <img src="docs/media/readme/icons/notes.png" width="36" alt="Notes" title="Notes" /> <img src="docs/media/readme/icons/calendar.png" width="36" alt="Calendar" title="Calendar" /> <img src="docs/media/readme/icons/clock.png" width="36" alt="Clock" title="Clock" /> <img src="docs/media/readme/icons/skywatcher.png" width="36" alt="Skywatcher" title="Skywatcher" /> <img src="docs/media/readme/icons/wallet.png" width="36" alt="Wallet" title="Wallet" /> <img src="docs/media/readme/icons/health.png" width="36" alt="Health" title="Health" /> <img src="docs/media/readme/icons/shortcuts.png" width="36" alt="Shortcuts" title="Shortcuts" /> <img src="docs/media/readme/icons/news.png" width="36" alt="News" title="News" /><br>
@@ -168,11 +172,11 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
 
 **Downtime**<br>
 <img src="docs/media/readme/icons/games.png" width="36" alt="Games" title="Games" /> <img src="docs/media/readme/icons/doom.png" width="36" alt="Doom" title="Doom" /> <img src="docs/media/readme/icons/chess.png" width="36" alt="Chess" title="Chess" /> <img src="docs/media/readme/icons/tetris.png" width="36" alt="Tetris" title="Tetris" /> <img src="docs/media/readme/icons/wordrun.png" width="36" alt="Word Run" title="Word Run" /> <img src="docs/media/readme/icons/solitaire.png" width="36" alt="Solitaire" title="Solitaire" /> <img src="docs/media/readme/icons/2048.png" width="36" alt="2048" title="2048" /><br>
-<sub>An arcade of fifty-nine games, Doom among them, each full screen with an intro, a pause menu and a result card · Doom, Moogle War and Slice play sideways · a daily board that is the same for everyone, with a streak calendar · global and friends leaderboards you join only if you choose to · Uno, Chess, 8-Ball Pool, Connect Four, Broadside, Lucky Draw, Moogle War and Mini Golf online with friends</sub>
+<sub>An arcade of sixty-one games, Doom among them, each full screen with an intro, a pause menu and a result card, plus animated How to play pages where the rules need them · Doom, Moogle War and Slice play sideways · a daily board that is the same for everyone, with a streak calendar · global and friends leaderboards you join only if you choose to · Uno, Chess, 8-Ball Pool, Connect Four, Broadside, Lucky Draw, Moogle War and Mini Golf online with friends</sub>
 
 ## Built like the phone in your pocket
 
-**Lives in your HUD.** Drag it anywhere, resize it, or shrink it to a mini phone with the clock, widgets, music, calls and an optional FPS counter. Keep it on screen through Group Pose and cutscenes if it lives on a second monitor.
+**Lives in your HUD.** Drag it anywhere, resize it, or shrink it to a mini phone with the clock, widgets, music, calls and an optional FPS counter. Lock the mini phone in place, or let other windows sit over it. Keep it on screen through Group Pose and cutscenes if it lives on a second monitor.
 
 **In the server info bar.** The phone sits in the game's server info bar with your unread count, and a click opens it. Settings → General → Server info bar picks its style and renames the label.
 
@@ -182,11 +186,11 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
 
 **Spotlight and Control Center.** Pull down on the Home Screen to search apps, contacts, settings, notes and market items, or tap the top of the screen for music, volume, brightness and Do Not Disturb.
 
-**Make it yours.** Wallpapers, accent colors, icon looks, phone cases and your home layout, saved as a Look that follows each character.
+**Make it yours.** Wallpapers, accent colors, icon looks, phone cases and your home layout, saved as a Look that follows each character. Any game in Games or Gamba can sit on the Home Screen as its own icon with Add to Home Screen. Settings → Display → Liquid Glass slides the glass from Clear to Tinted and can turn on real glass that bends and blurs what is behind it.
 
 **Speaks your language.** Nine interface languages and one-tap translation on posts, profiles and messages.
 
-**Private by design.** Messages, photos and voice notes are end-to-end encrypted. A Velvet intro is sent as plain text, and translating a message sends its text to Aethernet to be translated. A human moderation team reviews reported content.
+**Private by design.** Messages, photos and voice notes are end-to-end encrypted. A Velvet intro and messages with the Aetherphone Team (which staff read) are sent as plain text, and translating a message sends its text to Aethernet to be translated. A human moderation team reviews reported content.
 
 ## Install
 

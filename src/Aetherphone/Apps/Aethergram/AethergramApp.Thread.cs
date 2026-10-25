@@ -2,6 +2,7 @@ using Aetherphone.Core;
 using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Crypto;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Media;
@@ -64,6 +65,8 @@ internal sealed partial class AethergramApp
         protected override string ComposerHint => Loc.T(L.Aethergram.MessageHint);
 
         protected override IChatTranscriptPostCards? PostCards => this;
+
+        protected override GifSearch? Gifs => app.gifs;
 
         public bool TryResolve(string messageId, string body, out ChatPostCard card)
         {

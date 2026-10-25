@@ -1,0 +1,1087 @@
+using System.Collections.Concurrent;
+using Aetherphone.Core;
+using Aetherphone.Core.Aethernet;
+using Aetherphone.Core.Aethernet.Clients;
+using Aetherphone.Core.Aethernet.Contracts;
+using Aetherphone.Core.Localization;
+using Aetherphone.Core.Media;
+using Aetherphone.Core.Net;
+using Aetherphone.Core.Report;
+using Aetherphone.Core.Social;
+using Aetherphone.Core.Wallpapers;
+
+namespace Aetherphone.Apps.Prism;
+
+internal enum GlamScope : byte
+{
+    Showcase,
+    New,
+    Popular,
+    Following,
+}
+
+internal readonly record struct GlamPhotoDraft(string Path, WallpaperCrop Crop);
+
+internal sealed record GlamMore(string GlamId, GlamDto[] Items);
+
+internal sealed class GlamStore : IDisposable
+{
+    public const int MaxPhotos = 4;
+    public const bool RevealsWholePhoto = false;
+
+    private const int MoreLimit = 4;
+    private const int MeRetrySeconds = 5;
+    private const int BannerRetrySeconds = 5;
+    private const int NotFoundStatus = 404;
+    private const int ShowcaseRetrySeconds = 30;
+    private const int ShowcaseModded = 0;
+    private const int ShowcaseVanilla = 1;
+    private const int RemovalBacklog = 256;
+
+    private const int PhotoBaseSize = 1080;
+    private const PostAspect GlamAspect = PostAspect.Portrait;
+
+    private static readonly string[] ScopeKeys =
+    {
+        GlamClient.ScopePopular, GlamClient.ScopeNew, GlamClient.ScopePopular, GlamClient.ScopeFollowing,
+    };
+
+    private readonly AethernetSession session;
+    private readonly AccountClient account;
+    private readonly GlamClient client;
+    private readonly MediaClient media;
+    private readonly SafetyClient safety;
+    private readonly SocialClient social;
+    private readonly RealtimeSignalBus signals;
+    private readonly ConcurrentQueue<ContentRemovalSignal> removals = new();
+    private readonly StoreWork work = new("Glams");
+    private readonly FailureSlot postFailure = new();
+    private readonly FailureSlot profileFailure = new();
+    private readonly FailureSlot saveFailure = new();
+    private readonly RetryGate meGate = new(TimeSpan.FromSeconds(MeRetrySeconds));
+    private readonly RetryGate bannerGate = new(TimeSpan.FromSeconds(BannerRetrySeconds));
+    private readonly GlamDto?[] showcase = new GlamDto?[2];
+    private readonly bool[] showcaseLoading = new bool[2];
+    private readonly RetryGate[] showcaseGates =
+    {
+        new(TimeSpan.FromSeconds(ShowcaseRetrySeconds)), new(TimeSpan.FromSeconds(ShowcaseRetrySeconds)),
+    };
+    private readonly FeedLane<GlamDto>[] discover =
+    {
+        FeedLane<GlamDto>.ServerOrdered(), FeedLane<GlamDto>.ServerOrdered(), FeedLane<GlamDto>.ServerOrdered(),
+        FeedLane<GlamDto>.ServerOrdered(),
+    };
+    private readonly FeedLane<GlamDto> list = FeedLane<GlamDto>.ServerOrdered();
+    private readonly HashSet<string> triedOn = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> follows = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> followLookups = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> removedIds = new(StringComparer.Ordinal);
+
+    private Func<string?, CancellationToken, Action<AepFailure>?, Task<GlamPage?>>? listFetch;
+    private volatile string listKey = string.Empty;
+    private volatile GlamDto? detail;
+    private volatile GlamDto? posted;
+    private volatile bool detailPending;
+    private volatile bool detailMissing;
+    private volatile bool detailGone;
+    private volatile GlamMore? more;
+    private volatile string moreFor = string.Empty;
+    private volatile int listOpened;
+    private volatile GlamProfileDto? profile;
+    private volatile GlamItemDto? item;
+    private volatile GlamSeasonDto? season;
+    private volatile bool posting;
+    private volatile bool postFailed;
+    private volatile GlamDto? updated;
+    private volatile bool saving;
+    private volatile bool saveFailed;
+    private volatile int epoch;
+    private volatile string followsFor = string.Empty;
+    private volatile GlamAuthorDto? me;
+    private volatile string meFor = string.Empty;
+    private volatile bool loadingMe;
+    private volatile bool savingProfile;
+    private volatile GlamDto? banner;
+    private volatile string bannerFor = string.Empty;
+    private volatile bool bannerMissing;
+    private volatile bool bannerFailed;
+    private volatile GlamAuthorDto[] people = Array.Empty<GlamAuthorDto>();
+    private volatile string peopleFor = string.Empty;
+    private volatile string peopleAsked = string.Empty;
+    private volatile bool peopleLoading;
+    private volatile bool peopleFailed;
+    private bool? vanillaOnly;
+    private (int Race, int? Gender) body;
+
+    public GlamStore(AethernetSession session, AethernetApi api, RealtimeSignalBus signals)
+    {
+        this.session = session;
+        this.signals = signals;
+        account = api.Account;
+        client = api.Glams;
+        media = api.Media;
+        safety = api.Safety;
+        social = api.Social;
+        signals.ContentRemoved += OnContentRemoved;
+    }
+
+    private void OnContentRemoved(ContentRemovalSignal removal)
+    {
+        if (!string.Equals(removal.App, SocialActivity.PrismApp, StringComparison.Ordinal) ||
+            removal.ContentId is not { Length: > 0 } contentId)
+        {
+            return;
+        }
+
+        if (string.Equals(removal.Kind, ContentRemovalKinds.Glam, StringComparison.Ordinal))
+        {
+            removedIds[contentId] = true;
+        }
+        else if (!string.Equals(removal.Kind, ContentRemovalKinds.Look, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        QueueRemoval(removal);
+    }
+
+    private void QueueRemoval(ContentRemovalSignal removal)
+    {
+        if (removals.Count >= RemovalBacklog)
+        {
+            removals.TryDequeue(out _);
+        }
+
+        removals.Enqueue(removal);
+    }
+
+    public bool TryTakeRemoval(out ContentRemovalSignal removal) => removals.TryDequeue(out removal);
+
+    public static float PhotoRatio => PostAspects.Ratio(GlamAspect);
+
+    public bool IsSignedIn => session.IsSignedIn;
+
+    public string MyId => session.CurrentUser?.Id ?? string.Empty;
+
+    public GlamAuthorDto? Me => meFor.Length > 0 && meFor == MyId ? me : null;
+
+    public bool SavingProfile => savingProfile;
+
+    public string ProfileFailureText => profileFailure.Text();
+
+    public GlamAuthorDto[] People => people;
+
+    public string PeopleFor => peopleFor;
+
+    public string PeopleAsked => peopleAsked;
+
+    public bool PeopleLoading => peopleLoading;
+
+    public bool PeopleFailed => peopleFailed;
+
+    public bool? VanillaOnly => vanillaOnly;
+
+    public int Race => body.Race;
+
+    public int? Gender => body.Gender;
+
+    public GlamDto? Detail => detail;
+
+    public GlamDto? Posted => posted;
+
+    public bool DetailPending => detailPending;
+
+    public bool DetailMissing => detailMissing;
+
+    public bool DetailGone => detailGone;
+
+    public GlamDto[] MoreFrom(string glamId) =>
+        more is { } shown && shown.GlamId == glamId ? shown.Items : Array.Empty<GlamDto>();
+
+    public GlamProfileDto? Profile => profile;
+
+    public GlamItemDto? Item => item;
+
+    public GlamSeasonDto? Season => season;
+
+    public bool Posting => posting;
+
+    public bool PostFailed => postFailed;
+
+    public string PostFailureText => postFailure.Text();
+
+    public GlamDto? Updated => updated;
+
+    public bool Saving => saving;
+
+    public bool SaveFailed => saveFailed;
+
+    public string SaveFailureText => saveFailure.Text();
+
+    public bool? Follows(GlamAuthorDto author)
+    {
+        var owner = MyId;
+        if (owner != followsFor)
+        {
+            followsFor = owner;
+            follows.Clear();
+            followLookups.Clear();
+        }
+
+        if (follows.TryGetValue(author.Id, out var known))
+        {
+            return known;
+        }
+
+        if (session.IsSignedIn && followLookups.TryAdd(author.Id, true))
+        {
+            LookUpFollow(author.Id, owner);
+        }
+
+        return null;
+    }
+
+    private void LookUpFollow(string userId, string owner) =>
+        work.Run("follow state", async token =>
+        {
+            var fetched = await client.ProfileAsync(userId, token).ConfigureAwait(false);
+            if (fetched is not null && followsFor == owner)
+            {
+                follows.TryAdd(userId, fetched.Following);
+            }
+        });
+
+    public FeedLane<GlamDto> Lane(GlamScope scope) => discover[(int)scope];
+
+    public bool IsRemoved(string glamId) => removedIds.ContainsKey(glamId);
+
+    private GlamDto[] Visible(GlamDto[]? items)
+    {
+        if (items is null || items.Length == 0)
+        {
+            return Array.Empty<GlamDto>();
+        }
+
+        var kept = 0;
+        for (var index = 0; index < items.Length; index++)
+        {
+            if (!removedIds.ContainsKey(items[index].Id))
+            {
+                kept++;
+            }
+        }
+
+        if (kept == items.Length)
+        {
+            return items;
+        }
+
+        var visible = new GlamDto[kept];
+        var next = 0;
+        for (var index = 0; index < items.Length; index++)
+        {
+            if (!removedIds.ContainsKey(items[index].Id))
+            {
+                visible[next++] = items[index];
+            }
+        }
+
+        return visible;
+    }
+
+    public FeedLane<GlamDto> List => list;
+
+    public string ListKey => listKey;
+
+    public void SetVanillaOnly(bool? only)
+    {
+        if (vanillaOnly == only)
+        {
+            return;
+        }
+
+        vanillaOnly = only;
+        ClearDiscover();
+    }
+
+    public void SetBody(int race, int? gender)
+    {
+        if (body == (race, gender))
+        {
+            return;
+        }
+
+        body = (race, gender);
+        ClearDiscover();
+    }
+
+    private void ClearDiscover()
+    {
+        epoch++;
+        for (var index = 0; index < discover.Length; index++)
+        {
+            if (index != (int)GlamScope.Showcase)
+            {
+                discover[index].Clear();
+            }
+        }
+    }
+
+    public void Refresh(GlamScope scope)
+    {
+        var lane = discover[(int)scope];
+        if (!session.IsSignedIn || lane.Loading)
+        {
+            return;
+        }
+
+        var key = ScopeKeys[(int)scope];
+        var unfiltered = scope == GlamScope.Showcase;
+        var only = unfiltered ? null : vanillaOnly;
+        var fits = unfiltered ? default : body;
+        var started = unfiltered ? -1 : epoch;
+        lane.Loading = true;
+        work.Run("discover", async token =>
+        {
+            var reported = AepFailure.None;
+            var page = await client.FeedAsync(key, only, fits, null, token, failure => reported = failure)
+                .ConfigureAwait(false);
+            if (started >= 0 && started != epoch)
+            {
+                return;
+            }
+
+            if (page is null)
+            {
+                lane.RecordFailure(reported.Failed ? reported : AepFailure.Transport(AepFailureKind.Offline));
+                return;
+            }
+
+            lane.ApplyRefresh(Visible(page.Items), page.NextCursor);
+        }, () =>
+        {
+            if (started < 0 || started == epoch)
+            {
+                lane.Loading = false;
+            }
+        });
+    }
+
+    public void LoadMore(GlamScope scope)
+    {
+        var lane = discover[(int)scope];
+        if (!session.IsSignedIn || lane.Cursor is not { } cursor || lane.Loading || lane.LoadingMore)
+        {
+            return;
+        }
+
+        StartMore(scope, lane, cursor);
+    }
+
+    private void StartMore(GlamScope scope, FeedLane<GlamDto> lane, string cursor)
+    {
+        var key = ScopeKeys[(int)scope];
+        var unfiltered = scope == GlamScope.Showcase;
+        var only = unfiltered ? null : vanillaOnly;
+        var fits = unfiltered ? default : body;
+        var started = unfiltered ? -1 : epoch;
+        lane.LoadingMore = true;
+        work.Run("discover more", async token =>
+        {
+            var page = await client.FeedAsync(key, only, fits, cursor, token).ConfigureAwait(false);
+            if (page is not null && (started < 0 || started == epoch))
+            {
+                lane.ApplyMore(Visible(page.Items), page.NextCursor);
+            }
+        }, () =>
+        {
+            if (started < 0 || started == epoch)
+            {
+                lane.LoadingMore = false;
+            }
+        });
+    }
+
+    public void OpenProfile(GlamAuthorDto author, bool saved = false)
+    {
+        var userId = author.Id;
+        if (profile?.User?.Id != userId)
+        {
+            profile = new GlamProfileDto(User: author);
+        }
+
+        if (saved)
+        {
+            OpenCollection(GlamClient.SavedCollection);
+        }
+        else
+        {
+            OpenList(UserListKey(userId),
+                (cursor, token, failure) => client.UserGlamsAsync(userId, cursor, token, failure));
+        }
+
+        work.Run("profile", async token =>
+        {
+            var fetched = await client.ProfileAsync(userId, token).ConfigureAwait(false);
+            if (fetched is not null && profile?.User?.Id == userId)
+            {
+                profile = fetched with { User = fetched.User ?? author };
+                follows[userId] = fetched.Following;
+            }
+        });
+    }
+
+    public void OpenCollection(string collectionId) =>
+        OpenList("collection:" + collectionId,
+            (cursor, token, failure) => client.CollectionGlamsAsync(collectionId, cursor, token, failure));
+
+    public void OpenItem(uint itemId)
+    {
+        item = null;
+        var key = "item:" + itemId;
+        OpenList(key, (cursor, token, failure) => client.ItemGlamsAsync(itemId, cursor, token, failure));
+        work.Run("item", async token =>
+        {
+            var fetched = await client.ItemAsync(itemId, token).ConfigureAwait(false);
+            if (fetched is not null && listKey == key)
+            {
+                item = fetched;
+            }
+        });
+    }
+
+    public static string TagKey(string tag) => "tag:" + tag;
+
+    public void OpenTag(string tag) =>
+        OpenList(TagKey(tag), (cursor, token, failure) => client.TagGlamsAsync(tag, cursor, token, failure));
+
+    public void OpenWeek(string weekId, string track) =>
+        OpenList(string.Concat("week:", weekId, "|", track),
+            (cursor, token, failure) => client.WeekGlamsAsync(weekId, track, cursor, token, failure));
+
+    public void OpenMoreFrom(GlamDto glam)
+    {
+        if (moreFor == glam.Id || glam.Author is not { Id.Length: > 0 } author || !session.IsSignedIn)
+        {
+            return;
+        }
+
+        var glamId = glam.Id;
+        var authorId = author.Id;
+        moreFor = glamId;
+        work.Run("more from", async token =>
+        {
+            var page = await client.UserGlamsAsync(authorId, null, token).ConfigureAwait(false);
+            if (page?.Items is not { } items || moreFor != glamId)
+            {
+                return;
+            }
+
+            var kept = new List<GlamDto>(MoreLimit);
+            for (var index = 0; index < items.Length && kept.Count < MoreLimit; index++)
+            {
+                if (items[index].Id != glamId && !removedIds.ContainsKey(items[index].Id))
+                {
+                    kept.Add(items[index]);
+                }
+            }
+
+            more = new GlamMore(glamId, kept.ToArray());
+        });
+    }
+
+    public void OpenMod(string name, string author) =>
+        OpenList("mod:" + name + "|" + author,
+            (cursor, token, failure) => client.ModGlamsAsync(name, author, cursor, token, failure));
+
+    public void LoadMoreList()
+    {
+        if (listFetch is not { } fetch || list.Cursor is not { } cursor || list.Loading || list.LoadingMore)
+        {
+            return;
+        }
+
+        StartMoreList(fetch, cursor);
+    }
+
+    private void StartMoreList(Func<string?, CancellationToken, Action<AepFailure>?, Task<GlamPage?>> fetch,
+        string cursor)
+    {
+        var key = listKey;
+        list.LoadingMore = true;
+        work.Run("list more", async token =>
+        {
+            var page = await fetch(cursor, token, null).ConfigureAwait(false);
+            if (page is not null && key == listKey)
+            {
+                list.ApplyMore(Visible(page.Items), page.NextCursor);
+            }
+        }, () =>
+        {
+            if (key == listKey)
+            {
+                list.LoadingMore = false;
+            }
+        });
+    }
+
+    public void Open(GlamDto glam)
+    {
+        detail = glam;
+        var glamId = glam.Id;
+        detailPending = glamId.Length > 0 && glam.Photos is not { Length: > 0 };
+        detailMissing = false;
+        detailGone = false;
+        if (glamId.Length == 0)
+        {
+            return;
+        }
+
+        work.Run("glam", async token =>
+        {
+            var failure = AepFailure.None;
+            var fetched = await client.GlamAsync(glamId, token, received => failure = received).ConfigureAwait(false);
+            if (detail?.Id != glamId)
+            {
+                return;
+            }
+
+            if (fetched is not null)
+            {
+                Replace(fetched);
+            }
+            else if (failure.StatusCode == NotFoundStatus)
+            {
+                detailGone = true;
+                Gone(glamId);
+            }
+            else if (detailPending)
+            {
+                detailMissing = true;
+            }
+
+            detailPending = false;
+        });
+    }
+
+    private void Gone(string glamId)
+    {
+        removedIds[glamId] = true;
+        QueueRemoval(new ContentRemovalSignal(SocialActivity.PrismApp, ContentRemovalKinds.Glam, glamId, null));
+    }
+
+    public void ToggleLike(GlamDto glam)
+    {
+        var liked = !glam.Liked;
+        Replace(glam with { Liked = liked, Likes = Math.Max(0, glam.Likes + (liked ? 1 : -1)) });
+        work.Run("like", async token =>
+        {
+            if (!await client.LikeAsync(glam.Id, liked, token).ConfigureAwait(false))
+            {
+                Replace(glam);
+            }
+        });
+    }
+
+    public void ToggleSave(GlamDto glam)
+    {
+        var saved = !glam.Saved;
+        Replace(glam with { Saved = saved });
+        work.Run("save", async token =>
+        {
+            if (!await client.SetInCollectionAsync(GlamClient.SavedCollection, glam.Id, saved, token).ConfigureAwait(false))
+            {
+                Replace(glam);
+            }
+        });
+    }
+
+    public void TriedOn(GlamDto glam)
+    {
+        if (!triedOn.Add(glam.Id))
+        {
+            return;
+        }
+
+        if (glam.Author?.Id != MyId)
+        {
+            Replace(glam with { TryOns = glam.TryOns + 1 });
+        }
+
+        var glamId = glam.Id;
+        work.Run("tried on", token => client.TriedOnAsync(glamId, token));
+    }
+
+    public void SetFollow(GlamAuthorDto author, bool follow)
+    {
+        follows[author.Id] = follow;
+        if (profile is { } current && current.User?.Id == author.Id)
+        {
+            profile = current with { Following = follow };
+        }
+
+        work.Run("follow", async token =>
+        {
+            var done = follow
+                ? await social.FollowAsync(author.Id, token).ConfigureAwait(false) is not null
+                : await social.UnfollowAsync(author.Id, token).ConfigureAwait(false);
+            if (done)
+            {
+                return;
+            }
+
+            follows[author.Id] = !follow;
+            if (profile is { } latest && latest.User?.Id == author.Id)
+            {
+                profile = latest with { Following = !follow };
+            }
+        });
+    }
+
+    public void Post(GlamPhotoDraft[] photos, GlamGearDto[] gear, string title, string[] tags, int race, int gender,
+        bool vanilla, string inspiredBy, Action<bool> onComplete)
+    {
+        if (posting || photos.Length == 0 || !session.IsSignedIn)
+        {
+            return;
+        }
+
+        posting = true;
+        postFailed = false;
+        posted = null;
+        postFailure.Clear();
+        work.Run("post", async token =>
+        {
+            var (uploaded, failure) = await UploadPhotosAsync(photos, token).ConfigureAwait(false);
+            if (uploaded is null)
+            {
+                return FailPost(failure);
+            }
+
+            var created = await client.CreateAsync(new CreateGlamRequest(title, uploaded, gear, tags, race, gender, vanilla,
+                inspiredBy), token, received => failure = received).ConfigureAwait(false);
+            if (created is null)
+            {
+                return FailPost(failure);
+            }
+
+            var newest = discover[(int)GlamScope.New];
+            newest.Items = CopyOnWrite.Prepend(newest.Items, created);
+            if (listKey == UserListKey(MyId))
+            {
+                list.Items = CopyOnWrite.Prepend(list.Items, created);
+            }
+
+            posted = created;
+            return true;
+        }, onComplete, () => posting = false);
+    }
+
+    public void Update(GlamDto glam, GlamGearDto[] gear, string title, string[] tags, int race, int gender,
+        GlamPhotoDraft[]? photos, Action<bool> onComplete)
+    {
+        if (saving || glam.Id.Length == 0 || !session.IsSignedIn)
+        {
+            return;
+        }
+
+        saving = true;
+        saveFailed = false;
+        updated = null;
+        saveFailure.Clear();
+        work.Run("update", async token =>
+        {
+            var failure = AepFailure.None;
+            GlamPhotoRequest[]? uploaded = null;
+            if (photos is { Length: > 0 })
+            {
+                (uploaded, failure) = await UploadPhotosAsync(photos, token).ConfigureAwait(false);
+                if (uploaded is null)
+                {
+                    return FailSave(failure);
+                }
+            }
+
+            var saved = await client.UpdateAsync(glam.Id,
+                new UpdateGlamRequest(title, gear, tags, race, gender, uploaded), token,
+                received => failure = received).ConfigureAwait(false);
+            if (saved is null)
+            {
+                return FailSave(failure);
+            }
+
+            Replace(saved);
+            updated = saved;
+            return true;
+        }, onComplete, () => saving = false);
+    }
+
+    private async Task<(GlamPhotoRequest[]? Photos, AepFailure Failure)> UploadPhotosAsync(GlamPhotoDraft[] photos,
+        CancellationToken token)
+    {
+        var (width, height) = PostAspects.Size(GlamAspect, PhotoBaseSize);
+        var count = Math.Min(photos.Length, MaxPhotos);
+        var uploaded = new GlamPhotoRequest[count];
+        var failure = AepFailure.None;
+        for (var index = 0; index < count; index++)
+        {
+            var baked = ImageProcessor.BakeCroppedUpload(photos[index].Path, photos[index].Crop, width, height,
+                RevealsWholePhoto, PhotoEdit.None);
+            var upload = await media.UploadUrlAsync(baked.ContentType, PrismClient.MediaScope, token,
+                received => failure = received).ConfigureAwait(false);
+            if (upload is null || !await media.UploadImageAsync(upload.UploadUrl, baked.Bytes, baked.ContentType,
+                    token, received => failure = received).ConfigureAwait(false))
+            {
+                return (null, failure);
+            }
+
+            uploaded[index] = new GlamPhotoRequest(upload.Key, baked.Width, baked.Height);
+        }
+
+        return (uploaded, failure);
+    }
+
+    public void Delete(GlamDto glam)
+    {
+        Purge(glam.Id);
+        work.Run("delete", token => client.DeleteAsync(glam.Id, token));
+    }
+
+    public void Report(string glamId, ReportReason reason, Action<bool> done) =>
+        work.Run("report", token => safety.ReportAsync(GlamClient.ReportTarget, glamId, reason, token), done);
+
+    public void EnsureMe()
+    {
+        var owner = MyId;
+        if (!IsSignedIn || owner.Length == 0 || loadingMe || Me is not null || !meGate.TryPass())
+        {
+            return;
+        }
+
+        loadingMe = true;
+        work.Run("me", async token =>
+        {
+            var fetched = await account.MeAsync(token).ConfigureAwait(false);
+            if (fetched is not null && owner == MyId)
+            {
+                AcceptMe(fetched, owner);
+            }
+        }, () => loadingMe = false);
+    }
+
+    public GlamDto? BannerGlam(string glamId, out bool missing)
+    {
+        if (IsSignedIn && bannerFor != glamId)
+        {
+            bannerGate.Reset();
+            FetchBanner(glamId);
+        }
+        else if (IsSignedIn && bannerFailed && bannerFor == glamId && bannerGate.TryPass())
+        {
+            FetchBanner(glamId);
+        }
+
+        missing = bannerMissing && bannerFor == glamId;
+        return banner is { } found && found.Id == glamId ? found : null;
+    }
+
+    private void FetchBanner(string glamId)
+    {
+        bannerFor = glamId;
+        banner = null;
+        bannerMissing = false;
+        bannerFailed = false;
+        bannerGate.TryPass();
+        work.Run("banner", async token =>
+        {
+            var failure = AepFailure.None;
+            var fetched = await client.GlamAsync(glamId, token, received => failure = received)
+                .ConfigureAwait(false);
+            if (bannerFor != glamId)
+            {
+                return;
+            }
+
+            banner = fetched;
+            bannerMissing = fetched is null && failure.StatusCode == NotFoundStatus;
+            bannerFailed = fetched is null && !bannerMissing;
+            if (bannerMissing)
+            {
+                Gone(glamId);
+            }
+        });
+    }
+
+    public GlamDto? Showcase(bool vanilla)
+    {
+        var slot = vanilla ? ShowcaseVanilla : ShowcaseModded;
+        var shown = Volatile.Read(ref showcase[slot]);
+        if (shown is not null || !session.IsSignedIn || Volatile.Read(ref showcaseLoading[slot]) ||
+            !showcaseGates[slot].TryPass())
+        {
+            return shown;
+        }
+
+        FetchShowcase(slot, vanilla);
+        return null;
+    }
+
+    private void FetchShowcase(int slot, bool vanilla)
+    {
+        Volatile.Write(ref showcaseLoading[slot], true);
+        work.Run("showcase", async token =>
+        {
+            var page = await client.FeedAsync(GlamClient.ScopePopular, vanilla, default, null, token)
+                .ConfigureAwait(false);
+            var items = page?.Items ?? Array.Empty<GlamDto>();
+            for (var index = 0; index < items.Length; index++)
+            {
+                if (items[index].Vanilla == vanilla && items[index].Photos is { Length: > 0 } &&
+                    !removedIds.ContainsKey(items[index].Id))
+                {
+                    Volatile.Write(ref showcase[slot], items[index]);
+                    return;
+                }
+            }
+        }, () => Volatile.Write(ref showcaseLoading[slot], false));
+    }
+
+    public void UpdateProfile(string displayName, string handle, string bio, GlamPhotoDraft? photo,
+        GlamBannerDto? bannerGlam, Action<bool> onComplete)
+    {
+        var owner = MyId;
+        if (savingProfile || !IsSignedIn || owner.Length == 0)
+        {
+            return;
+        }
+
+        savingProfile = true;
+        profileFailure.Clear();
+        work.Run("profile update", async token =>
+        {
+            var failure = AepFailure.None;
+            string? avatarUrl = null;
+            if (photo is { } picked)
+            {
+                avatarUrl = await AvatarUpload.UploadAsync(media, picked.Path, picked.Crop, token,
+                    received => failure = received).ConfigureAwait(false);
+                if (avatarUrl is null)
+                {
+                    return FailProfile(failure);
+                }
+            }
+
+            var updated = await account.UpdateProfileAsync(
+                new UpdateProfileRequest(displayName, handle, bio, avatarUrl, BannerGlam: bannerGlam), token, null,
+                received => failure = received).ConfigureAwait(false);
+            if (updated is null)
+            {
+                return FailProfile(failure);
+            }
+
+            AcceptMe(bannerGlam is null || updated.BannerGlam is not null
+                ? updated
+                : updated with { BannerGlam = bannerGlam }, owner);
+            return true;
+        }, onComplete, () => savingProfile = false);
+    }
+
+    public void SearchPeople(string query, bool retry = false)
+    {
+        if (!IsSignedIn || query.Length == 0 || (query == peopleAsked && !retry))
+        {
+            return;
+        }
+
+        peopleAsked = query;
+        peopleLoading = true;
+        peopleFailed = false;
+        work.Run("people", async token =>
+        {
+            var result = await account.SearchAsync(query, token).ConfigureAwait(false);
+            if (peopleAsked != query)
+            {
+                return;
+            }
+
+            if (result?.Users is not { } users)
+            {
+                peopleFailed = true;
+                return;
+            }
+
+            var found = new GlamAuthorDto[users.Length];
+            for (var index = 0; index < users.Length; index++)
+            {
+                found[index] = Author(users[index], users[index].Id);
+            }
+
+            people = found;
+            peopleFor = query;
+        }, () =>
+        {
+            if (peopleAsked == query)
+            {
+                peopleLoading = false;
+            }
+        });
+    }
+
+    public void RefreshSeason()
+    {
+        work.Run("season", async token =>
+        {
+            var fetched = await client.SeasonAsync(token).ConfigureAwait(false);
+            if (fetched is not null)
+            {
+                season = fetched;
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        signals.ContentRemoved -= OnContentRemoved;
+        work.Dispose();
+    }
+
+    private static string UserListKey(string userId) => "user:" + userId;
+
+    private void OpenList(string key, Func<string?, CancellationToken, Action<AepFailure>?, Task<GlamPage?>> fetch)
+    {
+        if (key == listKey && !list.Failed && (list.Loading || !list.NeverLoaded))
+        {
+            return;
+        }
+
+        listKey = key;
+        listFetch = fetch;
+        list.Clear();
+        list.Loading = true;
+        var opened = ++listOpened;
+        work.Run("list", async token =>
+        {
+            var reported = AepFailure.None;
+            var page = await fetch(null, token, failure => reported = failure).ConfigureAwait(false);
+            if (opened != listOpened)
+            {
+                return;
+            }
+
+            if (page is null)
+            {
+                list.RecordFailure(reported.Failed ? reported : AepFailure.Transport(AepFailureKind.Offline));
+                return;
+            }
+
+            list.ApplyRefresh(Visible(page.Items), page.NextCursor);
+        }, () =>
+        {
+            if (opened == listOpened)
+            {
+                list.Loading = false;
+            }
+        });
+    }
+
+    private void Replace(GlamDto glam)
+    {
+        for (var index = 0; index < discover.Length; index++)
+        {
+            discover[index].Items = CopyOnWrite.Replace(discover[index].Items, glam);
+        }
+
+        list.Items = CopyOnWrite.Replace(list.Items, glam);
+        if (more is { } shown)
+        {
+            more = shown with { Items = CopyOnWrite.Replace(shown.Items, glam) };
+        }
+
+        for (var slot = 0; slot < showcase.Length; slot++)
+        {
+            if (Volatile.Read(ref showcase[slot])?.Id == glam.Id)
+            {
+                Volatile.Write(ref showcase[slot], glam);
+            }
+        }
+
+        if (banner?.Id == glam.Id)
+        {
+            banner = glam;
+        }
+
+        if (detail?.Id == glam.Id)
+        {
+            detail = glam;
+        }
+    }
+
+    public void Purge(string glamId)
+    {
+        removedIds[glamId] = true;
+        if (bannerFor == glamId)
+        {
+            banner = null;
+            bannerMissing = true;
+            bannerFailed = false;
+        }
+
+        for (var index = 0; index < discover.Length; index++)
+        {
+            discover[index].Items = CopyOnWrite.RemoveById(discover[index].Items, glamId);
+        }
+
+        list.Items = CopyOnWrite.RemoveById(list.Items, glamId);
+        if (more is { } shown)
+        {
+            more = shown with { Items = CopyOnWrite.RemoveById(shown.Items, glamId) };
+        }
+
+        for (var slot = 0; slot < showcase.Length; slot++)
+        {
+            if (Volatile.Read(ref showcase[slot])?.Id == glamId)
+            {
+                Volatile.Write(ref showcase[slot], null);
+            }
+        }
+
+        if (detail?.Id == glamId)
+        {
+            detailGone = true;
+        }
+    }
+
+    private static GlamAuthorDto Author(UserDto user, string id) =>
+        new(id, user.DisplayName, user.Handle, user.AvatarUrl ?? string.Empty, user.Bio, user.BannerGlam);
+
+    private void AcceptMe(UserDto user, string owner)
+    {
+        var mine = Author(user, owner);
+        me = mine;
+        meFor = owner;
+        if (profile is { } current && current.User?.Id == owner)
+        {
+            profile = current with { User = mine };
+        }
+    }
+
+    private bool FailProfile(AepFailure failure)
+    {
+        profileFailure.Set(failure.Failed ? failure : AepFailure.Transport(AepFailureKind.Offline));
+        return false;
+    }
+
+    private bool FailSave(AepFailure failure)
+    {
+        saveFailure.Set(failure.Failed ? failure : AepFailure.Transport(AepFailureKind.Offline));
+        saveFailed = true;
+        return false;
+    }
+
+    private bool FailPost(AepFailure failure)
+    {
+        postFailure.Set(failure.Failed ? failure : AepFailure.Transport(AepFailureKind.Offline));
+        postFailed = true;
+        return false;
+    }
+}

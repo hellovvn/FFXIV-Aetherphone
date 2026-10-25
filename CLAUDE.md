@@ -11,6 +11,8 @@ dotnet build Aetherphone.sln -c Release
 
 Requires the .NET 10 SDK and the Dalamud assemblies on disk (CI downloads the latest Dalamud distribution; see CONTRIBUTING.md). CI treats every warning, .editorconfig code-style rules included, as an error: a clean build has zero warnings. PRs target `dev`; `master` is release-only.
 
+`tools/guards/check` runs the CI guards locally (`--files <paths>` for just some files). The project hook in .claude/settings.json already runs them on every file you edit; fix what it reports before moving on.
+
 ## Hard rules
 
 - **No em dashes anywhere**: not in code, UI strings, locale JSONs, docs, changelogs, or commits. Use commas, colons, or parentheses.
@@ -32,6 +34,7 @@ Types in use: feat, fix, docs, refactor, chore, plus perf, style, ci, test, reve
 ## Top style rules
 
 - This is an immediate mode UI (Dear ImGui): Draw code runs every frame. No LINQ, no per-frame allocations, no reflection on a per-frame path.
+- Push colors, styles, ids and disabled state through `UiScope`, never `ImRaii`: Dalamud's versions are classes and allocate on every push.
 - No comments; code is self-documenting. The only allowance is a why the code cannot express, or the source of a magic constant.
 - No abbreviations in names, even loop variables: index, entryIndex, drawList, never i or dl.
 - Braces on every if, else, and loop body. Early returns over nesting. Explicit accessibility keywords, even for private members. Attributes on their own line, except a single short marker on a one-line property or field.

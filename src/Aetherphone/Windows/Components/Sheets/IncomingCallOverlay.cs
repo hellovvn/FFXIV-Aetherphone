@@ -47,7 +47,8 @@ internal sealed class IncomingCallOverlay
         ImGui.SetCursorScreenPos(screen.Min);
         using (ImRaii.Child("##incomingCall", screen.Size, false, OverlayFlags))
         {
-            DrawContent(screen, theme, view, Math.Clamp(presence.Value, 0f, 1f), ringing);
+            DrawContent(screen, theme, view, Math.Clamp(presence.Value, 0f, 1f),
+                ringing && presence.Arrive(1f));
         }
     }
 
@@ -95,22 +96,11 @@ internal sealed class IncomingCallOverlay
     {
         var dl = ImGui.GetWindowDrawList();
         var scale = UiScale.Current;
-        var hovered = live &&
-                      UiInteract.Hover(center - new Vector2(radius, radius),
-                          center + new Vector2(radius, radius));
+        var extent = new Vector2(radius, radius);
+        var hovered = live && UiInteract.Hover(center - extent, center + extent);
         var color = hovered ? Palette.Mix(fill, Ink, 0.14f) : fill;
         dl.AddCircleFilled(center, radius, ImGui.GetColorU32(Palette.WithAlpha(color, alpha)), 40);
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            var glyph = IconGlyph.Of(icon);
-            var size = ImGui.CalcTextSize(glyph);
-            ImGui.SetCursorScreenPos(center - size * 0.5f);
-            using (ImRaii.PushColor(ImGuiCol.Text, Ink with { W = alpha }))
-            {
-                Typography.Plain(glyph);
-            }
-        }
-
+        AppSkin.Icon(dl, center, IconGlyph.Of(icon), Ink with { W = alpha }, 1f);
         Typography.DrawCentered(dl, new Vector2(center.X, center.Y + radius + 16f * scale), label,
             Palette.WithAlpha(theme.TextMuted, alpha), TextStyles.Caption1);
         if (hovered)
@@ -118,7 +108,7 @@ internal sealed class IncomingCallOverlay
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         }
 
-        return hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left);
+        return UiInteract.Click(center - extent, center + extent, hovered);
     }
 
     private static string Initial(string value) => value.Length > 0 ? value.Substring(0, 1).ToUpperInvariant() : "?";

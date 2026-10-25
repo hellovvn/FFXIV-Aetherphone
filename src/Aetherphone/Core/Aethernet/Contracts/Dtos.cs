@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Aetherphone.Core.Aethernet.Contracts;
 
 internal sealed record ChallengeRequest(string Name, string World);
@@ -91,10 +93,13 @@ internal sealed record UserDto(
     string? BannerUrl = null,
     int PendingPhotoTags = 0,
     bool ShowOnLeaderboards = false,
-    bool ShowInHallOfFame = false) : IIdentified;
+    bool ShowInHallOfFame = false,
+    GlamBannerDto? BannerGlam = null) : IIdentified;
 
 internal sealed record UpdateProfileRequest(string? DisplayName, string? Handle, string? Bio, string? AvatarUrl = null,
-    string? BannerUrl = null);
+    string? BannerUrl = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    GlamBannerDto? BannerGlam = null);
 
 internal sealed record UpdateBadgeLoadoutRequest(int Equipped);
 
@@ -181,7 +186,10 @@ internal sealed record CreatePostRequest(
     string[]? MediaKeys = null,
     int MediaWidth = 0,
     int MediaHeight = 0,
-    bool Sensitive = false);
+    bool Sensitive = false,
+    PostPollInput? Poll = null,
+    string? GifUrl = null,
+    string? GifSlug = null);
 
 internal sealed record SetSensitiveRequest(bool Sensitive);
 
@@ -248,7 +256,13 @@ internal sealed record PostDto(
     string? Lang = null,
     long? EditedAtUnix = null,
     long? PinnedAtUnix = null,
-    long? ArchivedAtUnix = null) : IIdentified;
+    long? ArchivedAtUnix = null,
+    PostPollDto? Poll = null,
+    string? GifUrl = null,
+    string? GifSlug = null) : IIdentified
+{
+    [JsonIgnore] public string[]? GifMedia { get; } = GifUrl is null ? null : new[] { GifUrl };
+}
 
 internal sealed record FeedPage(
     PostDto[] Items,
@@ -358,13 +372,18 @@ internal sealed record CommentDto(
     string? MediaUrl = null,
     int MediaWidth = 0,
     int MediaHeight = 0,
-    string? Lang = null) : IIdentified;
+    string? Lang = null,
+    string? GifUrl = null) : IIdentified
+{
+    [JsonIgnore] public string? Media => MediaUrl ?? GifUrl;
+}
 
 internal sealed record CreateCommentRequest(
     string Text,
     string? MediaKey = null,
     int MediaWidth = 0,
-    int MediaHeight = 0);
+    int MediaHeight = 0,
+    string? GifUrl = null);
 
 internal sealed record CommentPage(CommentDto[] Items, string? NextCursor);
 
@@ -600,7 +619,9 @@ internal sealed record NotificationDto(
     int ActorBadges = 0,
     bool Read = false,
     string[]? ActorBadgeIds = null,
-    string ActorFrameId = "") : IIdentified;
+    string ActorFrameId = "",
+    int Rank = 0,
+    string? ImageUrl = null) : IIdentified;
 
 internal sealed record NotificationPage(
     NotificationDto[] Items,
@@ -682,12 +703,24 @@ internal sealed record PollVoteRequest(int Option);
 
 internal sealed record AnnouncementTranslationDto(string Lang, string Title, string Body);
 
+internal sealed record AnnouncementBlockTranslationDto(string Lang, string Text);
+
+internal sealed record AnnouncementBlockDto(
+    string Kind,
+    string Text,
+    string Url,
+    string ImageUrl,
+    int Width,
+    int Height,
+    AnnouncementBlockTranslationDto[]? Translations = null);
+
 internal sealed record AnnouncementDto(
     string Id,
     string Title,
     string Body,
     AnnouncementTranslationDto[] Translations,
-    long CreatedAtUnix) : IIdentified;
+    long CreatedAtUnix,
+    AnnouncementBlockDto[]? Blocks = null) : IIdentified;
 
 internal sealed record AnnouncementPage(AnnouncementDto[] Items, string? NextCursor = null);
 

@@ -47,6 +47,8 @@ internal sealed partial class CollectionsApp : IResumableApp
     private Rect screen;
     private string? lodestoneId;
     private bool tracking;
+    private int lookingUpLocalId;
+    private int localIdLanded;
 
     public CollectionsApp(CollectionsCatalogService catalog, CollectionsJournal journal, LodestoneService lodestone,
         MediaCache media, HttpService http, GameData gameData, MarketLauncher marketLauncher)
@@ -142,12 +144,16 @@ internal sealed partial class CollectionsApp : IResumableApp
     private void SyncTracking()
     {
         var present = IsPresent();
-        if (present == tracking)
+        if (present != tracking)
         {
+            Track(present, present ? ResolveLocalId() : null);
             return;
         }
 
-        Track(present, present ? ResolveLocalId() : null);
+        if (Interlocked.Exchange(ref localIdLanded, 0) == 1 && tracking && lodestoneId is null)
+        {
+            Track(true, ResolveLocalId());
+        }
     }
 
     private void Track(bool present, string? localId)
@@ -176,7 +182,45 @@ internal sealed partial class CollectionsApp : IResumableApp
 
         var name = player.Name.TextValue;
         var world = gameData.WorldName(player.HomeWorld.RowId);
-        return lodestone.TryGetCachedId(name, world);
+        var cached = lodestone.TryGetCachedId(name, world);
+        if (cached is null)
+        {
+            StartLocalIdLookup(name, world);
+        }
+
+        return cached;
+    }
+
+    private void StartLocalIdLookup(string name, string world)
+    {
+        if (gameData.IsChineseGameClient() || Interlocked.CompareExchange(ref lookingUpLocalId, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = LookUpLocalIdAsync(name, world);
+    }
+
+    private async Task LookUpLocalIdAsync(string name, string world)
+    {
+        string? id = null;
+        try
+        {
+            using (await lodestone.ThrottleAsync(CancellationToken.None, priority: true).ConfigureAwait(false))
+            {
+                id = await lodestone.ResolveIdAsync(name, world, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception)
+        {
+            AepLog.Warning(exception, "Collections Lodestone id lookup failed");
+        }
+
+        Volatile.Write(ref lookingUpLocalId, 0);
+        if (id is not null)
+        {
+            Volatile.Write(ref localIdLanded, 1);
+        }
     }
 
     private HashSet<int>? OwnedIds(CollectionCategory category)

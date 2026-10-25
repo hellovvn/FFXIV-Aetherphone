@@ -171,8 +171,12 @@ internal static class PosterTile
 
     public static void DrawGlyph(ImDrawListPtr drawList, Rect tile, string gameId, in PosterLayout layout,
         float textBlock, float scale) =>
+        DrawGlyph(drawList, tile, gameId, layout, textBlock, tile.Width, scale);
+
+    public static void DrawGlyph(ImDrawListPtr drawList, Rect tile, string gameId, in PosterLayout layout,
+        float textBlock, float glyphTileWidth, float scale) =>
         CasinoGlyphs.Draw(drawList, gameId, ArtCenter(tile, layout, textBlock, scale),
-            tile.Width * layout.GlyphFraction, ImGui.GetColorU32(CasinoArt.White), ImGui.GetColorU32(Night));
+            glyphTileWidth * layout.GlyphFraction, ImGui.GetColorU32(CasinoArt.White), ImGui.GetColorU32(Night));
 
     public static void DrawIcon(ImDrawListPtr drawList, Rect tile, Dalamud.Interface.FontAwesomeIcon icon,
         float scale) =>

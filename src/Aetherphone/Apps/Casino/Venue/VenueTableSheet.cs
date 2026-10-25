@@ -29,6 +29,7 @@ internal sealed class VenueTableSheet
     private readonly ReportService report;
     private readonly Func<string, string> codeOf;
     private readonly Tables.RoomCodeCard code = new("casino.venue.sheet.code");
+    private readonly Tables.ChatCodePost codePost = new();
 
     private AppSkin skin = null!;
     private VenueSheetTarget target;
@@ -55,10 +56,12 @@ internal sealed class VenueTableSheet
     public void Close()
     {
         sheet.Close();
+        codePost.Close();
     }
 
     public void Gate()
     {
+        codePost.Gate();
         if (sheet.IsOpen)
         {
             UiInteract.BlockThisFrame();
@@ -76,6 +79,7 @@ internal sealed class VenueTableSheet
     {
         skin = ui;
         sheet.Draw(screen, ui.Theme, Loc.T(L.Venue.TableSheet), PanelHeightShare, drawSheetBody);
+        codePost.Draw(screen, ui);
     }
 
     internal static bool TryLastLine(VenueRoomView view, out long seq, out long bound, out long value,
@@ -143,6 +147,13 @@ internal sealed class VenueTableSheet
         {
             code.Draw(ui, joinCode, string.Empty, ScrollLayout.NativeScrollContentWidth(), scale, overlay: true);
             ImGui.Dummy(new Vector2(0f, Metrics.Space.Md * scale));
+            ActionRow(ui, Loc.T(L.Tables.PostCodeTitle), Loc.T(L.Tables.PostCodeLine), ButtonStyle.Tinted,
+                ButtonRole.Normal, "venue.sheet.postCode", out var postPressed, scale);
+            if (postPressed)
+            {
+                sheet.Close();
+                codePost.Open(joinCode);
+            }
         }
 
         var view = venue.ViewFor(target.TableId);

@@ -301,6 +301,7 @@ same text.
 | NLayer / NLayer.NAudioSupport | 2.0.1 | Mark Heath, Andrew Ward (https://github.com/naudio/NLayer) |
 | Net.Codecrete.QrCodeGenerator | 3.2.1 | Manuel Bleichenbacher and Project Nayuki (https://github.com/manuelbl/QrCodeGenerator) |
 | MeltySynth (synthesizes the Doom soundtrack) | 2.4.1 | 2021 Nobuaki Tanaka; 2017, 2018 Bernhard Schelling (TinySoundFont); 2014 Alex Veltsistas (C# Synth); 2012 Steve Folta (SFZero) (https://github.com/sinshu/meltysynth) |
+| Glasswork / Glasswork.Glass / Glasswork.Backend (the real glass option) | 0.1.0-alpha.3 | 2026 XeldarAlz and the Glasswork contributors (https://github.com/XeldarAlz/FFXIV-Glasswork); its glass shader adapts techniques from liquidDX11, Copyright (c) 2026 poncippg-spec (https://github.com/poncippg-spec/liquidDX11), and the lens profile of LiquidGlass, Copyright (c) 2026 Sepehr Kalanaki (https://github.com/OverShifted/LiquidGlass) |
 
 ```
 MIT License

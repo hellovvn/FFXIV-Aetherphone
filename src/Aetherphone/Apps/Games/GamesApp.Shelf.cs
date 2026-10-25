@@ -6,7 +6,6 @@ using Aetherphone.Core.Apps;
 using Aetherphone.Core.Localization;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Games;
 
@@ -49,7 +48,7 @@ internal sealed partial class GamesApp
     private void DrawShelfPage(in PhoneContext context, GamesShelf shelf)
     {
         var navBar = AppHeader.BeginLargeTitle(context);
-        using (ImRaii.PushId(CategoryScopeId))
+        using (UiScope.PushId(CategoryScopeId))
         using (AppSurface.Begin(navBar.Body))
         {
             var scale = UiScale.Current;
@@ -142,7 +141,7 @@ internal sealed partial class GamesApp
             new Vector2(row.Min.X + side, center.Y + side * 0.5f));
         var half = side * 0.5f * press;
         GameIconArt.Draw(drawList, library.IconIds[entryIndex], library.Accent(entryIndex),
-            new Vector2(center.X - half, center.Y - half), new Vector2(center.X + half, center.Y + half), null, true);
+            new Vector2(center.X - half, center.Y - half), new Vector2(center.X + half, center.Y + half), true);
         var textLeft = row.Min.X + side + CategoryTextGap * scale;
         var textWidth = MathF.Max(1f, play.Min.X - CategoryTextGap * scale - textLeft);
         ref readonly var hook = ref CategoryHook(entryIndex, textWidth);

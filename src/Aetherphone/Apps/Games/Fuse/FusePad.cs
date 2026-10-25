@@ -79,9 +79,13 @@ internal sealed class FusePad
         }
 
         Material.Frosted(drawList, panel.Min, panel.Max, Metrics.Radius.Lg * scale, scale, PanelOpacity);
-        DrawCross(drawList, accent, scale);
+        DrawCross(drawList, padCenter, padRadius, Direction, accent, scale);
         DrawStats(drawList, in moogle, scale, time);
-        DrawBombButton(drawList, in moogle, accent, scale, time);
+        var hovered = UiInteract.Hover(bombCenter - new Vector2(bombRadius, bombRadius), bombCenter + new Vector2(bombRadius, bombRadius));
+        var held = hovered && ImGui.IsMouseDown(ImGuiMouseButton.Left);
+        var ready = moogle.Alive && moogle.BombsOut < moogle.Bombs;
+        DrawBombButton(drawList, bombCenter, bombRadius, ready, held, bombFlash, moogle.Bombs,
+            Math.Max(0, moogle.Bombs - moogle.BombsOut), accent, scale, time);
     }
 
     private static FuseDirection DirectionOf(PadDirection direction) => direction switch
@@ -93,7 +97,8 @@ internal sealed class FusePad
         _ => FuseDirection.None,
     };
 
-    private void DrawCross(ImDrawListPtr drawList, Vector4 accent, float scale)
+    public static void DrawCross(ImDrawListPtr drawList, Vector2 padCenter, float padRadius, FuseDirection heldDirection,
+        Vector4 accent, float scale)
     {
         drawList.AddCircleFilled(padCenter, padRadius, ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.16f)), 32);
         drawList.AddCircle(padCenter, padRadius, ImGui.GetColorU32(StageInks.Strong with { W = 0.12f }), 32, 1f * scale);
@@ -102,7 +107,7 @@ internal sealed class FusePad
         for (var index = 0; index < directions.Length; index++)
         {
             var direction = directions[index];
-            var held = Direction == direction;
+            var held = heldDirection == direction;
             var center = padCenter + FuseBoard.Vector(direction) * padRadius * 0.6f;
             var half = new Vector2(key, key) * (held ? 0.92f : 1f);
             var radius = key * 0.5f;
@@ -142,7 +147,7 @@ internal sealed class FusePad
         FuseArt.DrawGlyph(drawList, kickCenter, StatIcon * scale, PowerUp.Kick, FuseArt.KickColor, kickAlpha, time);
     }
 
-    private static void DrawStat(ImDrawListPtr drawList, Vector2 center, PowerUp kind, string label, float scale,
+    public static void DrawStat(ImDrawListPtr drawList, Vector2 center, PowerUp kind, string label, float scale,
         float time)
     {
         var icon = center - new Vector2(StatIcon * scale + StatGap * scale * 0.5f, 0f);
@@ -152,11 +157,9 @@ internal sealed class FusePad
             label, StageInks.Strong, style);
     }
 
-    private void DrawBombButton(ImDrawListPtr drawList, in Moogle moogle, Vector4 accent, float scale, float time)
+    public static void DrawBombButton(ImDrawListPtr drawList, Vector2 bombCenter, float bombRadius, bool ready, bool held,
+        float bombFlash, int bombs, int left, Vector4 accent, float scale, float time)
     {
-        var ready = moogle.Alive && moogle.BombsOut < moogle.Bombs;
-        var hovered = UiInteract.Hover(bombCenter - new Vector2(bombRadius, bombRadius), bombCenter + new Vector2(bombRadius, bombRadius));
-        var held = hovered && ImGui.IsMouseDown(ImGuiMouseButton.Left);
         var radius = bombRadius * (held ? 0.94f : 1f);
         if (ready)
         {
@@ -169,8 +172,7 @@ internal sealed class FusePad
         drawList.AddCircle(bombCenter, radius, ImGui.GetColorU32(FuseArt.White with { W = 0.45f }), 32, 1.5f * scale);
         FuseArt.DrawBomb(drawList, bombCenter + new Vector2(-radius * 0.06f, radius * 0.05f), radius * 0.42f,
             bombFlash * 0.12f, 0f, ready ? 1f : 0.55f, time);
-        var left = Math.Max(0, moogle.Bombs - moogle.BombsOut);
-        var pips = Math.Min(moogle.Bombs, FuseBoard.MaxBombsEach);
+        var pips = Math.Min(bombs, FuseBoard.MaxBombsEach);
         var pipRadius = 2.6f * scale;
         var span = (pips - 1) * pipRadius * 3f;
         for (var pip = 0; pip < pips; pip++)

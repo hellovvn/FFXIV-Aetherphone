@@ -2,6 +2,7 @@ using Aetherphone.Core;
 using Aetherphone.Core.Message;
 using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Apps;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Telephony;
 using Aetherphone.Core.Theme;
@@ -57,6 +58,8 @@ internal sealed partial class MessageApp
         protected override Action BackAction => app.back;
 
         protected override ChatTheme ChatTheme => app.activeTheme;
+
+        protected override GifSearch? Gifs => app.gifs;
 
         protected override ChatMenuModel BuildMenuModel()
         {

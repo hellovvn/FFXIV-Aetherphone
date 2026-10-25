@@ -16,6 +16,9 @@ internal static class FailureCodes
     public const string PostQuoteMissing = "post_quote_missing";
     public const string PostQuoteNotChirp = "post_quote_not_chirp";
     public const string PostQuoteBlocked = "post_quote_blocked";
+    public const string GifInvalid = "gif_invalid";
+    public const string GifWithMedia = "gif_with_media";
+    public const string GifsDisabled = "gifs_disabled";
     public const string PostCooldown = "post_cooldown";
     public const string MediaInvalidReference = "media_invalid_reference";
     public const string MediaInvalidImage = "media_invalid_image";
@@ -85,6 +88,9 @@ internal static class FailureCodes
     public const string ContactOwnNumber = "contact_own_number";
     public const string CasinoLimitOutOfRange = "casino_limit_out_of_range";
     public const string PollClosed = "poll_closed";
+    public const string PollAlreadyVoted = "poll_already_voted";
+    public const string PostPollInvalid = "post_poll_invalid";
+    public const string PostPollWithMedia = "post_poll_with_media";
     public const string PhotoTagRejected = "photo_tag_rejected";
     public const string VelvetRequestsClosed = "velvet_requests_closed";
     public const string VelvetRequestsMutualsOnly = "velvet_requests_mutuals_only";
@@ -93,6 +99,9 @@ internal static class FailureCodes
     public const string PatreonAlreadyLinked = "patreon_already_linked";
     public const string FeedbackLength = "feedback_length";
     public const string FeedbackTooManyImages = "feedback_too_many_images";
+    public const string PrismGlamDailyLimit = "prism_glam_daily_limit";
+    public const string PrismGlamPhotosLocked = "prism_glam_photos_locked";
+    public const string PrismGlamUnderReview = "prism_glam_under_review";
 }
 
 internal sealed class FailureSlot
@@ -176,6 +185,12 @@ internal static class FailureText
                 return Loc.T(L.Failure.PostQuoteNotChirp);
             case FailureCodes.PostQuoteBlocked:
                 return Loc.T(L.Failure.PostQuoteBlocked);
+            case FailureCodes.GifInvalid:
+                return Loc.T(L.Failure.GifInvalid);
+            case FailureCodes.GifWithMedia:
+                return Loc.T(L.Common.GifRidesAlone);
+            case FailureCodes.GifsDisabled:
+                return Loc.T(L.Failure.GifsDisabled);
             case FailureCodes.PostCooldown:
                 return Valued(L.Failure.PostCooldown, failure);
             case FailureCodes.MediaInvalidImage:
@@ -322,6 +337,12 @@ internal static class FailureText
                 return Valued(L.Failure.CasinoLimitOutOfRange, failure);
             case FailureCodes.PollClosed:
                 return Loc.T(L.Failure.PollClosed);
+            case FailureCodes.PollAlreadyVoted:
+                return Loc.T(L.Failure.PollAlreadyVoted);
+            case FailureCodes.PostPollInvalid:
+                return Loc.T(L.Failure.PostPollInvalid);
+            case FailureCodes.PostPollWithMedia:
+                return Loc.T(L.Failure.PostPollWithMedia);
             case FailureCodes.PhotoTagRejected:
                 return Loc.T(L.Failure.PhotoTagRejected);
             case FailureCodes.VelvetRequestsClosed:
@@ -338,6 +359,12 @@ internal static class FailureText
                 return Valued(L.Failure.FeedbackLength, failure);
             case FailureCodes.FeedbackTooManyImages:
                 return Valued(L.Failure.FeedbackTooManyImages, failure);
+            case FailureCodes.PrismGlamDailyLimit:
+                return Valued(L.Failure.PrismGlamDailyLimit, failure);
+            case FailureCodes.PrismGlamPhotosLocked:
+                return Loc.T(L.Failure.PrismGlamPhotosLocked);
+            case FailureCodes.PrismGlamUnderReview:
+                return Loc.T(L.Failure.PrismGlamUnderReview);
             default:
                 return FromStatus(failure);
         }

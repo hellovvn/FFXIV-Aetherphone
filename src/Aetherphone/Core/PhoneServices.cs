@@ -11,6 +11,8 @@ using Aetherphone.Core.Fishing;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.GameChat;
 using Aetherphone.Core.Games;
+using Aetherphone.Core.Gifs;
+using Aetherphone.Core.Glamour;
 using Aetherphone.Core.Health;
 using Aetherphone.Core.Honorific;
 using Aetherphone.Core.Housing;
@@ -57,6 +59,7 @@ namespace Aetherphone.Core;
 internal sealed class PhoneServices : IDisposable
 {
     public required Home.AppInstaller Installer { get; init; }
+    public required Home.HomeLinks HomeLinks { get; init; }
     public required Configuration Configuration { get; init; }
     public required ThemeProvider Themes { get; init; }
     public required Home.HomeLookService Looks { get; init; }
@@ -77,6 +80,7 @@ internal sealed class PhoneServices : IDisposable
     public required ModerationNoticeService ModerationNotices { get; init; }
 
     public required AccountStateService AccountState { get; init; }
+    public required NetworkStatusNotices NetworkStatus { get; init; }
     public required ModerationNoticePresenter ModerationPresenter { get; init; }
     public required ModerationNoticeArchive ModerationArchive { get; init; }
     public required SafetyLauncher SafetyLauncher { get; init; }
@@ -132,6 +136,8 @@ internal sealed class PhoneServices : IDisposable
     public required Casino.CasinoSpinStore CasinoSpin { get; init; }
     public required Casino.CasinoTurnNotifier CasinoTurns { get; init; }
     public required Casino.CasinoKnockNotifier CasinoKnocks { get; init; }
+    public required Casino.CasinoChatInvites CasinoChatInvites { get; init; }
+    public required Casino.Rolls.ChatRolls ChatRolls { get; init; }
     public required Casino.CasinoVenueStore CasinoVenue { get; init; }
     public required Casino.CasinoTradeSync CasinoTrade { get; init; }
     public required Casino.CasinoLauncher CasinoLauncher { get; init; }
@@ -149,6 +155,7 @@ internal sealed class PhoneServices : IDisposable
     public required AppAvailability Availability { get; init; }
     public required CharacterSessionManager CharacterSwitcher { get; init; }
     public required AethernetApi Aethernet { get; init; }
+    public required GifSearch Gifs { get; init; }
     public required KeyVault KeyVault { get; init; }
 
     public required DeviceLinkWatcher DeviceLinks { get; init; }
@@ -202,6 +209,7 @@ internal sealed class PhoneServices : IDisposable
     public required AdInquiryStore AdInquiries { get; init; }
     public required YellowPagesLauncher YellowPagesLauncher { get; init; }
     public required AnnouncementsLauncher AnnouncementsLauncher { get; init; }
+    public required Campaigns.CampaignLauncher CampaignLauncher { get; init; }
     public required CollectionsCatalogService Collections { get; init; }
     public required CollectionsJournal CollectionsJournal { get; init; }
     public required InventoryCaptureService InventoryCapture { get; init; }
@@ -220,7 +228,6 @@ internal sealed class PhoneServices : IDisposable
     public required ShareService Share { get; init; }
     public required ConductGateService Conduct { get; init; }
     public required WallpaperLibrary Wallpapers { get; init; }
-    public required LiveBackdrop LiveBackdrop { get; init; }
     public required WallpaperImageCache WallpaperImages { get; init; }
     public required Hunts.HuntsService Hunts { get; init; }
     public required Timers.GameTimers GameTimers { get; init; }
@@ -237,6 +244,7 @@ internal sealed class PhoneServices : IDisposable
     public required Shell.MinimizedLayoutService MinimizedLayout { get; init; }
     public required Shell.MinimizedPreview MinimizedPreview { get; init; }
     public required NameplateTitleService NameplateTitles { get; init; }
+    public required GlamourService Glamour { get; init; }
 
     public static PhoneServices Build(Configuration configuration, IChatGui chatGui, IDataManager dataManager,
         IObjectTable objectTable, IClientState clientState, IFramework framework, IDutyState dutyState,
@@ -248,7 +256,6 @@ internal sealed class PhoneServices : IDisposable
         var customWallpaperDirectory = new DirectoryInfo(Path.Combine(configDirectory.FullName, "Wallpapers"));
         var wallpapers = new WallpaperLibrary(textures, builtInWallpaperDirectory, customWallpaperDirectory,
             configuration);
-        var liveBackdrop = new LiveBackdrop(textures, configuration);
         var themes = new ThemeProvider(configuration, wallpapers);
         var gameData = new GameData(dataManager, objectTable, framework);
         var maps = new MapData(dataManager, clientState);
@@ -333,6 +340,7 @@ internal sealed class PhoneServices : IDisposable
         var casinoHistory = new Casino.CasinoHistoryStore(aethernetSession, casinoApi.Casino);
         var casinoSpin = new Casino.CasinoSpinStore(aethernetSession, casinoApi.Casino, coins);
         var realtimeSignals = new RealtimeSignalBus();
+        availability.Follow(realtimeSignals);
         var peerKeys = new PeerKeyDirectory(configuration, aethernet.Keys);
         var conversationKeys = new ConversationKeyStore(aethernet.Keys, keyVault, realtimeSignals);
         var translation = new TranslationService(aethernetSession, aethernet.Translation, configuration);
@@ -418,6 +426,8 @@ internal sealed class PhoneServices : IDisposable
             visibility, realtimeSignals);
         var accountState = new AccountStateService(aethernetSession, aethernet.Account, framework, visibility,
             realtimeSignals);
+        var networkStatus = new NetworkStatusNotices(aethernetSession, realtimeSignals, framework, clientState,
+            chatGui, configuration);
         var moderationPresenter = new ModerationNoticePresenter(moderationNotices, confirm, notifications,
             accountState, coins, framework);
         var moderationArchive = new ModerationNoticeArchive(aethernetSession, aethernet.Account);
@@ -430,6 +440,9 @@ internal sealed class PhoneServices : IDisposable
             Apps.AppAccents.For("casino"));
         var casinoKnocks = new Casino.CasinoKnockNotifier(aethernetSession, casinoApi.Casino, casinoTables,
             notifications, Apps.AppAccents.For("casino"));
+        var casinoChatInvites = new Casino.CasinoChatInvites(chatGui, aethernetSession, notifications, gameData,
+            installer.Gate("casino"), Apps.AppAccents.For("casino"));
+        var chatRolls = new Casino.Rolls.ChatRolls(chatGui, framework, gameData);
         var casinoVenue = new Casino.CasinoVenueStore(aethernetSession, casinoApi.Casino, casinoApi.Safety, casinoRooms,
             casinoTables, new Casino.HousingPositionReader());
         var casinoTrade = new Casino.CasinoTradeSync(configuration, aethernetSession, casinoApi.Casino, casinoTables,
@@ -484,6 +497,7 @@ internal sealed class PhoneServices : IDisposable
         return new PhoneServices
         {
             Installer = installer,
+            HomeLinks = new Home.HomeLinks(),
             Configuration = configuration,
             MinimizedLayout = new Shell.MinimizedLayoutService(configuration),
             MinimizedPreview = new Shell.MinimizedPreview(),
@@ -505,6 +519,7 @@ internal sealed class PhoneServices : IDisposable
             SocialNotifications = socialNotifications,
             ModerationNotices = moderationNotices,
             AccountState = accountState,
+            NetworkStatus = networkStatus,
             ModerationPresenter = moderationPresenter,
             ModerationArchive = moderationArchive,
             SafetyLauncher = safetyLauncher,
@@ -550,6 +565,8 @@ internal sealed class PhoneServices : IDisposable
             CasinoSpin = casinoSpin,
             CasinoTurns = casinoTurns,
             CasinoKnocks = casinoKnocks,
+            CasinoChatInvites = casinoChatInvites,
+            ChatRolls = chatRolls,
             CasinoVenue = casinoVenue,
             CasinoTrade = casinoTrade,
             CasinoLauncher = new Casino.CasinoLauncher(),
@@ -568,6 +585,7 @@ internal sealed class PhoneServices : IDisposable
             Availability = availability,
             CharacterSwitcher = characterSwitcher,
             Aethernet = aethernet,
+            Gifs = new GifSearch(aethernetSession, aethernet.Gifs, new KlipyClient(http)),
             KeyVault = keyVault,
             DeviceLinks = deviceLinks,
             EncryptionGuide = encryptionGuide,
@@ -616,6 +634,7 @@ internal sealed class PhoneServices : IDisposable
             AdInquiries = adInquiries,
             YellowPagesLauncher = new YellowPagesLauncher(),
             AnnouncementsLauncher = new AnnouncementsLauncher(),
+            CampaignLauncher = new Campaigns.CampaignLauncher(),
             Collections = collections,
             CollectionsJournal = collectionsJournal,
             InventoryCapture = inventoryCapture,
@@ -634,7 +653,6 @@ internal sealed class PhoneServices : IDisposable
             Share = new ShareService(installer),
             Conduct = new ConductGateService(configuration),
             Wallpapers = wallpapers,
-            LiveBackdrop = liveBackdrop,
             WallpaperImages = wallpaperImages,
             Hunts = hunts,
             GameTimers = gameTimers,
@@ -649,11 +667,13 @@ internal sealed class PhoneServices : IDisposable
             FeedbackLauncher = new Feedback.FeedbackLauncher(),
             HuntsMapMarkers = huntsMapMarkers,
             NameplateTitles = nameplateTitles,
+            Glamour = new GlamourService(Plugin.PluginInterface),
         };
     }
 
     public void Dispose()
     {
+        Glamour.Dispose();
         NameplateTitles.Dispose();
         CharacterSwitcher.Dispose();
         Looks.Dispose();
@@ -663,6 +683,7 @@ internal sealed class PhoneServices : IDisposable
         SocialNotifications.Dispose();
         ModerationPresenter.Dispose();
         ModerationNotices.Dispose();
+        NetworkStatus.Dispose();
         AccountState.Dispose();
         ChatHistory.Dispose();
         DeviceLinks.Dispose();
@@ -674,6 +695,7 @@ internal sealed class PhoneServices : IDisposable
         StreamSignals.Dispose();
         Calls.Dispose();
         Contacts.Dispose();
+        Gifs.Dispose();
         CollectionsJournal.Dispose();
         Collections.Dispose();
         InventoryCapture.Dispose();
@@ -735,6 +757,8 @@ internal sealed class PhoneServices : IDisposable
         CasinoFloor.Dispose();
         CasinoTrade.Dispose();
         CasinoVenue.Dispose();
+        CasinoChatInvites.Dispose();
+        ChatRolls.Dispose();
         CasinoKnocks.Dispose();
         CasinoTurns.Dispose();
         Holdem.Dispose();
@@ -756,7 +780,6 @@ internal sealed class PhoneServices : IDisposable
         Loadout.Dispose();
         Availability.Dispose();
         Http.Dispose();
-        LiveBackdrop.Dispose();
         Wallpapers.Dispose();
         WallpaperImages.Dispose();
         HuntsMapMarkers.Dispose();

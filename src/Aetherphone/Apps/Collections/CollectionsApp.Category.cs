@@ -35,7 +35,8 @@ internal sealed partial class CollectionsApp
 
     private string categorySearch = string.Empty;
     private OwnershipFilter ownership = OwnershipFilter.All;
-    private CollectionSort sort = CollectionSort.Default;
+    private CollectionSort sort = CollectionSort.Newest;
+    private CollectionSort[] sortOptions = CollectionCategories.SortOptions(CollectionCategory.Mounts);
     private int sourceIndex;
     private bool resetScroll;
     private Spring progressFill;
@@ -57,7 +58,7 @@ internal sealed partial class CollectionsApp
     {
         categorySearch = string.Empty;
         ownership = OwnershipFilter.All;
-        sort = CollectionSort.Default;
+        sort = CollectionSort.Newest;
         sourceIndex = 0;
         resetScroll = true;
         filteredSource = null;
@@ -67,6 +68,7 @@ internal sealed partial class CollectionsApp
 
     private void DrawCategory(Rect area, CollectionCategory category)
     {
+        sortOptions = CollectionCategories.SortOptions(category);
         var context = new PhoneContext(area, theme, navigation);
         var navBar = AppHeader.BeginLargeTitle(context);
         var entry = catalog.RequestCatalog(category);
@@ -371,20 +373,21 @@ internal sealed partial class CollectionsApp
             return;
         }
 
-        for (var index = 0; index < sortItems.Length; index++)
+        for (var index = 0; index < sortOptions.Length; index++)
         {
-            sortItems[index] = new ActionSheet.Item(Loc.T(CollectionText.SortLabel((CollectionSort)index)),
-                Selected: index == (int)sort, Checkable: true);
+            var option = sortOptions[index];
+            sortItems[index] = new ActionSheet.Item(Loc.T(CollectionText.SortLabel(option)),
+                Selected: option == sort, Checkable: true);
         }
 
-        var picked = sortSheet.Draw(screen, ActionSheetStyle.From(ui), sortItems, Loc.T(L.Common.Cancel), false,
-            Loc.T(L.Collections.Sort));
-        if (picked < 0 || picked == (int)sort)
+        var picked = sortSheet.Draw(screen, ActionSheetStyle.From(ui), sortItems.AsSpan(0, sortOptions.Length),
+            Loc.T(L.Common.Cancel), false, Loc.T(L.Collections.Sort));
+        if (picked < 0 || picked >= sortOptions.Length || sortOptions[picked] == sort)
         {
             return;
         }
 
-        sort = (CollectionSort)picked;
+        sort = sortOptions[picked];
         resetScroll = true;
         UiFeedback.Play(UiSound.ToggleOn);
     }

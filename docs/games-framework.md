@@ -123,16 +123,24 @@ A game declares one `GameSpec` as a static field. The fields that matter most:
 
 The rest (a kind, a countdown or a caption per mode, a unit such as Strokes, modes that only apply to solo play) is named in GameSpec.cs.
 
+### How to play
+
+A game whose rules need more than the hook line passes a `GameGuide` as the spec's `guide`: two to five `GuidePage`s, each a title, a body and a `GuideArt` method that draws a looping diagram into the page's art panel with the game's own pieces. `StageGuide` shows it the first time the player presses Play (Skip starts the run, the last page's button reads Play), from How to play on the intro, and from the pause menu (the last page reads Got it and returns to the pause menu). Pages turn with the buttons, a tap or a sideways swipe on the art, or the arrow keys; Enter or Space presses the accent button (Next, then Play or Got it), and Escape and the back chip close the guide. Closing it any way marks it seen in `GameStatsStore.MarkGuideSeen`, so it shows on its own only once per game.
+
+In portrait the guide stacks a square art panel over the page text, centered between the chip row and the buttons, and reserves room for the page with the most text so the panel never jumps as the pages change. In landscape a 1.2:1 panel sits beside a column holding the text, the page dots and the buttons. When the longest page's text would crowd the layout (a long translation, or the short landscape screen), every page steps down to a smaller title and body size together. Draw art that reads anywhere from 1:1 to 1.6:1: place it with `GuideKit.Point` and `GuideKit.Fit` (the largest centered rect of an aspect) and size marks from the panel, never in fixed pixels.
+
+Art methods are static, take `(drawList, art, seconds, accent, scale)` and loop on `GuideKit.Loop(seconds, period)`. `GuideKit` draws the shared marks: `Tap` (a finger press with a ripple), `Swipe`, `Key` (a lettered key cap, pressed or not), `ArrowKey`, `SpaceKey`, `Arrow`, and the `Check` and `Cross` badges for a right and a wrong move. The plate stays put while the page's art fades and slides in inside it, clipped to the panel, so an art method draws at full alpha and never allocates. Keep a game's pages in a static class beside it, such as `PinballGuide`, and pass `PinballGuide.Guide` to the spec; its art calls the game's renderer pieces, but never the game class's own static fields, which are still initializing while the spec is built.
+
 ## Session flow
 
 A run moves through five states. The host draws every overlay; the game only draws its world.
 
 | State | What the player sees | What the game gets |
 | --- | --- | --- |
-| Intro | Icon, title, hook, best and rank pills, mode and player strips, Play, Leaderboard, Levels | `DrawIdle`, dimmed |
+| Intro | Icon, title, hook, best and rank pills, mode and player strips, Play, How to play, Levels, Leaderboard | `DrawIdle`, dimmed |
 | Countdown | 3, 2, 1, Go over the frozen world, when the spec asks for it | `Draw`, zero delta |
 | Playing | The world, the HUD and the chips | `Draw`, live delta |
-| Paused | Resume, Restart, Leaderboard, Quit | `Draw`, zero delta |
+| Paused | Resume, Restart, How to play, Leaderboard, Quit | `Draw`, zero delta |
 | Result | Title, value, New Best, rank line, up to four stat lines, Play again | `Draw`, zero delta |
 
 A game calls `Session.Report(score)` every frame, so the score pill rolls and glows while it beats the best, and `Session.Finish(outcome)` once when the run ends. `Finish` records the run by its kind, completes the daily challenge when it applies, hands the run to the leaderboard store and shows the result card. A game never writes records itself.
