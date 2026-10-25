@@ -56,7 +56,8 @@ internal sealed partial class FeedbackApp : IResumableApp
     private readonly PhotoViewerOverlay photoViewer = new();
     private readonly FailureSlot sendFailure = new();
     private readonly NavBarButton[] composeButtons = new NavBarButton[1];
-    private readonly NavBarButton[] photosButtons = new NavBarButton[1];
+    private readonly NavBarButton[] photosButtons = new NavBarButton[2];
+    private readonly ImageIntake intake = new();
 
     private PhoneTheme theme = PhoneTheme.Default;
     private INavigator navigation = null!;
@@ -142,7 +143,7 @@ internal sealed partial class FeedbackApp : IResumableApp
         var screen = SceneChrome.ScreenFrom(context.Content, theme, scale);
         ui.Backdrop(screen);
         ConsumeSendOutcome();
-        ConsumePickedFile();
+        ConsumeIncomingImages();
 
         if (photoViewer.Active)
         {

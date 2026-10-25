@@ -30,6 +30,7 @@ internal sealed partial class FeedbackApp
 
     private void DrawPhotos(Rect area)
     {
+        AcceptImages(area);
         var context = new PhoneContext(area, theme, navigation);
         var navBar = AppHeader.BeginLargeTitle(context);
         var body = navBar.Body;
@@ -48,11 +49,17 @@ internal sealed partial class FeedbackApp
         }
 
         photosButtons[0] = new NavBarButton(IconGlyph.Of(FontAwesomeIcon.FolderOpen), Loc.T(L.Common.ImportFromPc));
+        photosButtons[1] = new NavBarButton(IconGlyph.Of(FontAwesomeIcon.Paste), Loc.T(L.Common.PasteImage));
+        var buttonCount = intake.ClipboardHasImage() ? photosButtons.Length : 1;
         var pressed = AppHeader.EndLargeTitle(in navBar, context, "feedback.photos.nav", Loc.T(L.Feedback.AddPhotos),
-            NavBarStyle.From(ui), photosButtons, Loc.T(L.Feedback.NewSection), back);
+            NavBarStyle.From(ui), photosButtons.AsSpan(0, buttonCount), Loc.T(L.Feedback.NewSection), back);
         if (pressed == 0)
         {
             LaunchFileDialog();
+        }
+        else if (pressed == 1)
+        {
+            intake.Paste(library);
         }
     }
 
@@ -178,25 +185,50 @@ internal sealed partial class FeedbackApp
         FilePicker.PickImage(Loc.T(L.Feedback.AddPhotos), path => Interlocked.Exchange(ref pendingPickedPath, path));
     }
 
-    private void ConsumePickedFile()
+    private void AcceptImages(Rect area)
     {
+        if (UiInteract.Hover(area.Min, area.Max) && GameFocus.Active && ImageIntake.PasteRequested())
+        {
+            intake.Paste(library);
+        }
+
+        intake.AcceptDrop(area, library, ui.Accent);
+    }
+
+    private void ConsumeIncomingImages()
+    {
+        var added = false;
         var picked = Interlocked.Exchange(ref pendingPickedPath, null);
-        if (string.IsNullOrEmpty(picked))
+        if (!string.IsNullOrEmpty(picked))
         {
-            return;
+            added |= AddAttachment(picked);
         }
 
-        if (draft.IsFull)
+        while (intake.TryTake(out var taken))
         {
-            ShellToast.Show(Loc.T(L.Common.PhotoLimit, FeedbackDraft.MaxAttachments));
-            return;
+            added |= AddAttachment(taken);
         }
 
-        draft.Add(picked);
-        attachmentCountCache = -1;
-        if (router.Current.Screen == FeedbackScreen.Photos)
+        if (added && router.Current.Screen == FeedbackScreen.Photos)
         {
             router.Pop();
         }
+    }
+
+    private bool AddAttachment(string path)
+    {
+        if (draft.IsFull)
+        {
+            ShellToast.Show(Loc.T(L.Common.PhotoLimit, FeedbackDraft.MaxAttachments));
+            return false;
+        }
+
+        if (!draft.Add(path))
+        {
+            return false;
+        }
+
+        attachmentCountCache = -1;
+        return true;
     }
 }
