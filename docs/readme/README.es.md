@@ -101,6 +101,7 @@ Aethernet abrió sus puertas el 2 de julio de 2026. Al terminar la temporada, ju
         <li>Una tarjeta que dice a qué has venido</li>
         <li>Explora perfiles según lo que buscan</li>
         <li>El chat solo empieza cuando responden a tu presentación</li>
+        <li>Toca Conexiones para encontrar a cualquiera de tus conexiones</li>
         <li>Solo para adultos, con su propio perfil y sus propias normas</li>
       </ul>
     </td>

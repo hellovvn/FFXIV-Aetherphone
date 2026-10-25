@@ -104,6 +104,7 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
         <li>A card that says what you are here for</li>
         <li>Browse people by intent</li>
         <li>A chat starts only when they answer your intro</li>
+        <li>Tap Connections to find anyone you are connected to</li>
         <li>Adults only, with its own profile and rules</li>
       </ul>
     </td>

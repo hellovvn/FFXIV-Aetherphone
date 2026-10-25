@@ -101,6 +101,7 @@ Aethernet ging am 2. Juli 2026 an den Start. Bis zum Ende der Saison haben Spiel
         <li>Eine Karte, die zeigt, wonach du suchst</li>
         <li>Stöbere nach Absicht durch die Leute</li>
         <li>Ein Chat beginnt erst, wenn sie auf deine Vorstellung antworten</li>
+        <li>Tippe auf Verbindungen, um jede Verbindung zu finden</li>
         <li>Nur für Erwachsene, mit eigenem Profil und eigenen Regeln</li>
       </ul>
     </td>

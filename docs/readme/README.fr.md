@@ -101,6 +101,7 @@ Aethernet a ouvert ses portes le 2 juillet 2026. À la fin de la saison, les jou
         <li>Une carte qui dit ce que vous recherchez</li>
         <li>Parcourez les profils selon leurs envies</li>
         <li>Une discussion ne commence que si l'on répond à votre présentation</li>
+        <li>Touchez Connexions pour retrouver n'importe laquelle de vos connexions</li>
         <li>Réservé aux adultes, avec son propre profil et ses propres règles</li>
       </ul>
     </td>

@@ -101,6 +101,7 @@ O Aethernet abriu em 2 de julho de 2026. Até o fim da temporada, jogadores de 1
         <li>Um cartão que diz o que você procura</li>
         <li>Encontre pessoas pela intenção</li>
         <li>A conversa só começa quando respondem à sua apresentação</li>
+        <li>Toque em Conexões para encontrar qualquer uma das suas conexões</li>
         <li>Só para adultos, com perfil e regras próprios</li>
       </ul>
     </td>
