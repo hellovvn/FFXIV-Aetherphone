@@ -55,7 +55,6 @@ internal sealed partial class LoveIslandApp
             var drawList = ImGui.GetWindowDrawList();
             var origin = ImGui.GetCursorScreenPos();
             var width = ScrollLayout.StableContentWidth();
-            var left = LeftOf(origin.X);
             var inner = InnerWidth(width);
             var heroLine = origin.Y + area.Min.Y + heroHeight - frame.Body.Min.Y;
             var cursorY = DrawEmblem(drawList, origin.X + width * 0.5f, heroLine, inner, scale);
@@ -66,10 +65,7 @@ internal sealed partial class LoveIslandApp
             }
             else
             {
-                cursorY = DrawTonightCards(drawList, left, cursorY + SectionGap * scale, inner, scale);
-                Reserve(origin, width, cursorY);
-                cursorY = DrawLinkRail(cursorY + SectionGap * scale);
-                cursorY = DrawAboutCard(drawList, left, cursorY + SectionGap * scale, inner);
+                cursorY = DrawTonightSections(drawList, origin.X, width, cursorY + SectionGap * scale, scale);
                 Reserve(origin, width, cursorY + Metrics.Space.Xl * scale);
             }
         }
@@ -78,18 +74,55 @@ internal sealed partial class LoveIslandApp
         EndRoot(in frame, in context, "loveisland.nav.tonight");
     }
 
-    private float DrawTonightCards(ImDrawListPtr drawList, float left, float top, float width, float scale)
+    private float DrawTonightSections(ImDrawListPtr drawList, float originX, float width, float top, float scale)
     {
         var campaign = frameCampaign!;
         var moment = CampaignCountdown.Evaluate(campaign, nowUnix);
-        var gap = LoveIslandKit.CardGap * scale;
-        var cursorY = DrawStatusCard(drawList, left, top, width, campaign, in moment);
-        cursorY = DrawNightRow(drawList, left, cursorY + gap, width, in moment);
-        cursorY = DrawLiveCard(drawList, left, cursorY + gap, width, campaign, in moment);
-        cursorY = DrawShareCard(drawList, left, cursorY + gap, width);
-        cursorY = DrawPinnedCard(drawList, left, cursorY + gap, width);
-        cursorY = DrawPostsCard(drawList, left, cursorY + gap, width);
-        return DrawSyncshellsCard(drawList, left, cursorY + gap, width, campaign);
+        var sections = labels.TonightSections;
+        var cursorY = top;
+        var previous = TonightSection.Status;
+        var drawnAny = false;
+        for (var index = 0; index < sections.Length; index++)
+        {
+            var section = sections[index];
+            var sectionTop = drawnAny ? cursorY + SectionSpacing(previous, section) * scale : cursorY;
+            var bottom = DrawTonightSection(drawList, section, originX, width, sectionTop, campaign, in moment);
+            if (bottom <= sectionTop)
+            {
+                continue;
+            }
+
+            cursorY = bottom;
+            previous = section;
+            drawnAny = true;
+        }
+
+        return cursorY;
+    }
+
+    private static float SectionSpacing(TonightSection previous, TonightSection next) =>
+        IsOpenSection(previous) || IsOpenSection(next) ? SectionGap : LoveIslandKit.CardGap;
+
+    private static bool IsOpenSection(TonightSection section) =>
+        section is TonightSection.Links or TonightSection.About;
+
+    private float DrawTonightSection(ImDrawListPtr drawList, TonightSection section, float originX, float width,
+        float top, CampaignDto campaign, in CampaignMoment moment)
+    {
+        var left = LeftOf(originX);
+        var inner = InnerWidth(width);
+        return section switch
+        {
+            TonightSection.Status => DrawStatusCard(drawList, left, top, inner, campaign, in moment),
+            TonightSection.Night => DrawNightRow(drawList, left, top, inner, in moment),
+            TonightSection.Live => DrawLiveCard(drawList, left, top, inner, campaign, in moment),
+            TonightSection.Share => DrawShareCard(drawList, left, top, inner),
+            TonightSection.Pinned => DrawPinnedCard(drawList, left, top, inner),
+            TonightSection.Posts => DrawPostsCard(drawList, left, top, inner),
+            TonightSection.Syncshells => DrawSyncshellsCard(drawList, left, top, inner, campaign),
+            TonightSection.Links => DrawLinkRail(originX, top, width),
+            _ => DrawAboutCard(drawList, left, top, inner),
+        };
     }
 
     private float DrawStatusCard(ImDrawListPtr drawList, float left, float top, float width, CampaignDto campaign,
@@ -299,7 +332,7 @@ internal sealed partial class LoveIslandApp
         var pinned = Ledger.PinnedPost;
         if (pinned is null)
         {
-            return top - LoveIslandKit.CardGap * UiScale.Current;
+            return top;
         }
 
         var bottom = DrawCard(drawList, left, top, width, new CardContent(PinnedCardId,
@@ -338,7 +371,7 @@ internal sealed partial class LoveIslandApp
     {
         if (campaign.Syncshells.Length == 0)
         {
-            return top - LoveIslandKit.CardGap * UiScale.Current;
+            return top;
         }
 
         var bottom = DrawCard(drawList, left, top, width, new CardContent(SyncshellsCardId,
@@ -352,24 +385,26 @@ internal sealed partial class LoveIslandApp
         return bottom;
     }
 
-    private float DrawLinkRail(float top)
+    private float DrawLinkRail(float originX, float top, float width)
     {
         var campaign = frameCampaign;
         var linkLabels = labels.LinkLabels;
         if (campaign is null || linkLabels.Length == 0)
         {
-            return top - SectionGap * UiScale.Current;
+            return top;
         }
 
         var count = Math.Min(linkLabels.Length, linkActive.Length);
-        ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, top));
-        var tapped = linkRail.Draw(ui, linkLabels.AsSpan(0, count), linkActive.AsSpan(0, count), "loveisland.links");
+        var row = new Rect(new Vector2(originX, top),
+            new Vector2(originX + width, top + ChipRail.RowHeight * UiScale.Current));
+        var tapped = linkRail.Draw(row, ui, linkLabels.AsSpan(0, count), linkActive.AsSpan(0, count),
+            anchorKey: "loveisland.links", centered: true);
         if (tapped >= 0 && tapped < campaign.Links.Length)
         {
             UrlActions.AskThenOpen(campaign.Links[tapped].Url);
         }
 
-        return ImGui.GetCursorScreenPos().Y;
+        return row.Max.Y;
     }
 
     private float DrawAboutCard(ImDrawListPtr drawList, float left, float top, float width)

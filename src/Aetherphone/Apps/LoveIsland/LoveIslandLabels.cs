@@ -72,6 +72,7 @@ internal sealed class LoveIslandLabels
     public string[] SyncshellServices = Array.Empty<string>();
     public string[] SyncshellCopyIdButtons = Array.Empty<string>();
     public string[] SyncshellCopyPasswordButtons = Array.Empty<string>();
+    public TonightSection[] TonightSections = TonightOrder.Default;
 
     private readonly Dictionary<string, ExperienceLabels> experienceCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DjLabels> djCache = new(StringComparer.Ordinal);
@@ -123,6 +124,7 @@ internal sealed class LoveIslandLabels
             SyncshellServices = Array.Empty<string>();
             SyncshellCopyIdButtons = Array.Empty<string>();
             SyncshellCopyPasswordButtons = Array.Empty<string>();
+            TonightSections = TonightOrder.Default;
             return;
         }
 
@@ -144,6 +146,7 @@ internal sealed class LoveIslandLabels
         CoinsAmount = NumberText.Group(campaign.Reward.Coins);
         CoinsBody = texts.T(CampaignTextKeys.CoinsBody, new CampaignTextArgs(N: CoinsAmount));
         WhereLine = Loc.T(L.LoveIsland.Where, campaign.DataCenter);
+        TonightSections = TonightOrder.Build(campaign.TonightOrder);
         RebuildExperiences(campaign);
         RebuildDjSets(campaign);
         RebuildLinks(campaign);

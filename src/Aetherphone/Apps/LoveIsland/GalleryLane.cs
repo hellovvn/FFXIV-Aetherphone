@@ -73,7 +73,23 @@ internal sealed class GalleryLane : IDisposable
 
         loading = true;
         fetchedUtc = DateTime.UtcNow;
-        var requested = tag;
+        FetchFirstPage(tag);
+    }
+
+    public void LoadMore()
+    {
+        var next = cursor;
+        if (!session.IsSignedIn || next is null || loading || loadingMore)
+        {
+            return;
+        }
+
+        loadingMore = true;
+        FetchNextPage(tag, next);
+    }
+
+    private void FetchFirstPage(string requested)
+    {
         work.Run("gallery refresh", async token =>
         {
             var page = await client.TagPostsAsync(requested, null, token).ConfigureAwait(false);
@@ -90,16 +106,8 @@ internal sealed class GalleryLane : IDisposable
         }, () => loading = false);
     }
 
-    public void LoadMore()
+    private void FetchNextPage(string requested, string next)
     {
-        var next = cursor;
-        if (!session.IsSignedIn || next is null || loading || loadingMore)
-        {
-            return;
-        }
-
-        loadingMore = true;
-        var requested = tag;
         work.Run("gallery more", async token =>
         {
             var page = await client.TagPostsAsync(requested, next, token).ConfigureAwait(false);

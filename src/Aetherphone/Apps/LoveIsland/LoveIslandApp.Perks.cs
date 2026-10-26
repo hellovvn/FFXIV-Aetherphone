@@ -33,6 +33,9 @@ internal sealed partial class LoveIslandApp
     private const string EarnCardId = "loveisland.perks.earn";
     private const string EquipButtonId = "loveisland.perks.equip";
     private const string PerksPostButtonId = "loveisland.perks.post";
+    private const string PerkFrameAnchor = "loveisland.perks.frame";
+    private const string PerkBadgeAnchor = "loveisland.perks.badge";
+    private const string PerkCoinsAnchor = "loveisland.perks.coins";
 
     private void DrawPerksTab(Rect area)
     {
@@ -54,14 +57,14 @@ internal sealed partial class LoveIslandApp
             var earned = Ledger.Me?.Earned ?? configuration.LoveIslandEarned;
             var gap = LoveIslandKit.CardGap * scale;
             var reward = frameCampaign?.Reward;
-            cursorY = DrawPerkCard(drawList, left, cursorY, inner, PerkArt.Frame, texts.T(CampaignTextKeys.FrameName),
-                texts.T(CampaignTextKeys.FrameBody), earned, reward, scale);
+            cursorY = DrawFramePerkCards(drawList, left, cursorY, inner, texts, earned, reward, scale);
             cursorY = DrawPerkCard(drawList, left, cursorY + gap, inner, PerkArt.Badge,
-                texts.T(CampaignTextKeys.BadgeName), texts.T(CampaignTextKeys.BadgeBody), earned, reward, scale);
+                texts.T(CampaignTextKeys.BadgeName), texts.T(CampaignTextKeys.BadgeBody), earned, reward?.BadgeId,
+                PerkBadgeAnchor, scale);
             if (reward is { Coins: > 0 })
             {
                 cursorY = DrawPerkCard(drawList, left, cursorY + gap, inner, PerkArt.Coins,
-                    texts.T(CampaignTextKeys.CoinsName), labels.CoinsBody, earned, reward, scale);
+                    texts.T(CampaignTextKeys.CoinsName), labels.CoinsBody, earned, null, PerkCoinsAnchor, scale);
             }
 
             cursorY = DrawEarnCard(drawList, left, cursorY + gap * 2f, inner, earned);
@@ -71,8 +74,32 @@ internal sealed partial class LoveIslandApp
         EndRoot(in frame, in context, "loveisland.nav.perks");
     }
 
+    private float DrawFramePerkCards(ImDrawListPtr drawList, float left, float top, float width, CampaignTexts texts,
+        bool earned, CampaignRewardDto? reward, float scale)
+    {
+        var frames = reward?.Frames ?? Array.Empty<CampaignRewardFrameDto>();
+        var body = texts.T(CampaignTextKeys.FrameBody);
+        if (frames.Length <= 1)
+        {
+            return DrawPerkCard(drawList, left, top, width, PerkArt.Frame, texts.T(CampaignTextKeys.FrameName), body,
+                earned, frames.Length == 1 ? frames[0].Id : null, PerkFrameAnchor, scale);
+        }
+
+        var gap = LoveIslandKit.CardGap * scale;
+        var cursorY = top - gap;
+        for (var index = 0; index < frames.Length; index++)
+        {
+            var frame = frames[index];
+            var name = string.IsNullOrWhiteSpace(frame.Name) ? texts.T(CampaignTextKeys.FrameName) : frame.Name;
+            cursorY = DrawPerkCard(drawList, left, cursorY + gap, width, PerkArt.Frame, name, body, earned, frame.Id,
+                index == 0 ? PerkFrameAnchor : null, scale);
+        }
+
+        return cursorY;
+    }
+
     private float DrawPerkCard(ImDrawListPtr drawList, float left, float top, float width, PerkArt art, string name,
-        string body, bool earned, CampaignRewardDto? reward, float scale)
+        string body, bool earned, string? catalogId, string? anchorKey, float scale)
     {
         var pad = LoveIslandKit.CardPad * scale;
         var preview = PerkPreview * scale;
@@ -100,10 +127,10 @@ internal sealed partial class LoveIslandApp
         switch (art)
         {
             case PerkArt.Frame:
-                DrawFramePreview(drawList, previewCenter, reward, scale);
+                DrawFramePreview(drawList, previewCenter, catalogId, scale);
                 break;
             case PerkArt.Badge:
-                DrawBadgePreview(drawList, previewCenter, reward, scale);
+                DrawBadgePreview(drawList, previewCenter, catalogId, scale);
                 break;
             default:
                 CurrencyGlyph.Draw(drawList, Windows.Components.CurrencyKind.Coins, previewCenter, PerkBadgeSize * scale);
@@ -139,9 +166,11 @@ internal sealed partial class LoveIslandApp
         }
 
         EclipseFx.Glint(drawList, card.Min, card.Max, rounding, PerkGlintPeak, (int)art * 0.21f);
-        UiAnchors.Report(art == PerkArt.Frame ? "loveisland.perks.frame" : art == PerkArt.Badge
-            ? "loveisland.perks.badge"
-            : "loveisland.perks.coins", card);
+        if (anchorKey is not null)
+        {
+            UiAnchors.Report(anchorKey, card);
+        }
+
         entrance.Settle(drawList, firstVertex, scale);
         return card.Max.Y;
     }
@@ -180,11 +209,11 @@ internal sealed partial class LoveIslandApp
         LoveIslandKit.OffPill(drawList, topLeft, Texts.T(CampaignTextKeys.NotYet), scale);
     }
 
-    private void DrawFramePreview(ImDrawListPtr drawList, Vector2 center, CampaignRewardDto? reward, float scale)
+    private void DrawFramePreview(ImDrawListPtr drawList, Vector2 center, string? frameId, float scale)
     {
         var radius = PerkAvatarRadius * scale;
         var user = session.CurrentUser;
-        var style = frameCatalog.Find(reward?.FrameId);
+        var style = frameCatalog.Find(frameId);
         if (style is not null)
         {
             AvatarView.DrawRemote(drawList, center, radius, theme, user?.Name ?? string.Empty,
@@ -207,10 +236,9 @@ internal sealed partial class LoveIslandApp
         drawList.AddImage(art.Handle, center - half, center + half, Vector2.Zero, Vector2.One);
     }
 
-    private void DrawBadgePreview(ImDrawListPtr drawList, Vector2 center, CampaignRewardDto? reward, float scale)
+    private void DrawBadgePreview(ImDrawListPtr drawList, Vector2 center, string? badgeId, float scale)
     {
         var size = PerkBadgeSize * scale;
-        var badgeId = reward?.BadgeId;
         var style = string.IsNullOrEmpty(badgeId) ? null : badgeCatalog.Find(badgeId);
         if (style is not null)
         {

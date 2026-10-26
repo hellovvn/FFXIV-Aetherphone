@@ -74,6 +74,8 @@ internal static class ThemeCatalog
         PhoneCase.Art("Drippy", PhoneCaseCategory.ArtistSeries, new Vector4(0.727f, 0.850f, 0.828f, 1f), "Silkie"),
         PhoneCase.Art("Pod", PhoneCaseCategory.ArtistSeries, new Vector4(0.665f, 0.538f, 0.457f, 1f), "Silkie"),
         PhoneCase.Art("Scathatch", PhoneCaseCategory.ArtistSeries, new Vector4(0.488f, 0.419f, 0.455f, 1f), "Silkie"),
+        PhoneCase.Art("LoveIsland", PhoneCaseCategory.ArtistSeries, new Vector4(0.616f, 0.041f, 0.200f, 1f), "Haru"),
+        PhoneCase.Art("LoveIslandEclipse", PhoneCaseCategory.ArtistSeries, new Vector4(0.446f, 0.019f, 0.138f, 1f), "Haru"),
     };
 
     public static IReadOnlyList<PhoneCase> Cases { get; } = BuiltInCases;

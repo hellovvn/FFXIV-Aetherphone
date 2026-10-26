@@ -440,13 +440,32 @@ internal sealed class CampaignLedger
         return campaign with
         {
             Links = campaign.Links ?? Array.Empty<CampaignLinkDto>(),
+            TonightOrder = campaign.TonightOrder ?? Array.Empty<string>(),
             Texts = campaign.Texts ?? Array.Empty<CampaignTextDto>(),
             Experiences = sorted,
             DjSets = sortedDjSets,
             Members = campaign.Members ?? Array.Empty<CampaignMemberDto>(),
             Syncshells = campaign.Syncshells ?? Array.Empty<CampaignSyncshellDto>(),
-            Reward = campaign.Reward ?? new CampaignRewardDto(null, null, null, null, 0),
+            Reward = NormalizeReward(campaign.Reward),
         };
+    }
+
+    private static CampaignRewardDto NormalizeReward(CampaignRewardDto? reward)
+    {
+        if (reward is null)
+        {
+            return new CampaignRewardDto(null, null, null, null, 0, Array.Empty<CampaignRewardFrameDto>());
+        }
+
+        if (reward.Frames is not null)
+        {
+            return reward;
+        }
+
+        var frames = string.IsNullOrEmpty(reward.FrameId)
+            ? Array.Empty<CampaignRewardFrameDto>()
+            : new[] { new CampaignRewardFrameDto(reward.FrameId, reward.FrameName ?? string.Empty) };
+        return reward with { Frames = frames };
     }
 
     private static bool IsSortedByStart(CampaignExperienceDto[] experiences)

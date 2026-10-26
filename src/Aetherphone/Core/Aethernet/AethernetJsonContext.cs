@@ -482,6 +482,7 @@ namespace Aetherphone.Core.Aethernet;
 [JsonSerializable(typeof(CampaignDto))]
 [JsonSerializable(typeof(CampaignLinkDto))]
 [JsonSerializable(typeof(CampaignRewardDto))]
+[JsonSerializable(typeof(CampaignRewardFrameDto))]
 [JsonSerializable(typeof(CampaignTextDto))]
 [JsonSerializable(typeof(CampaignExperienceDto))]
 [JsonSerializable(typeof(CampaignDjSetDto))]

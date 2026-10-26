@@ -85,6 +85,8 @@ internal static class CatalogLabels
             "Drippy" => Loc.T(L.Catalogs.CaseDrippy),
             "Pod" => Loc.T(L.Catalogs.CasePod),
             "Scathatch" => Loc.T(L.Catalogs.CaseScathatch),
+            "LoveIsland" => Loc.T(L.Catalogs.CaseLoveIsland),
+            "LoveIslandEclipse" => Loc.T(L.Catalogs.CaseLoveIslandEclipse),
             _ => identifier,
         };
 

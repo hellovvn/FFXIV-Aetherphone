@@ -14,6 +14,7 @@ internal sealed record CampaignDto(
     string? BadgeArtUrl,
     string? FrameArtUrl,
     CampaignLinkDto[] Links,
+    string[] TonightOrder,
     string Hashtag,
     long StartsAtUnix,
     long EndsAtUnix,
@@ -37,7 +38,9 @@ internal sealed record CampaignDto(
 internal sealed record CampaignLinkDto(string Kind, string Url);
 
 internal sealed record CampaignRewardDto(string? BadgeId, string? BadgeName, string? FrameId, string? FrameName,
-    int Coins);
+    int Coins, CampaignRewardFrameDto[] Frames);
+
+internal sealed record CampaignRewardFrameDto(string Id, string Name);
 
 internal sealed record CampaignTextDto(string Key, string Value);
 

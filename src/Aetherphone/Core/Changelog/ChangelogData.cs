@@ -6,25 +6,26 @@ internal static class ChangelogData
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new[]
     {
-        new ChangelogEntry("1.4.0.0", "2026-10-19", new ChangelogSection[]
+        new ChangelogEntry("1.4.0.0", "2026-10-26", new ChangelogSection[]
         {
             new(L.Apps.Prism, L.Changelog.Release1400Prism),
-            new(L.Changelog.SectionMessaging, L.Changelog.Release1400Messaging),
-            new(L.Phone.EnableTitle, L.Changelog.Release1400Calls),
-            new(L.Apps.Music, L.Changelog.Release1400Music),
-            new(L.Apps.Announcements, L.Changelog.Release1400Announcements),
-            new(L.Apps.Camera, L.Changelog.Release1400Camera),
-            new(L.Changelog.SectionAethergramVelvet, L.Changelog.Release1400AethergramVelvet),
-            new(L.Apps.Chirper, L.Changelog.Release1400Chirper),
-            new(L.Apps.Market, L.Changelog.Release1400Market),
-            new(L.Changelog.SectionPhone, L.Changelog.Release1400Phone),
-            new(L.Apps.Casino, L.Changelog.Release1400Gamba),
+            new(L.Settings.LiquidGlass, L.Changelog.Release1400LiquidGlass),
+            new(L.Apps.LoveIsland, L.Changelog.Release1400LoveIsland),
             new(L.Apps.Games, L.Changelog.Release1400Games),
-            new(L.Apps.Skywatcher, L.Changelog.Release1400Skywatcher),
+            new(L.Changelog.SectionPhone, L.Changelog.Release1400Phone),
+            new(L.Changelog.SectionMessaging, L.Changelog.Release1400Messaging),
+            new(L.Apps.Casino, L.Changelog.Release1400Gamba),
+            new(L.Phone.EnableTitle, L.Changelog.Release1400Calls),
+            new(L.Apps.Chirper, L.Changelog.Release1400Chirper),
+            new(L.Apps.Music, L.Changelog.Release1400Music),
+            new(L.Apps.Camera, L.Changelog.Release1400Camera),
+            new(L.Apps.Market, L.Changelog.Release1400Market),
+            new(L.Changelog.SectionAethergramVelvet, L.Changelog.Release1400AethergramVelvet),
             new(L.Changelog.SectionSocial, L.Changelog.Release1400Social),
+            new(L.Apps.Announcements, L.Changelog.Release1400Announcements),
+            new(L.Apps.Skywatcher, L.Changelog.Release1400Skywatcher),
             new(L.Apps.Collections, L.Changelog.Release1400Collections),
             new(L.Changelog.SectionSounds, L.Changelog.Release1400Sounds),
-            new(L.Apps.LoveIsland, L.Changelog.Release1400LoveIsland),
             new(L.Apps.AetherStream, L.Changelog.Release1400MogCast),
         }),
         new ChangelogEntry("1.3.3.0", "2026-10-19", new ChangelogSection[]
