@@ -170,6 +170,8 @@ public sealed class GamesHomeLayoutTests
     [Theory]
     [InlineData("tetris", true)]
     [InlineData("minigolf", true)]
+    [InlineData("cluster", true)]
+    [InlineData("harvest", true)]
     [InlineData("doom", false)]
     [InlineData("trivia", false)]
     [InlineData("moogleclicker", false)]

@@ -1,3 +1,5 @@
+using Aetherphone.Core.Game;
+
 namespace Aetherphone.Core.Collections;
 
 internal static class CollectionCategories
@@ -12,6 +14,29 @@ internal static class CollectionCategories
         CollectionCategory.Facewear,
         CollectionCategory.Achievements,
         CollectionCategory.TriadCards,
+    };
+
+    private static readonly CollectionSort[] SharedSorts =
+    {
+        CollectionSort.Newest,
+        CollectionSort.Rarest,
+        CollectionSort.MostCollected,
+    };
+
+    private static readonly CollectionSort[] GameOrderSorts =
+    {
+        CollectionSort.Newest,
+        CollectionSort.GameOrder,
+        CollectionSort.Rarest,
+        CollectionSort.MostCollected,
+    };
+
+    public static CollectionSort[] SortOptions(CollectionCategory category) => category switch
+    {
+        CollectionCategory.Facewear or CollectionCategory.Mounts or CollectionCategory.Emotes
+            or CollectionCategory.TriadCards => GameOrderSorts,
+        CollectionCategory.Minions or CollectionCategory.Orchestrions when GameSheets.Available => GameOrderSorts,
+        _ => SharedSorts,
     };
 
     public static string CatalogPath(CollectionCategory category) => category switch

@@ -10,11 +10,14 @@ internal sealed class HomeTile : IGridTile
     private readonly IHomeWidget? widget;
     private readonly string instanceKey = string.Empty;
     private string config = string.Empty;
+    private string? dockKey;
     private int stackIndex;
 
     public required string Key { get; init; }
+    public string DockKey => dockKey ??= string.Concat("dock:", Key);
     public IPhoneApp? App { get; init; }
     public ShortcutEntry? Shortcut { get; init; }
+    public HomeLink? Link { get; init; }
     public GridCell Cell { get; set; } = HomeGridSolver.Unassigned;
     public WidgetSize Size { get; set; } = WidgetSize.Medium;
     public string FolderName { get; set; } = string.Empty;
@@ -60,7 +63,8 @@ internal sealed class HomeTile : IGridTile
 
     public bool IsWidget => Widget is not null;
     public bool IsShortcut => Shortcut is not null;
-    public bool IsFolder => App is null && Widget is null && Shortcut is null;
+    public bool IsLink => Link is not null;
+    public bool IsFolder => App is null && Widget is null && Shortcut is null && Link is null;
     public int ColumnSpan => IsWidget ? WidgetSizes.ColumnSpan(Size) : 1;
     public int RowSpan => IsWidget ? WidgetSizes.RowSpan(Size) : 1;
 
@@ -68,6 +72,9 @@ internal sealed class HomeTile : IGridTile
 
     public static HomeTile ForShortcut(ShortcutEntry shortcut) =>
         new() { Key = string.Concat("shortcut#", shortcut.Id.ToString("N")), Shortcut = shortcut };
+
+    public static HomeTile ForLink(HomeLink link) =>
+        new() { Key = string.Concat("link#", link.AppId, "#", link.Argument), Link = link };
 
     public static HomeTile ForWidget(string instanceKey, IHomeWidget widget, WidgetSize size, string config) =>
         new()
@@ -112,6 +119,11 @@ internal sealed class HomeTile : IGridTile
         if (tile.IsShortcut)
         {
             return ForShortcut(tile.Shortcut!);
+        }
+
+        if (tile.IsLink)
+        {
+            return ForLink(tile.Link!);
         }
 
         return ForApp(tile.App!);

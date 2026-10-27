@@ -1,4 +1,5 @@
 using Aetherphone.Core.Game;
+using Aetherphone.Core.Localization;
 
 namespace Aetherphone.Core.Market;
 
@@ -31,6 +32,13 @@ internal sealed class MarketWatchlist
     private readonly Dictionary<uint, MarketWatchSeries> series = new();
     private long[] scratch = new long[256];
     private uint scopesWorld;
+    private MarketGeography? geography;
+    private MarketScopeChoice choice = MarketScopeChoice.None;
+    private int scopesVersion = 1;
+    private int choiceVersion;
+    private MarketScopeKind choiceLocalKind;
+    private MarketScopeKind choicePinnedKind;
+    private string? choicePinnedName;
 
     public MarketWatchlist(MarketboardService market, Configuration configuration, GameData gameData)
     {
@@ -43,14 +51,53 @@ internal sealed class MarketWatchlist
 
     public List<uint> Items => configuration.MarketFavorites;
 
-    public int ScopeIndex => MarketScopes.IndexOfKind(scopes, configuration.MarketScope);
+    public MarketGeography Geography => geography ??= MarketGeography.Build(gameData.WorldRows(),
+        gameData.DataCenterRows());
 
-    public MarketScope Scope
+    public int ScopeIndex => Choice.LocalIndex;
+
+    public MarketScope Scope => Choice.Scope;
+
+    public bool IsRemote => Choice.Remote;
+
+    public string Title(in MarketScope scope) =>
+        scope.Kind == MarketScopeKind.Region ? RegionTitle(scope.ApiName) : scope.ApiName;
+
+    public string RegionTitle(string apiName)
+    {
+        var region = Geography.Region(apiName);
+        return region is null ? apiName : Loc.T(region.Label);
+    }
+
+    public MarketScope LocalScope
     {
         get
         {
-            var index = ScopeIndex;
-            return index >= 0 && index < scopes.Count ? scopes[index] : MarketScope.None;
+            var index = MarketScopes.IndexOfKind(scopes, configuration.MarketScope);
+            return index >= 0 ? scopes[index] : MarketScope.None;
+        }
+    }
+
+    private MarketScopeChoice Choice
+    {
+        get
+        {
+            var pinnedName = configuration.MarketPinnedScope;
+            if (choiceVersion == scopesVersion && choiceLocalKind == configuration.MarketScope &&
+                choicePinnedKind == configuration.MarketPinnedScopeKind &&
+                ReferenceEquals(choicePinnedName, pinnedName))
+            {
+                return choice;
+            }
+
+            var catalog = string.IsNullOrEmpty(pinnedName) ? MarketGeography.Empty : Geography;
+            choice = MarketScopes.Resolve(scopes, configuration.MarketScope, configuration.MarketPinnedScopeKind,
+                pinnedName, catalog);
+            choiceVersion = scopesVersion;
+            choiceLocalKind = configuration.MarketScope;
+            choicePinnedKind = configuration.MarketPinnedScopeKind;
+            choicePinnedName = pinnedName;
+            return choice;
         }
     }
 
@@ -62,19 +109,43 @@ internal sealed class MarketWatchlist
             return;
         }
 
+        var previousWorld = scopesWorld;
+        var previousCount = scopes.Count;
         scopesWorld = worldId;
         MarketScopes.Build(scopes, gameData);
+        if (worldId != previousWorld || scopes.Count != previousCount)
+        {
+            scopesVersion++;
+        }
     }
 
     public void SetScope(int index)
     {
-        if (index < 0 || index >= scopes.Count || scopes[index].Kind == configuration.MarketScope)
+        if (index < 0 || index >= scopes.Count)
         {
             return;
         }
 
-        configuration.MarketScope = scopes[index].Kind;
-        configuration.Save();
+        if (MarketScopes.ChooseLocal(configuration, scopes[index].Kind))
+        {
+            configuration.Save();
+        }
+    }
+
+    public void Choose(MarketScopeKind kind, string name)
+    {
+        if (MarketScopes.Choose(configuration, scopes, kind, name))
+        {
+            configuration.Save();
+        }
+    }
+
+    public void ReturnToLocal()
+    {
+        if (MarketScopes.ClearPin(configuration))
+        {
+            configuration.Save();
+        }
     }
 
     public bool Contains(uint itemId) => configuration.MarketFavorites.Contains(itemId);

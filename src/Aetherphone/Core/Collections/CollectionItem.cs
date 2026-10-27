@@ -26,6 +26,7 @@ internal sealed class CollectionItem
     public readonly int Points;
     public readonly int Stars;
     public readonly int Order;
+    public readonly long GameOrder;
     public readonly CollectionStatStrip? Stats;
     public readonly string StatsText;
     public readonly string PointsText;
@@ -33,10 +34,13 @@ internal sealed class CollectionItem
     private string rarityText = string.Empty;
     private string rarityLanguage = string.Empty;
 
-    public CollectionItem(CollectionCategory category, CollectionItemDto dto, int order)
+    public CollectionItem(CollectionCategory category, CollectionItemDto dto, int order, long? gameOrder = null)
     {
         Category = category;
         Order = order;
+        GameOrder = gameOrder ?? (dto.Order is { } catalogOrder
+            ? GameOrderKey.Of(dto.OrderGroup ?? 0, catalogOrder)
+            : long.MaxValue);
         Id = dto.Id;
         ItemId = dto.ItemId is > 0 ? (uint)dto.ItemId.Value : 0u;
         Name = dto.Name ?? string.Empty;

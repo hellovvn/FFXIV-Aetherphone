@@ -51,31 +51,33 @@ internal static class InboxRowView
     {
         var ink = chrome.Ink;
         var scale = UiScale.Current;
+        var size = chrome.ListRow(Height, AvatarRadius);
+        var glyph = size.Glyph * scale;
         var drawList = ImGui.GetWindowDrawList();
-        var person = chrome.BeginPersonRow(drawList, Height, AvatarRadius, 0f, true, out var avatarCenter);
+        var person = chrome.BeginPersonRow(drawList, size.Height, size.AvatarRadius, 0f, true, out var avatarCenter);
         var bounds = person.Bounds;
         var hovered = UiInteract.Hover(bounds.Min, bounds.Max);
-        GameChatTiles.DrawAvatar(drawList, avatarCenter, AvatarRadius * scale, row, lodestone, ink.Accent);
+        GameChatTiles.DrawAvatar(drawList, avatarCenter, size.AvatarRadius * scale, row, lodestone, ink.Accent);
         var reveal = StepReveal(row.Key, hovered && quickActions);
         var restAlpha = 1f - reveal;
-        var titleTop = bounds.Min.Y + TitleTop * scale;
-        var titleHeight = Typography.LineHeight(ChatListChrome.RowTitleStyle);
+        var titleTop = size.TextTop(bounds, TitleTop);
+        var titleHeight = Typography.LineHeight(size.TitleStyle);
         var right = person.TextRight;
         var titleRight = right;
         var action = InboxRowAction.None;
         var overActions = false;
         if (reveal > 0.01f)
         {
-            action = DrawQuickActions(drawList, row, ink, right, bounds.Center.Y, reveal, scale, out overActions);
+            action = DrawQuickActions(drawList, row, ink, right, bounds.Center.Y, reveal, glyph, out overActions);
         }
 
         if (restAlpha > 0.01f)
         {
-            titleRight = DrawTime(drawList, row, ink, right, titleTop, restAlpha, scale);
+            titleRight = DrawTime(drawList, row, ink, size, right, titleTop, restAlpha, glyph);
         }
         else
         {
-            titleRight = right - (QuickPitch * 2f + QuickRadius * 2f + TimeGap) * scale;
+            titleRight = right - (QuickPitch * 2f + QuickRadius * 2f + TimeGap) * glyph;
         }
 
         var titleWidth = MathF.Max(1f, titleRight - person.TextLeft);
@@ -84,22 +86,22 @@ internal static class InboxRowView
         var titleInk = row.Muted ? Palette.WithAlpha(ink.TitleInk, MutedTitleAlpha) : ink.TitleInk;
         Marquee.DrawLeft(drawList, new MarqueeId("linkpearl.row.", row.Key),
             row.IsTell ? NameMask.Display(row.Title) : row.Title, person.TextLeft, titleTop, titleWidth,
-            ChatListChrome.RowTitleStyle, titleInk, titleHovering);
+            size.TitleStyle, titleInk, titleHovering);
 
-        var lineTop = titleTop + titleHeight + ChatListChrome.RowLineGap * scale;
-        var lineCenter = lineTop + Typography.LineHeight(ChatListChrome.RowSubStyle) * 0.5f;
+        var lineTop = titleTop + titleHeight + size.LineGap * scale;
+        var lineCenter = lineTop + Typography.LineHeight(size.SubStyle) * 0.5f;
         var previewRight = right;
         if (restAlpha > 0.01f)
         {
-            previewRight = DrawTrailing(drawList, row, theme, ink, right, lineCenter, restAlpha, scale);
+            previewRight = DrawTrailing(drawList, row, theme, ink, right, lineCenter, restAlpha, glyph);
         }
         else
         {
             previewRight = titleRight;
         }
 
-        DrawPreview(drawList, row, ink, person.TextLeft, lineTop, previewRight - TimeGap * scale - person.TextLeft,
-            scale);
+        DrawPreview(drawList, row, ink, size, person.TextLeft, lineTop,
+            previewRight - TimeGap * scale - person.TextLeft, glyph);
         chrome.EndPersonRow(drawList, person);
         if (action != InboxRowAction.None)
         {
@@ -126,8 +128,8 @@ internal static class InboxRowView
         return Math.Clamp(spring.Value, 0f, 1f);
     }
 
-    private static float DrawTime(ImDrawListPtr drawList, InboxRow row, SocialInk ink, float right, float titleTop,
-        float alpha, float scale)
+    private static float DrawTime(ImDrawListPtr drawList, InboxRow row, SocialInk ink, in ListRowSize size,
+        float right, float titleTop, float alpha, float scale)
     {
         var time = row.LastActivity == default ? string.Empty : TimeText.Short(row.LastActivity);
         if (time.Length == 0)
@@ -135,11 +137,11 @@ internal static class InboxRowView
             return right;
         }
 
-        var timeSize = Typography.Measure(time, ChatListChrome.RowMetaStyle);
+        var timeSize = Typography.Measure(time, size.MetaStyle);
         var timeInk = row.HasBadge ? ink.AccentLink : ink.MutedInk;
-        var titleHeight = Typography.LineHeight(ChatListChrome.RowTitleStyle);
+        var titleHeight = Typography.LineHeight(size.TitleStyle);
         Typography.Draw(drawList, new Vector2(right - timeSize.X, titleTop + (titleHeight - timeSize.Y) * 0.5f), time,
-            Palette.WithAlpha(timeInk, timeInk.W * alpha), ChatListChrome.RowMetaStyle);
+            Palette.WithAlpha(timeInk, timeInk.W * alpha), size.MetaStyle);
         return right - timeSize.X - TimeGap * scale;
     }
 
@@ -252,8 +254,8 @@ internal static class InboxRowView
         return center.X - radius - TimeGap * scale;
     }
 
-    private static void DrawPreview(ImDrawListPtr drawList, InboxRow row, SocialInk ink, float left, float top,
-        float width, float scale)
+    private static void DrawPreview(ImDrawListPtr drawList, InboxRow row, SocialInk ink, in ListRowSize size,
+        float left, float top, float width, float scale)
     {
         if (width <= 0f)
         {
@@ -261,7 +263,7 @@ internal static class InboxRowView
         }
 
         var cursor = left;
-        var lineHeight = Typography.LineHeight(ChatListChrome.RowSubStyle);
+        var lineHeight = Typography.LineHeight(size.SubStyle);
         if (row.PreviewChannel.Length > 0 && GameChannels.TryByKey(row.PreviewChannel, out var channel))
         {
             var tag = LinkshellNames.Label(channel);
@@ -286,9 +288,9 @@ internal static class InboxRowView
         {
             var senderName = NameMask.Enabled ? NameMask.Of(row.PreviewSender) : FirstName(row.PreviewSender);
             var sender = Typography.FitText(string.Concat(senderName, ": "), remaining * 0.5f,
-                ChatListChrome.RowSubStyle);
-            var senderSize = Typography.Measure(sender, ChatListChrome.RowSubStyle);
-            Typography.Draw(drawList, new Vector2(cursor, top), sender, ink.BodyInk, ChatListChrome.RowSubStyle);
+                size.SubStyle);
+            var senderSize = Typography.Measure(sender, size.SubStyle);
+            Typography.Draw(drawList, new Vector2(cursor, top), sender, ink.BodyInk, size.SubStyle);
             cursor += senderSize.X;
             remaining = left + width - cursor;
         }
@@ -300,8 +302,8 @@ internal static class InboxRowView
 
         var preview = row.PreviewText.Length > 0 ? row.PreviewText : Loc.T(L.Linkpearl.NoMessagesYetPreview);
         Typography.Draw(drawList, new Vector2(cursor, top),
-            Typography.FitText(preview, remaining, ChatListChrome.RowSubStyle), ink.MutedInk,
-            ChatListChrome.RowSubStyle);
+            Typography.FitText(preview, remaining, size.SubStyle), ink.MutedInk,
+            size.SubStyle);
     }
 
     private static string FirstName(string name)

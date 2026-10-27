@@ -16,7 +16,7 @@ internal sealed class LiveJoinBar
 
     private const string FieldId = "##casinoLiveCode";
     private const string JoinId = "casino.live.join";
-    private const int BufferLength = 80;
+    private const int BufferLength = 200;
     private const float GlyphInset = 14f;
     private const float GlyphSize = 16f;
     private const float GlyphGap = 8f;
@@ -130,7 +130,7 @@ internal sealed class LiveJoinBar
         reason = string.Empty;
         if (kind == LiveJoinInput.Code)
         {
-            tables.JoinByCode(buffer);
+            tables.JoinByCode(CasinoChatCodes.TryFind(buffer, out var tagged) ? tagged : buffer);
             buffer = string.Empty;
             return;
         }

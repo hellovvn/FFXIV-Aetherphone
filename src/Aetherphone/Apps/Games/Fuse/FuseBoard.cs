@@ -230,6 +230,9 @@ internal sealed class FuseBoard
 
     public static Vector2 CellCenter(int cell) => new(ColumnOf(cell) + 0.5f, RowOf(cell) + 0.5f);
 
+    public static float PulseAfter(float seconds) =>
+        BasePulseHertz * seconds + PulseRampHertz * seconds * seconds * seconds / (3f * FuseSeconds * FuseSeconds);
+
     public static int CellAt(Vector2 position)
     {
         var column = Math.Clamp((int)MathF.Floor(position.X), 0, Columns - 1);

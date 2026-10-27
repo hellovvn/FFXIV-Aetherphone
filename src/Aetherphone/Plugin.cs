@@ -1,5 +1,6 @@
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
+using Aetherphone.Core.Campaigns;
 using Aetherphone.Core.Config;
 using Aetherphone.Core.Device;
 using Aetherphone.Core.Emoji;
@@ -34,38 +35,40 @@ namespace Aetherphone;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
-    [PluginService] internal static IDtrBar DtrBar { get; private set; } = null!;
-    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-    [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
-    [PluginService] internal static IClientState ClientState { get; private set; } = null!;
-    [PluginService] internal static IFramework Framework { get; private set; } = null!;
-    [PluginService] internal static ICondition Condition { get; private set; } = null!;
-    [PluginService] internal static IDutyState DutyState { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
-    [PluginService] internal static ITextureSubstitutionProvider TextureSubstitution { get; private set; } = null!;
-    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
-    [PluginService] internal static INamePlateGui NamePlateGui { get; private set; } = null!;
-    [PluginService] internal static IContextMenu ContextMenu { get; private set; } = null!;
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-    [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
-    [PluginService] internal static IUnlockState UnlockState { get; private set; } = null!;
-    [PluginService] internal static IGameInteropProvider InteropProvider { get; private set; } = null!;
-    [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
-    [PluginService] internal static IGamepadState GamepadState { get; private set; } = null!;
-    [PluginService] internal static IAetheryteList AetheryteList { get; private set; } = null!;
-    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
-    [PluginService] internal static IDragDropManager DragDrop { get; private set; } = null!;
-    internal static Plugin Instance { get; private set; } = null!;
-    internal static Configuration Cfg { get; private set; } = null!;
-    internal static FontService Fonts { get; private set; } = null!;
-    internal static WallpaperLibrary Wallpapers { get; private set; } = null!;
-    internal static LiveBackdrop LiveBackdrop { get; private set; } = null!;
-    internal static DeviceStatus Device { get; private set; } = null!;
-    internal static UpdateCheckService Updates { get; private set; } = null!;
-    internal static PhotoWindow PhotoWindow { get; private set; } = null!;
+    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; set; } = null!;
+    [PluginService] internal static ICommandManager CommandManager { get; set; } = null!;
+    [PluginService] internal static IDtrBar DtrBar { get; set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; set; } = null!;
+    [PluginService] internal static IObjectTable ObjectTable { get; set; } = null!;
+    [PluginService] internal static IClientState ClientState { get; set; } = null!;
+    [PluginService] internal static IFramework Framework { get; set; } = null!;
+    [PluginService] internal static ICondition Condition { get; set; } = null!;
+    [PluginService] internal static IDutyState DutyState { get; set; } = null!;
+    [PluginService] internal static ITextureProvider TextureProvider { get; set; } = null!;
+    [PluginService] internal static ITextureSubstitutionProvider TextureSubstitution { get; set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; set; } = null!;
+    [PluginService] internal static INamePlateGui NamePlateGui { get; set; } = null!;
+    [PluginService] internal static IContextMenu ContextMenu { get; set; } = null!;
+    [PluginService] internal static IPluginLog Log { get; set; } = null!;
+    [PluginService] internal static IGameConfig GameConfig { get; set; } = null!;
+    [PluginService] internal static IUnlockState UnlockState { get; set; } = null!;
+    [PluginService] internal static IGameInteropProvider InteropProvider { get; set; } = null!;
+    [PluginService] internal static IKeyState KeyState { get; set; } = null!;
+    [PluginService] internal static IGamepadState GamepadState { get; set; } = null!;
+    [PluginService] internal static IAetheryteList AetheryteList { get; set; } = null!;
+    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; set; } = null!;
+    [PluginService] internal static IDragDropManager DragDrop { get; set; } = null!;
+    internal static Plugin Instance { get; set; } = null!;
+    internal static Configuration Cfg { get; set; } = null!;
+    internal static FontService Fonts { get; set; } = null!;
+    internal static WallpaperLibrary Wallpapers { get; set; } = null!;
+    internal static DeviceStatus Device { get; set; } = null!;
+    internal static UpdateCheckService Updates { get; set; } = null!;
+    internal static PhotoWindow PhotoWindow { get; set; } = null!;
+    internal PhoneShell Shell => shell;
+    internal PhoneWindow MainWindow => phoneWindow;
+    internal AppInstaller Installer => services.Installer;
     private readonly WindowSystem windowSystem = new(AepConstants.Name);
     private readonly PhoneServices services;
     private readonly PhoneShell shell;
@@ -115,6 +118,7 @@ public sealed class Plugin : IDalamudPlugin
             Cfg.MigrateCharacterSessions();
             Cfg.MigrateEncryptionKeyStore();
             Cfg.MigrateHousingRefreshFloor();
+            Cfg.MigrateCallInputThreshold();
             Cfg.MigrateHomeLooks();
             Cfg.MigrateRetiredWallpapers();
             Cfg.MigrateWindowsMediaOptIn();
@@ -124,13 +128,14 @@ public sealed class Plugin : IDalamudPlugin
             Device = new DeviceStatus(ClientState, ObjectTable, DataManager);
             services = PhoneServices.Build(Cfg, ChatGui, DataManager, ObjectTable, ClientState, Framework, DutyState,
                 TextureProvider, PluginInterface.ConfigDirectory, UnlockState, Condition);
+            WireCampaignShell(services);
             FilePicker.ProblemReporter = message =>
                 services.Confirm.Alert(null, message, Loc.T(L.Common.Close));
             Fonts = new FontService(PluginInterface, Cfg, services.Loading, Cfg.TextZoom,
                 PhoneSizeCatalog.ZoomFor(Cfg.PhoneWidth));
             EmojiCatalog.Load();
             Wallpapers = services.Wallpapers;
-            LiveBackdrop = services.LiveBackdrop;
+            RealGlass.Initialize(PluginInterface, Log, Cfg);
             videoSuite = new VideoSuite(services, Cfg, ChatGui);
             services.SongResolver.Attach(videoSuite.Screen.Engine.Dependencies);
             Framework.Update += OnVideoFrameworkUpdate;
@@ -210,6 +215,7 @@ public sealed class Plugin : IDalamudPlugin
             };
             CommandManager.AddHandler(AepConstants.PrimaryCommand, primaryCommand);
             CommandManager.AddHandler(AepConstants.AliasCommand, new CommandInfo(OnCommand) { ShowInHelp = false });
+            PluginInterface.UiBuilder.Draw += RealGlass.BeginFrame;
             PluginInterface.UiBuilder.Draw += windowSystem.Draw;
             PluginInterface.UiBuilder.Draw += FilePicker.Draw;
             PluginInterface.UiBuilder.Draw += linkpearlHotkey.Tick;
@@ -242,6 +248,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void TearDownPartialConstruction()
     {
+        PluginInterface.UiBuilder.Draw -= RealGlass.BeginFrame;
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         PluginInterface.UiBuilder.Draw -= FilePicker.Draw;
         if (linkpearlHotkey is not null)
@@ -279,6 +286,7 @@ public sealed class Plugin : IDalamudPlugin
         serverBar?.Dispose();
         linkpearlPresence?.Dispose();
         windowSystem.RemoveAllWindows();
+        RealGlass.Dispose();
         videoDebugWindow?.Dispose();
         videoSuite?.Dispose();
         DxHandler.Dispose();
@@ -290,6 +298,7 @@ public sealed class Plugin : IDalamudPlugin
         Updates?.Dispose();
         shell?.Dispose();
         screenshotImport?.Dispose();
+        CampaignShellBridge.Clear();
         services?.Dispose();
         Device?.Dispose();
         Windows.Components.AppIconCache.Dispose();
@@ -405,6 +414,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        PluginInterface.UiBuilder.Draw -= RealGlass.BeginFrame;
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         PluginInterface.UiBuilder.Draw -= FilePicker.Draw;
         PluginInterface.UiBuilder.Draw -= linkpearlHotkey.Tick;
@@ -427,6 +437,7 @@ public sealed class Plugin : IDalamudPlugin
         linkpearlPopouts.Dispose();
         messagePopouts.Dispose();
         windowSystem.RemoveAllWindows();
+        RealGlass.Dispose();
         videoDebugWindow.Dispose();
         videoSuite.Dispose();
         DxHandler.Dispose();
@@ -438,6 +449,7 @@ public sealed class Plugin : IDalamudPlugin
         screenshotImport.Dispose();
         Updates.Dispose();
         shell.Dispose();
+        CampaignShellBridge.Clear();
         services.Dispose();
         Device.Dispose();
         Windows.Components.AppIconCache.Dispose();
@@ -463,6 +475,14 @@ public sealed class Plugin : IDalamudPlugin
     public static void RefreshServerBar()
     {
         Instance?.serverBar?.Refresh();
+    }
+
+    private static void WireCampaignShell(PhoneServices phoneServices)
+    {
+        CampaignShellBridge.UseIconOverride = Windows.Components.AppIconCache.TryUseOverride;
+        CampaignShellBridge.ClearIconOverride = Windows.Components.AppIconCache.ClearOverride;
+        CampaignShellBridge.HoldNight = phoneServices.WeatherControl.HoldTime;
+        CampaignShellBridge.ReleaseNight = phoneServices.WeatherControl.ReleaseTime;
     }
 
     private static void InitializeLocalization()

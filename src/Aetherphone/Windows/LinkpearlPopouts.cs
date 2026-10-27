@@ -10,6 +10,7 @@ using Aetherphone.Core.Runtime;
 using Aetherphone.Core.Theme;
 using Aetherphone.Core.Wallpapers;
 using Aetherphone.Windows.Components;
+using Dalamud.Bindings.ImGui;
 
 namespace Aetherphone.Windows;
 
@@ -516,7 +517,7 @@ internal sealed class LinkpearlPopouts : IDisposable
         }
 
         inbox.Sync();
-        if (configuration.LinkpearlPopoutTellsInBackground)
+        if (configuration.LinkpearlPopoutTellsInBackground || ImGui.GetIO().WantTextInput)
         {
             OpenInBackground(entry.StreamKey);
             return;

@@ -82,6 +82,7 @@ internal sealed class ShellTransitionRenderer
         }
 
         var overTransform = LayerTransform.Translate(overOffset, screen);
+        using var glassPlacement = RealGlass.Transform(in overTransform);
         using var overLayer = OpenScreen(over.Id, screen, in overTransform);
         painter.PaintApp(screen, screenRadius, theme, over);
         overLayer.Transform(in overTransform);
@@ -107,6 +108,7 @@ internal sealed class ShellTransitionRenderer
         StatusBarAlpha = MathF.Max(1f - homeMotion.Recession, Easing.Segment(raw, VeilFadeEnd, 1f));
         using (var homeLayer = ScreenLayer.Begin(ShellScreenPainter.HomeLayerId, screen, true))
         {
+            using var homeGlassPlacement = RealGlass.Transform(in homeTransform);
             painter.PaintHome(screen, screenRadius, theme, homeMotion);
             homeLayer.Veil(ImGui.GetColorU32(new Vector4(0f, 0f, 0f, TransitionTiming.HomeRecedeDim * raw)));
             homeLayer.Transform(in homeTransform);
@@ -135,6 +137,7 @@ internal sealed class ShellTransitionRenderer
         var appTransform = LayerTransform.Fit(screen, card, card, surfaceFade);
         using (var appLayer = OpenScreen(over.Id, screen, in appTransform))
         {
+            using var appGlassPlacement = RealGlass.Transform(in appTransform);
             painter.PaintApp(screen, screenRadius, theme, over);
             appLayer.Transform(in appTransform);
         }

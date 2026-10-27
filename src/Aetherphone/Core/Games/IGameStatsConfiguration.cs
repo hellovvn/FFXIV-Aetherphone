@@ -5,6 +5,7 @@ internal interface IGameStatsConfiguration
     List<GameStatRecord> GameStats { get; }
     List<GameModeChoice> GameModeChoices { get; }
     List<GameLevelProgress> GameLevelProgress { get; }
+    List<string> GameGuidesSeen { get; }
     int DailyChallengeStreak { get; set; }
     int DailyChallengeLastDay { get; set; }
     ulong DailyChallengeHistory { get; set; }

@@ -1,4 +1,5 @@
 using Aetherphone.Core;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Media;
 using Aetherphone.Core.Photos;
@@ -19,18 +20,27 @@ internal sealed class CommentAttachment
 
     private readonly ImageIntake intake = new();
     private string? path;
+    private GifPick? gif;
     private bool panelOpen;
     private string[] pickerPaths = Array.Empty<string>();
+    private PhotoLibraryWatch libraryWatch;
     private string notice = string.Empty;
     private string? pendingImport;
 
     public string? Path => path;
 
+    public GifPick? Gif => gif;
+
+    public bool HasAttachment => path is not null || gif is not null;
+
     public Action<ImDrawListPtr, Vector2, float, Vector4>? IconPainter { get; set; }
+
+    public Action? SearchGifs { get; set; }
 
     public void Clear()
     {
         path = null;
+        gif = null;
         panelOpen = false;
         notice = string.Empty;
         intake.Discard();
@@ -39,6 +49,15 @@ internal sealed class CommentAttachment
     public void Restore(string restoredPath)
     {
         path = restoredPath;
+        gif = null;
+    }
+
+    public void AttachGif(GifPick picked)
+    {
+        gif = picked;
+        path = null;
+        panelOpen = false;
+        notice = string.Empty;
     }
 
     public void ClosePanel()
@@ -48,7 +67,7 @@ internal sealed class CommentAttachment
 
     public float StripHeight(float scale)
     {
-        return path is null ? 0f : StripHeightUnits * scale;
+        return HasAttachment ? StripHeightUnits * scale : 0f;
     }
 
     public void ConsumePendingImport()
@@ -82,7 +101,7 @@ internal sealed class CommentAttachment
         var min = center - new Vector2(radius, radius);
         var max = center + new Vector2(radius, radius);
         var hovered = UiInteract.Hover(min, max);
-        var color = panelOpen || path is not null ? activeColor : hovered ? ui.Theme.TextStrong : idleColor;
+        var color = panelOpen || HasAttachment ? activeColor : hovered ? ui.Theme.TextStrong : idleColor;
         if (IconPainter is { } painter)
         {
             painter(ImGui.GetWindowDrawList(), center, radius, color);
@@ -107,15 +126,16 @@ internal sealed class CommentAttachment
         panelOpen = !panelOpen;
         if (panelOpen)
         {
+            libraryWatch.Mark(library);
             pickerPaths = library.List();
             notice = string.Empty;
             emoji.Close();
         }
     }
 
-    public void DrawStrip(Rect strip, PhoneTheme theme, WallpaperImageCache wallpaperImages)
+    public void DrawStrip(Rect strip, PhoneTheme theme, WallpaperImageCache wallpaperImages, RemoteImageCache images)
     {
-        if (path is null)
+        if (!HasAttachment)
         {
             return;
         }
@@ -140,7 +160,9 @@ internal sealed class CommentAttachment
         var min = new Vector2(strip.Min.X + 12f * scale, strip.Min.Y + pad);
         var max = min + new Vector2(tile, tile);
         var rounding = 8f * scale;
-        var texture = wallpaperImages.Get(path);
+        var texture = gif is { } picked
+            ? images.SizedAt(picked.Item.PreviewUrl, tile, ImGui.GetTime())
+            : wallpaperImages.Get(path!);
         if (texture is null)
         {
             Squircle.Fill(drawList, min, max, rounding, ImGui.GetColorU32(theme.SurfaceMuted));
@@ -152,7 +174,7 @@ internal sealed class CommentAttachment
                 ImDrawFlags.RoundCornersAll);
         }
 
-        if (GifMedia.IsGif(path))
+        if (gif is not null || GifMedia.IsGif(path))
         {
             var label = Typography.Measure("GIF", TextStyles.FootnoteEmphasized);
             Typography.Draw(drawList, new Vector2(max.X + 8f * scale, (min.Y + max.Y - label.Y) * 0.5f), "GIF",
@@ -175,6 +197,7 @@ internal sealed class CommentAttachment
         if (UiInteract.Click(badgeMin, badgeMax, badgeHovered))
         {
             path = null;
+            gif = null;
         }
     }
 
@@ -186,10 +209,15 @@ internal sealed class CommentAttachment
             return;
         }
 
+        if (libraryWatch.Changed(library))
+        {
+            pickerPaths = library.List();
+        }
+
         UiInteract.HoverOverlay(panel);
         var scale = UiScale.Current;
         ImGui.SetCursorScreenPos(panel.Min);
-        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, Vector2.Zero))
+        using (UiScope.PushStyle(ImGuiStyleVar.WindowPadding, Vector2.Zero))
         using (var host = ImRaii.Child("##commentPhotoPanel", panel.Size, false,
                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground))
         {
@@ -206,8 +234,22 @@ internal sealed class CommentAttachment
 
             var pad = 10f * scale;
             var importHeight = 34f * scale;
-            var importRect = new Rect(new Vector2(panel.Min.X + pad, panel.Min.Y + pad),
-                new Vector2(panel.Max.X - pad, panel.Min.Y + pad + importHeight));
+            var buttonsTop = panel.Min.Y + pad;
+            if (SearchGifs is { } searchGifs)
+            {
+                var gifRect = new Rect(new Vector2(panel.Min.X + pad, buttonsTop),
+                    new Vector2(panel.Max.X - pad, buttonsTop + importHeight));
+                if (DrawPill(drawList, gifRect, Loc.T(L.Gifs.Search), ui, theme))
+                {
+                    panelOpen = false;
+                    searchGifs();
+                }
+
+                buttonsTop = gifRect.Max.Y + Metrics.Space.Sm * scale;
+            }
+
+            var importRect = new Rect(new Vector2(panel.Min.X + pad, buttonsTop),
+                new Vector2(panel.Max.X - pad, buttonsTop + importHeight));
             var canPaste = intake.OfferPaste(ref importRect, out var pasteRect);
             if (DrawPill(drawList, importRect, Loc.T(L.Common.ImportFromPc), ui, theme))
             {
@@ -335,6 +377,7 @@ internal sealed class CommentAttachment
         }
 
         path = picked;
+        gif = null;
         panelOpen = false;
         notice = string.Empty;
     }

@@ -152,7 +152,7 @@ internal static class LiveBoard
 
     public static LiveJoinInput Classify(string buffer)
     {
-        if (CasinoRoomCodes.IsCode(buffer))
+        if (CasinoRoomCodes.IsCode(buffer) || CasinoChatCodes.TryFind(buffer, out _))
         {
             return LiveJoinInput.Code;
         }

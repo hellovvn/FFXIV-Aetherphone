@@ -1,4 +1,5 @@
 using Aetherphone.Core.Aethernet.Contracts;
+using Aetherphone.Core.Social;
 
 namespace Aetherphone.Apps.Polls;
 
@@ -105,70 +106,25 @@ internal static class PollRules
 
     public static int LeaderCount(PollDto poll, bool[] leaders)
     {
-        var best = 0;
-        for (var index = 0; index < poll.Options.Length; index++)
-        {
-            best = Math.Max(best, CountAt(poll, index));
-        }
-
-        var count = 0;
-        for (var index = 0; index < leaders.Length; index++)
-        {
-            leaders[index] = best > 0 && index < poll.Options.Length && CountAt(poll, index) == best;
-            if (leaders[index])
-            {
-                count++;
-            }
-        }
-
-        return count;
+        Span<int> counts = stackalloc int[poll.Options.Length];
+        FillCounts(poll, counts);
+        return VoteShares.Leaders(counts, leaders);
     }
 
     public static void Percentages(PollDto poll, int[] percents)
     {
         Array.Clear(percents);
-        var total = 0;
         var optionCount = Math.Min(poll.Options.Length, percents.Length);
-        for (var index = 0; index < optionCount; index++)
+        Span<int> counts = stackalloc int[optionCount];
+        FillCounts(poll, counts);
+        VoteShares.Percentages(counts, percents.AsSpan(0, optionCount));
+    }
+
+    private static void FillCounts(PollDto poll, Span<int> counts)
+    {
+        for (var index = 0; index < counts.Length; index++)
         {
-            total += CountAt(poll, index);
-        }
-
-        if (total <= 0)
-        {
-            return;
-        }
-
-        var assigned = 0;
-        for (var index = 0; index < optionCount; index++)
-        {
-            percents[index] = CountAt(poll, index) * 100 / total;
-            assigned += percents[index];
-        }
-
-        Span<bool> rounded = stackalloc bool[optionCount];
-        while (assigned < 100)
-        {
-            var bestIndex = -1;
-            var bestRemainder = 0;
-            for (var index = 0; index < optionCount; index++)
-            {
-                var remainder = CountAt(poll, index) * 100 % total;
-                if (!rounded[index] && remainder > bestRemainder)
-                {
-                    bestRemainder = remainder;
-                    bestIndex = index;
-                }
-            }
-
-            if (bestIndex < 0)
-            {
-                return;
-            }
-
-            rounded[bestIndex] = true;
-            percents[bestIndex]++;
-            assigned++;
+            counts[index] = CountAt(poll, index);
         }
     }
 }

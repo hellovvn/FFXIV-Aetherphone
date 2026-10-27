@@ -104,7 +104,7 @@ A window re-targets one `GameChatThread` on a tab switch instead of keeping one 
 | Pop up new tells while the phone is closed | On | Not while paused, in Do Not Disturb, for a muted tell, or when already open |
 | Pop up tells you send too | On | |
 | Also while the phone is open | Off | Not when the phone already shows that tell |
-| Pop up new tells without switching to them | Off | Adds an unread tab, or raises a window without taking focus |
+| Pop up new tells without switching to them | Off | Adds an unread tab, or raises a window without taking focus; a tell that lands while a text field has focus always opens this way |
 | Close pop-outs when you log out | Off | |
 | Placement | Beside the phone | Or a screen corner; a new window reuses the spot of the last one closed |
 | Fade while you are away from it, Flash the bar on a new message | On | Window opacity, idle opacity and text size are sliders next to them |

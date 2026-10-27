@@ -18,8 +18,8 @@ internal sealed class HttpService : IDisposable
     private static readonly TimeSpan UploadTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan DefaultRateLimitPause = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan MaxRateLimitPause = TimeSpan.FromSeconds(30);
-    private const int EdgeShedRetryMinMilliseconds = 750;
-    private const int EdgeShedRetryMaxMilliseconds = 2000;
+    private const int RetryDelayMinMilliseconds = 750;
+    private const int RetryDelayMaxMilliseconds = 2000;
     private readonly HttpClient client;
     private readonly AethernetClientIdentity? identity;
     private readonly EtagCache etagCache = new();
@@ -111,7 +111,7 @@ internal sealed class HttpService : IDisposable
     {
         if (IsPaused(uri))
         {
-            AepLog.Debug($"HTTP GET {uri} skipped; {uri.Host} is rate limit paused");
+            AepLog.Debug($"HTTP GET {LogUrl.Of(uri)} skipped; {uri.Host} is rate limit paused");
             Report(onFailure, AepFailure.Transport(AepFailureKind.RateLimitPaused));
             return null;
         }
@@ -135,16 +135,22 @@ internal sealed class HttpService : IDisposable
                     return null;
                 }
 
+                if (TransientFailures.IsGatewayStatus(response.StatusCode) && attempt < MaxAttempts)
+                {
+                    await BackOffAsync(attempt, null, token).ConfigureAwait(false);
+                    continue;
+                }
+
                 if (!response.IsSuccessStatusCode)
                 {
                     var failure = await DescribeAsync(response, scope.Token).ConfigureAwait(false);
                     if (expectNotFound && response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        AepLog.Debug($"HTTP GET {uri} returned {failure.Describe()}");
+                        AepLog.Debug($"HTTP GET {LogUrl.Of(uri)} returned {failure.Describe()}");
                     }
                     else
                     {
-                        AepLog.Warning($"HTTP GET {uri} returned {failure.Describe()}");
+                        AepLog.Warning($"HTTP GET {LogUrl.Of(uri)} returned {failure.Describe()}");
                     }
 
                     Report(onFailure, failure);
@@ -161,7 +167,7 @@ internal sealed class HttpService : IDisposable
             {
                 if (attempt == MaxAttempts)
                 {
-                    AepLog.Warning(exception, $"HTTP GET failed for {uri}");
+                    AepLog.Warning(exception, $"HTTP GET failed for {LogUrl.Of(uri)}");
                     Report(onFailure, ClassifyException(exception, token));
                     return null;
                 }
@@ -229,7 +235,7 @@ internal sealed class HttpService : IDisposable
             using var response = await client.SendAsync(request, scope.Token).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                AepLog.Warning($"HTTP PUT {uri} was rate limited");
+                AepLog.Warning($"HTTP PUT {LogUrl.Of(uri)} was rate limited");
                 Report(onFailure, await DescribeAsync(response, scope.Token).ConfigureAwait(false));
                 return false;
             }
@@ -242,7 +248,7 @@ internal sealed class HttpService : IDisposable
         }
         catch (Exception exception)
         {
-            AepLog.Warning(exception, $"HTTP PUT failed for {uri}");
+            AepLog.Warning(exception, $"HTTP PUT failed for {LogUrl.Of(uri)}");
             Report(onFailure, ClassifyException(exception, token));
             return false;
         }
@@ -255,7 +261,7 @@ internal sealed class HttpService : IDisposable
         using var request = new HttpRequestMessage(method, url);
         if (IsPollingPaused(request))
         {
-            AepLog.Debug($"HTTP {method} {url} skipped; host is rate limit paused");
+            AepLog.Debug($"HTTP {method} {LogUrl.Of(url)} skipped; host is rate limit paused");
             onStatus?.Invoke(RateLimitedStatus);
             Report(onFailure, AepFailure.Transport(AepFailureKind.RateLimitPaused));
             return false;
@@ -284,7 +290,7 @@ internal sealed class HttpService : IDisposable
         }
         catch (Exception exception)
         {
-            AepLog.Warning(exception, $"HTTP {method} failed for {url}");
+            AepLog.Warning(exception, $"HTTP {method} failed for {LogUrl.Of(url)}");
             Report(onFailure, ClassifyException(exception, token));
             return false;
         }
@@ -296,7 +302,7 @@ internal sealed class HttpService : IDisposable
         using var request = new HttpRequestMessage(method, url);
         if (IsPollingPaused(request))
         {
-            AepLog.Debug($"HTTP {method} {url} skipped; host is rate limit paused");
+            AepLog.Debug($"HTTP {method} {LogUrl.Of(url)} skipped; host is rate limit paused");
             onStatus?.Invoke(RateLimitedStatus);
             Report(onFailure, AepFailure.Transport(AepFailureKind.RateLimitPaused));
             return false;
@@ -323,7 +329,7 @@ internal sealed class HttpService : IDisposable
         }
         catch (Exception exception)
         {
-            AepLog.Warning(exception, $"HTTP {method} failed for {url}");
+            AepLog.Warning(exception, $"HTTP {method} failed for {LogUrl.Of(url)}");
             Report(onFailure, ClassifyException(exception, token));
             return false;
         }
@@ -346,11 +352,11 @@ internal sealed class HttpService : IDisposable
 
     private async Task<T?> SendForJsonAsync<T>(HttpRequestMessage request, JsonTypeInfo<T> typeInfo, string? bearer,
         Action<int>? onStatus, string? appScope, CancellationToken token, Action<AepFailure>? onFailure = null,
-        bool rawAuthorization = false, bool retriedAfterEdgeShed = false)
+        bool rawAuthorization = false, bool retried = false)
     {
         if (IsPollingPaused(request))
         {
-            AepLog.Debug($"HTTP {request.Method} {request.RequestUri} skipped; host is rate limit paused");
+            AepLog.Debug($"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} skipped; host is rate limit paused");
             onStatus?.Invoke(RateLimitedStatus);
             Report(onFailure, AepFailure.Transport(AepFailureKind.RateLimitPaused));
             return default;
@@ -372,17 +378,11 @@ internal sealed class HttpService : IDisposable
         {
             using var scope = TimeoutScope(token, RequestTimeout);
             using var response = await client.SendAsync(request, scope.Token).ConfigureAwait(false);
-            if (ShouldRetryAfterEdgeShed(request, response, retriedAfterEdgeShed))
+            if (ShouldRetry(request, response, retried))
             {
-                await Task.Delay(EdgeShedRetryDelay(), token).ConfigureAwait(false);
-                using var retry = new HttpRequestMessage(request.Method, request.RequestUri);
-                foreach (var product in request.Headers.UserAgent)
-                {
-                    retry.Headers.UserAgent.Add(product);
-                }
-
-                return await SendForJsonAsync(retry, typeInfo, bearer, onStatus, appScope, token, onFailure,
-                    rawAuthorization, retriedAfterEdgeShed: true).ConfigureAwait(false);
+                AepLog.Debug($"HTTP GET {LogUrl.Of(request.RequestUri)} returned {(int)response.StatusCode}; trying once more");
+                return await RetryForJsonAsync(request, typeInfo, bearer, onStatus, appScope, token, onFailure,
+                    rawAuthorization).ConfigureAwait(false);
             }
 
             onStatus?.Invoke((int)response.StatusCode);
@@ -401,7 +401,7 @@ internal sealed class HttpService : IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 var failure = await DescribeAsync(response, scope.Token).ConfigureAwait(false);
-                AepLog.Warning($"HTTP {request.Method} {request.RequestUri} returned {failure.Describe()}"
+                AepLog.Warning($"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} returned {failure.Describe()}"
                     + (string.IsNullOrEmpty(failure.ServerMessage) ? string.Empty : $": {failure.ServerMessage}"));
                 Report(onFailure, failure);
                 return default;
@@ -422,7 +422,7 @@ internal sealed class HttpService : IDisposable
             var bound = await JsonSerializer.DeserializeAsync(stream, typeInfo, scope.Token).ConfigureAwait(false);
             if (bound is null)
             {
-                AepLog.Warning($"HTTP {request.Method} {request.RequestUri} returned a body that bound to nothing");
+                AepLog.Warning($"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} returned a body that bound to nothing");
                 Report(onFailure, AepFailure.Transport(AepFailureKind.BadResponse));
             }
 
@@ -434,16 +434,38 @@ internal sealed class HttpService : IDisposable
         }
         catch (JsonException exception)
         {
-            AepLog.Warning(exception, $"HTTP {request.Method} {request.RequestUri} returned an unreadable body");
+            AepLog.Warning(exception, $"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} returned an unreadable body");
             Report(onFailure, AepFailure.Transport(AepFailureKind.BadResponse));
             return default;
         }
+        catch (Exception exception) when (!retried && request.Method == HttpMethod.Get
+            && TransientFailures.IsDroppedConnection(exception))
+        {
+            AepLog.Debug(exception, $"HTTP GET {LogUrl.Of(request.RequestUri)} lost its connection; trying once more");
+            return await RetryForJsonAsync(request, typeInfo, bearer, onStatus, appScope, token, onFailure,
+                rawAuthorization).ConfigureAwait(false);
+        }
         catch (Exception exception)
         {
-            AepLog.Warning(exception, $"HTTP {request.Method} failed for {request.RequestUri}");
+            AepLog.Warning(exception, $"HTTP {request.Method} failed for {LogUrl.Of(request.RequestUri)}");
             Report(onFailure, ClassifyException(exception, token));
             return default;
         }
+    }
+
+    private async Task<T?> RetryForJsonAsync<T>(HttpRequestMessage request, JsonTypeInfo<T> typeInfo, string? bearer,
+        Action<int>? onStatus, string? appScope, CancellationToken token, Action<AepFailure>? onFailure,
+        bool rawAuthorization)
+    {
+        await Task.Delay(RetryDelay(), token).ConfigureAwait(false);
+        using var retry = new HttpRequestMessage(request.Method, request.RequestUri);
+        foreach (var product in request.Headers.UserAgent)
+        {
+            retry.Headers.UserAgent.Add(product);
+        }
+
+        return await SendForJsonAsync(retry, typeInfo, bearer, onStatus, appScope, token, onFailure,
+            rawAuthorization, retried: true).ConfigureAwait(false);
     }
 
     public static string NewRequestId()
@@ -514,7 +536,7 @@ internal sealed class HttpService : IDisposable
     {
         if (request.Method != HttpMethod.Get)
         {
-            AepLog.Warning($"HTTP {request.Method} {request.RequestUri} was rate limited");
+            AepLog.Warning($"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} was rate limited");
             return;
         }
 
@@ -530,7 +552,7 @@ internal sealed class HttpService : IDisposable
         }
 
         var failure = await DescribeAsync(response, token).ConfigureAwait(false);
-        AepLog.Warning($"HTTP {request.Method} {request.RequestUri} returned {failure.Describe()}"
+        AepLog.Warning($"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} returned {failure.Describe()}"
             + (string.IsNullOrEmpty(failure.ServerMessage) ? string.Empty : $": {failure.ServerMessage}"));
         Report(onFailure, failure);
         return false;
@@ -543,7 +565,7 @@ internal sealed class HttpService : IDisposable
             return true;
         }
 
-        AepLog.Warning($"HTTP {request.Method} {request.RequestUri} returned {(int)response.StatusCode}");
+        AepLog.Warning($"HTTP {request.Method} {LogUrl.Of(request.RequestUri)} returned {(int)response.StatusCode}");
         return false;
     }
 
@@ -552,15 +574,15 @@ internal sealed class HttpService : IDisposable
         return response.StatusCode == HttpStatusCode.TooManyRequests && response.Headers.RetryAfter is null;
     }
 
-    private static bool ShouldRetryAfterEdgeShed(HttpRequestMessage request, HttpResponseMessage response,
-        bool alreadyRetried)
+    private static bool ShouldRetry(HttpRequestMessage request, HttpResponseMessage response, bool alreadyRetried)
     {
-        return !alreadyRetried && request.Method == HttpMethod.Get && IsEdgeShed(response);
+        return !alreadyRetried && request.Method == HttpMethod.Get
+            && (IsEdgeShed(response) || TransientFailures.IsGatewayStatus(response.StatusCode));
     }
 
-    private static TimeSpan EdgeShedRetryDelay()
+    private static TimeSpan RetryDelay()
     {
-        return TimeSpan.FromMilliseconds(Random.Shared.Next(EdgeShedRetryMinMilliseconds, EdgeShedRetryMaxMilliseconds));
+        return TimeSpan.FromMilliseconds(Random.Shared.Next(RetryDelayMinMilliseconds, RetryDelayMaxMilliseconds));
     }
 
     private void PauseHost(Uri? uri, HttpResponseMessage response)

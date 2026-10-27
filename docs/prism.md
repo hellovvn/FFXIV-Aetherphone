@@ -1,0 +1,146 @@
+# Prism
+
+Prism is the phone's glamour app: a library of glams people share, a weekly contest that runs on the same glams, and a private wardrobe for your own outfits. Modded glams come first and vanilla glams sit alongside them, marked on each glam's own page. Prism never hosts a mod file: a glam names its mods and links to where they live.
+
+## The glam
+
+A glam is one outfit with up to four portrait (3:4) photos. Everything about the outfit is captured from the game when the photo is taken, not typed by the poster.
+
+| Part | Where it comes from |
+| --- | --- |
+| Gear per slot (item id, two dyes) | Glamourer's current state when Glamourer is on (`Core/Glamour/GlamourerDesign.cs`), otherwise the equipped glamour (`Core/Glamour/EquippedOutfit.cs`) |
+| Race and body type | Glamourer's state, otherwise the character |
+| Mods per slot (name, author, version, link, picked options) | Penumbra, through `Core/Glamour/GlamourService.Capture` |
+| Character mods (body, face, hair) | The same capture, on slot `-1` |
+| Vanilla stamp | No mods on any slot |
+| Owned pieces ("You own 7", and per piece "You have this one") | Bags, armoury, glamour dresser and armoire on the viewer's side (`OwnedItems`) |
+
+### How mods are attributed
+
+`Penumbra.GetPlayerResourcePaths.V5` lists every file the player's character draws, as the path on disk and the game paths it replaces. A file under Penumbra's mod directory belongs to the mod folder it sits in. Its game paths name the slot: `chara/equipment/...` and `chara/accessory/...` files carry a slot token (`_met`, `_top`, `_glv`, `_dwn`, `_sho`, `_ear`, `_nek`, `_wrs`, `_rir`, `_ril`), and `chara/weapon/...` is the main hand. Anything else (body, face, hair, skin) goes on slot `-1`. The mod's name, author, version and website come from Penumbra's mod list and the mod's own `meta.json`; the picked options come from `Penumbra.GetCurrentModSettingsWithTemp` for the player's collection, so a mod switched on temporarily (by Prism or by an unlocked temporary setting) keeps the options it is drawn with; Penumbra builds without that call fall back to `Penumbra.GetCurrentModSettings.V5`. Groups with nothing picked are kept, so they come back empty instead of on their defaults. Saving a wardrobe outfit reads the options again for every mod added to it in that edit, so the outfit keeps what was on when it was saved.
+
+### Trying a glam on
+
+Try on is a vanilla glam's one filled button, at the right end of the row under the photo; it pins to the top with Back when the page scrolls. A modded glam has no Try on, and its pieces have no Try on piece, since trying on can't reproduce the poster's mods; its More menu still has Add to wardrobe. Once the glam is on, a short refraction plays over the photo and the same button turns into Take it off, so trying on and taking off never move the pointer. The shirt button beside it adds the glam to the wardrobe; once saved it fills in and opens the saved outfit. With Glamourer, Try on sets each slot with `Glamourer.SetItem.V3` (once, equipment only). Putting on a saved outfit that carries mods, including one kept as a Glamourer design, also switches on the ones the viewer has installed with `Penumbra.SetTemporaryModSettingsPlayer.V5`, with the saved options. An installed mod matches by its listed name or folder name, or, for a renamed or edited copy, by the same website in its `meta.json` plus a name that starts with the other (`ModAttribution`, with the website list read off the draw thread in `ModLinkIndex`); Penumbra's mod added, deleted and moved events refresh a glam's Installed marks while its page is open. Nothing in the viewer's collections changes. The try on stays on while the viewer browses or leaves the phone (a Wearing bar above Prism's tabs takes it off), and comes off when the plugin unloads. Taking it off puts back the Glamourer state saved just before the first try on (falling back to `Glamourer.RevertState`), so a look the viewer had on survives, and drops the temporary settings with `Penumbra.RemoveAllTemporaryModSettingsPlayer.V5` under Prism's own key. Without Glamourer, Try on falls back to the game's own Try On window for each item, with its dyes.
+
+### Mod links
+
+A link is clickable only when it is `https` on an allowed host: `xivmodarchive.com`, `heliosphere.app`, `patreon.com`, `ko-fi.com`, `gumroad.com` and `*.carrd.co` (`Core/Glamour/ModLinks.cs`). Any other link shows as plain text, and the server applies the same list by dropping it when the glam is posted. A mod that is 18+ can't be linked at all, and every glam has to be safe for work as shown.
+
+### What the client adds on its own
+
+- Owned pieces count the bags, armoury, glamour dresser and armoire (`Core/Glamour/OwnedItems.cs`). The dresser and armoire only count once the player has opened them this session, and the glam page says so; until then a piece the client can't find shows a hollow ring, and its card says Open your dresser to check.
+- The chip at the bottom left of a glam's photo ("7 pieces") opens its pieces layer: the photo dims and the outfit's item icons run down the right edge, head to feet, with accessories, weapons and mods each grouped into one tile. A tile opens a card with the piece's dyes, whether you own it, Try on piece (not on a modded glam) and, unless you own it, Check market. Tapping the photo or Back closes the layer.
+- An item's page shows whether you own it, its gil vendor price and a market board link, from the phone's market index. The server only sends the glam count and what the item is worn with.
+- Search, behind the magnifier at the top right of Discover, matches tradable gear by name through the market index and opens that item's glams, so untradable pieces are only reachable from a glam that uses them. A single word or `#text` also offers that tag, with a strip of its first three glams under it. While typing, a People section on top lists up to three Prism profiles from `GET /users/search?q=`, sent with `X-Aep-App: prism` so it matches and returns Prism names, handles and pictures; a leading `@` searches people only and lists every match, and a row opens that person's profile.
+- Discover filters its feed from a row of icons under the New, Popular and Following tabs: Fits me, race, male, female, modded and vanilla. An icon fills while its filter is on, and hovering it names the filter (the race icon names the chosen race). Fits me sets race and gender from the character you are wearing; changing either one by hand turns Fits me off and keeps the other. Male and female exclude each other, as do modded and vanilla. Under the filters, a carousel of eight random glams from the unfiltered Popular feed (New when Popular is empty) swipes sideways, picked once each time the app opens and ignoring the feed filters (a glam you delete leaves it at once); a card opens its glam, and the contest row and the explore grid follow below it.
+- Without Penumbra the glam page says mods need it; without Glamourer a vanilla glam's page says Try on uses the game's window.
+- Posting asks for Modded or Vanilla and for the race and gender in the photo, with nothing preselected, since people post from alts and imported screenshots. Post waits for all three and a title, and a vanilla post needs at least one piece. Pieces and dyes work like the wardrobe's outfit editor: added one at a time, filled with Fill from what I'm wearing, or filled with Fill from wardrobe, which copies a saved outfit's pieces and dyes and, unless the post is vanilla, its gear mods with their saved options (never its character mods). An outfit's page in the wardrobe has a Post a glam button that starts a post from that outfit: its pieces, dyes and gear mods are filled in, Modded is picked when it has gear mods (otherwise Modded or Vanilla stays open), and its cover photo, if it has one, is the first photo. A modded post adds mods by name or through Pick from my mods, a checklist of the gear mods the character has on (character mods such as body, face or skin are left out) with nothing ticked. Photos can also be dropped or pasted onto the photo step. The glam page names the race next to the gender mark. Edit, in the More menu of your own glam, reopens the same details screen filled from the glam: title, tags, body, pieces and mods change, and Modded or Vanilla stays as posted. A glam from the library can swap its photos with Change photo, which opens the same photo step; a glam published from a contest entry keeps the photo that was judged and says so under it.
+- A profile opens on a cover photo: the banner glam the player picked, cropped where they dragged it, or else their best placed glam, then their most tried on one. Its stats line, best podium placing and Glams, Saved (your own) and Placings tabs sit under it; placed glams show as photo tiles labelled with the week they placed in. Other players' profiles have Follow and a More button with Report user. Prism has its own identity, as Chirper, Aethergram and Velvet do: your name, `@handle`, bio and picture come from `GET /me` sent with `X-Aep-App: prism`, which falls back to the account identity until a Prism profile is set, and Prism never reads the account or Aethergram identity itself. The pencil on your profile opens Edit profile in the app: a picture picked and cropped square from the phone's photos (uploaded with the `avatar` media scope), display name, username and bio, and the banner (one of your glams with its crop, or Automatic), all saved with one `PATCH /me` under the same header. The banner travels as `bannerGlam: { glamId, focusX, focusY }`, sent only when it changed; an empty `glamId` means automatic and the focus runs 0 to 1 like CSS `object-position`. `GET /me` returns it, and so does the `user` on another player's profile, along with their `bio`.
+- This week is one screen lit with the week's own colours: the crystal mark, the theme and its brief centered, the phase's deadline as a large countdown (heats judged and the judge reward under it while judging), and a timeline of entries, judging, final and results with the current phase lit in the spectrum. Under it sit a Modded and a Vanilla card side by side (one card when the week has no tracks), last week's podium per track as three ranked photos, and a What winners get button. Each card shows a real glam so the two tracks read at a glance: your own entry on that track, else the track's latest winner, else a popular glam of that kind from the library (credited under the card), else the week's colours. Tapping a card runs the phase's action for that track (enter, your entry, judge, the results); your entry's status and the track's rules sit under it. The trophy at the top opens last week's winners (All glams once this week's results are out), next to Rewards and How it works. Entry counts are not shown, so a quiet week doesn't put anyone off entering.
+- Saved outfits in the wardrobe show their photo, or the prism logo with an add photo icon, and open on the same pieces layer as a glam. A search field under the header filters them by name, together with the All and Favourites chips. Select, in the wardrobe's More menu, turns the grid into a checklist with Select all (everything the search and chip show) and a Delete button that removes the picked outfits in one go after a confirm; Glamourer designs stay in Glamourer. An outfit's page has the glam page's action row, star and pencil on the left and Put it on or Take it off on the right, and it pins to the top with Back when the page scrolls.
+- How it works shows once on first open (and again whenever `GuideVersion` rises) and from the This week screen. Seven slides each lead with a large headline and one sentence on the page, then a framed visual with something to touch: pick the Modded or Vanilla card, score a look in a heat, reveal the podium and its prizes, try a glam on, fill gear slots, toggle library filters, and finally this week's theme with its countdown (or a start exploring collage when entries are closed). None of it touches the network or the game. A progress bar, Back, Skip and a full width Next sit around it, and a sideways swipe turns the page.
+- New outfit, at the top of the wardrobe, opens an editor that starts empty: an optional photo, a name, every gear slot (tap one to pick its piece and dyes through the same gear search a vanilla entry uses) and a list of mods added by name. Fill from what I'm wearing fills the slots from the character, and Pick from my mods lists the gear mods Penumbra has on the character with nothing ticked, so an outfit only carries the mods the player chooses; neither runs until tapped. The pencil on a saved outfit opens the same editor, which also holds Save to Glamourer and Delete.
+
+## Server contract
+
+Everything is under the signed-in Aethernet session. Paths are built in `Core/Aethernet/Clients/GlamClient.cs` and pinned by `GlamWireContractTests`.
+
+### Objects
+
+```json
+{
+  "id": "g_1",
+  "author": { "id": "u_1", "displayName": "Ada Moon", "handle": "ada.moon", "avatarUrl": "https://..." },
+  "title": "Studious magic",
+  "photos": [ { "url": "https://...", "width": 810, "height": 1080 } ],
+  "gear": [
+    { "slot": 3, "itemId": 45123, "stain0": 12, "stain1": 0,
+      "mods": [ { "name": "Cute Coat", "author": "Bea", "version": "1.2", "link": "https://heliosphere.app/mod/x",
+                  "options": [ { "group": "Colour", "picked": [ "Red" ] } ] } ] },
+    { "slot": -1, "mods": [ { "name": "Body Plus", "author": "Cee" } ] }
+  ],
+  "tags": [ "cute", "purple" ],
+  "race": 6,
+  "gender": 1,
+  "vanilla": false,
+  "weekId": "",
+  "placing": 0,
+  "likes": 0,
+  "liked": false,
+  "saved": false,
+  "tryOns": 34,
+  "createdAtUnix": 1792540000,
+  "inspiredBy": ""
+}
+```
+
+- `slot` is the equipped index (0 main hand, 1 off hand, 2 head, 3 body, 4 hands, 6 legs, 7 feet, 8 ears, 9 neck, 10 wrists, 11 right ring, 12 left ring); `-1` holds character mods and has no item. `optional` (default false) marks a piece the glam works without.
+- `race` is the game's Race sheet row and `gender` is 0 male, 1 female.
+- `likes` is the glam's like count, the same for every viewer.
+- `weekId` and `placing` are set when the glam came from a contest entry, once the week's results are out.
+
+### Routes
+
+| Route | Body | Returns |
+| --- | --- | --- |
+| `GET /prism/glams?scope=new\|popular\|today\|following[&vanilla=true\|false][&race=][&gender=][&cursor=]` | | `{ items: Glam[], nextCursor }`; `race` (1 to 8) and `gender` (0 male, 1 female) filter on their own, either or both, and a missing one means any; Fits me sends both from the worn character |
+| `GET /prism/glams/{id}` | | `Glam` |
+| `POST /prism/glams` | `{ title, photos: [{ key, width, height }], gear, tags, race, gender, vanilla, inspiredBy }` | `Glam`; the client sets `inspiredBy` to the glam the poster still has tried on, and the page links back to it |
+| `PUT /prism/glams/{id}` | `{ title, gear, tags, race, gender, photos? }` | `Glam`; author only (403 otherwise, 404 once removed), sanitized like a post; `vanilla`, a contest placing, likes and try-ons stay, and a vanilla glam drops any mods and still needs a piece. `photos` is sent only when the author changed them and follows the post's photo rules; a contest glam answers 409 `prism_glam_photos_locked` and a glam with an open report 409 `prism_glam_under_review` |
+| `DELETE /prism/glams/{id}` | | 204 |
+| `PUT` / `DELETE /prism/glams/{id}/like` | | 204 |
+| `POST /prism/glams/{id}/tryon` | | 204, counted once per viewer per day |
+| `GET /users/{id}/glams[?cursor=]` | | `{ items: Glam[], nextCursor }` |
+| `GET /users/{id}/prism` | | `{ user, following, glamCount, tryOnsReceived, likesReceived, placings: [{ weekId, title, rank, track }] }`; follow and unfollow use the existing `/follows/{id}` |
+| `GET /me/prism/collections` | | `[{ id, name, count, coverUrl }]`; the `saved` collection always exists |
+| `POST /me/prism/collections` | `{ name }` | the collection |
+| `DELETE /prism/collections/{id}` | | 204 |
+| `GET /prism/collections/{id}/glams[?cursor=]` | | `{ items: Glam[], nextCursor }` |
+| `PUT` / `DELETE /prism/collections/{id}/glams/{glamId}` | | 204; `saved` drives `Glam.saved` |
+| `GET /prism/items/{itemId}` | | `{ itemId, glamCount, wornWith: [{ itemId, count }] }` |
+| `GET /prism/items/{itemId}/glams[?cursor=]` | | `{ items: Glam[], nextCursor }` |
+| `GET /prism/mods/glams?name=&author=[&cursor=]` | | `{ items: Glam[], nextCursor }` |
+| `GET /prism/tags/{tag}/glams[?cursor=]` | | `{ items: Glam[], nextCursor }`; tags are stored lowercase without a leading `#` |
+| `GET /prism/seasons/current` | | `{ id, name, startsAtUnix, endsAtUnix, standings: [{ user, points, rank }], me: { points, rank } }` |
+| `POST /reports` | `{ targetType: "prism_glam", targetId, reason }` | as other reports |
+
+Uploads use `/media/upload-url` with scope `prism`, the same as contest entries.
+
+### The contest on glams
+
+A contest entry keeps today's routes (`PUT /prism/weeks/{id}/entry`, tracks, ballots, results). Any photo can be entered in either track: a GPose or ReShade shot imported from the PC works the same as a phone camera shot. A Vanilla entry lists its gear by hand, one item and its dyes per slot, and needs at least one piece; that list is the entry's `outfit`, and the server refuses mods on it. A Modded entry has no gear list: its `outfit` is an optional list of mods on slot `-1`, read from Penumbra, holding only the gear mods the entrant ticks (nothing is ticked on a new entry, and character mods such as body, face or skin are never listed). The entry also carries the `race` and `gender` the entrant picks on the pick screen (as on a glam), so a published winner shows up under Fits me. While the week runs the entry stays nameless and out of every feed. When results are out the server publishes it as a glam on the author's profile with `weekId` and `placing` set, and a glam that is already public can't be entered. Each podium placing in the results carries that glam's `glamId`, so tapping a winner opens the full glam page (likes, saves, try on); without it the client shows the placing's photo and outfit read only.
+
+### Prizes
+
+The moderator console's Prism prize section configures Aethercoins for 1st, 2nd and 3rd in each stage, plus gil for the final's top three only. Heat winners receive only Aethercoins. Gil, badges and frames are exclusive to the final's top three; legacy heat gil, badge and frame settings are ignored and cannot create new awards. Saving coin amounts updates the existing payout rules and refreshes their cache, so no visit to the admin Economy page is needed. Zero disables that place's coin reward. Badges, frames and coins go out when the final is counted. Gil is traded by hand from the console's payout list, so the rewards page says it can take a few days. The team cannot trade on the Chinese servers, so a Chinese account (a Rising Stones id) that wins a gil place is paid that place's `chineseCoins` instead under the `prism.gil.cn` coin rule, and no gil is owed; each prize's `chineseCoins` carries the amount, and the rewards page tells Chinese players about the swap.
+
+A moderator can end a week early with the console's step buttons and, once its results are out, start the next week's round at once (`POST /mod/api/prism/rounds/start-next`). That round uses the next week's id and scheduled theme, runs its usual lengths from the moment it starts, and is the current round until the calendar reaches its week.
+
+### Rankings and the reveal
+
+Published results include `rankings`, an ordered array of every live, eligible entrant in the selected track. Finalists come first in final rank order; remaining entrants follow their overall heat standing. Rows have a continuous `rank`, `displayName`, `handle`, `imageUrl`, optional live `glamId`, `totalVotes` (counted heat votes plus final votes) and `isMe`. Rankings omit outfits, removed entries and banned accounts. They are available only through the existing published-results route, and the podium remains the top three.
+
+See all rankings is available below the rewards and results screens and on the reveal's closing screen. The leaderboard searches names and handles, retains the original ranks while filtering, and pins the viewer's rank and total votes above the list. The viewer's row also has a spectrum highlight. Only visible rows load photos.
+
+The reveal counts down #3, #2, #1 over brighter portraits with gold, silver and bronze accents, drifting confetti and sparkles. Names and @handles are stacked together. Hold pauses the story; releasing a hold does not skip a winner. The closing screen shows a random selection of contest photos, a thank-you message, the viewer's rank and votes when available, and rankings and replay actions. Confetti is disabled with Dalamud's Reduce Motion setting.
+
+### Activity
+
+Prism's activity screen, its home screen badge and its banners read the phone's shared notifications, the same rows Aethergram and Chirper use (`NotificationDto`; type numbers in `Core/Social/SocialActivity.cs`): `GET /notifications?app=prism[&cursor=]`, `unreadByApp.prism` on the global poll, and `POST /notifications/read { upToUnix, app: "prism" }` when the player opens the screen. Rows carry `app: "prism"` and ping the realtime social channel like any other notification. Prism needs three types:
+
+| Type | Sent when | Fields |
+| --- | --- | --- |
+| `0` like | someone likes one of your glams, once per liker per glam | actor fields, `postId` (the glam id), `preview` (the glam title), `imageUrl` (the glam's cover photo) |
+| `2` follow | someone follows you through Prism, that is a `/follows/{id}` call sent with `X-Aep-App: prism` | actor fields |
+| `23` placing | a week's results are out, one row per entrant | `postId` (the glam published from the entry), `preview` (the week's title), `rank` (the entry's final placing, from 1), `imageUrl` (the glam's cover); actor fields empty |
+
+Follow requests and accepts (types 14 and 15) belong to Aethergram, which owns the follow graph, so they never carry `app: "prism"`. `rank` and `imageUrl` are new optional fields on the notification row: other apps ignore them, and `imageUrl` draws a thumbnail on any Prism row that has one. Tapping a like or placing opens the glam, a follow opens the follower's profile, and a banner tap lands in the same place.
+
+### Rules the server enforces
+
+- A daily limit on new glams per account that staff set in the Prism console (0 turns it off, which is the current setting); a post over the limit answers `prism_glam_daily_limit` with the limit, and the phone names it and the daily reset. Each glam takes up to 4 photos, 3:4.
+- Mod links outside the allowlist are dropped.
+- Glam of the day (`scope=today`) changes at the daily reset, 15:00 UTC. The client does not show it; Discover's carousel reads `scope=popular` without filters.
+- Popular (`scope=popular`) ranks the last seven days by likes and try ons.
+- Popular orderings count likes and try-ons from distinct, established accounts only.

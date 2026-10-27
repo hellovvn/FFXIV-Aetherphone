@@ -7,7 +7,7 @@ namespace Aetherphone.Windows.Components;
 internal static class HoverTooltip
 {
     private const float MaxFrameSeconds = 0.1f;
-    private static readonly Dictionary<string, Spring> springs = new();
+    private static readonly Dictionary<uint, Spring> springs = new();
     private static readonly List<PendingLabel> pending = new();
     private static int frame = -1;
 
@@ -27,25 +27,21 @@ internal static class HoverTooltip
         }
     }
 
-    public static void Show(Rect target, string label, HoverLabelSide side = HoverLabelSide.Below)
+    public static void Show(Rect target, string label, HoverLabelSide side = HoverLabelSide.Below) =>
+        Show(Key(target), target, label, UiInteract.Hover(target.Min, target.Max), side);
+
+    public static void Show(string id, Rect target, string label, HoverLabelSide side = HoverLabelSide.Below) =>
+        Show((uint)StringComparer.Ordinal.GetHashCode(id), target, label, UiInteract.Hover(target.Min, target.Max),
+            side);
+
+    public static void Show(uint key, Rect target, string label, bool hovered, HoverLabelSide side)
     {
         if (string.IsNullOrEmpty(label))
         {
             return;
         }
 
-        Show(Key(target), target, label, side);
-    }
-
-    public static void Show(string id, Rect target, string label, HoverLabelSide side = HoverLabelSide.Below)
-    {
-        if (string.IsNullOrEmpty(label))
-        {
-            return;
-        }
-
-        var hovered = UiInteract.Hover(target.Min, target.Max);
-        var eased = Step(id, hovered);
+        var eased = Step(key, hovered);
         if (eased <= 0.001f)
         {
             return;
@@ -119,13 +115,15 @@ internal static class HoverTooltip
         var height = textSize.Y + 2f * padY;
         var gap = 7f * scale;
         var rise = (1f - alpha) * 4f * scale;
-        var centerY = side == HoverLabelSide.Above
-            ? target.Min.Y - gap - height * 0.5f + rise
-            : target.Max.Y + gap + height * 0.5f - rise;
-        var centerX = right - left > width
-            ? Math.Clamp(target.Center.X, left + width * 0.5f, right - width * 0.5f)
-            : (left + right) * 0.5f;
-        var center = new Vector2(centerX, centerY);
+        if ((side == HoverLabelSide.Left && target.Min.X - gap - width < left) ||
+            (side == HoverLabelSide.Right && target.Max.X + gap + width > right))
+        {
+            side = HoverLabelSide.Below;
+        }
+
+        var center = side is HoverLabelSide.Left or HoverLabelSide.Right
+            ? SideCenter(target, side, width, gap, rise)
+            : StackCenter(target, side, width, height, gap, rise, left, right);
         var min = new Vector2(center.X - width * 0.5f, center.Y - height * 0.5f);
         var max = new Vector2(center.X + width * 0.5f, center.Y + height * 0.5f);
         var rounding = MathF.Min(height, lineSize.Y + 2f * padY) * 0.5f;
@@ -143,10 +141,31 @@ internal static class HoverTooltip
         }
     }
 
-    private static float Step(string id, bool hovered)
+    private static Vector2 SideCenter(Rect target, HoverLabelSide side, float width, float gap, float rise)
+    {
+        var centerX = side == HoverLabelSide.Left
+            ? target.Min.X - gap - width * 0.5f + rise
+            : target.Max.X + gap + width * 0.5f - rise;
+        return new Vector2(centerX, target.Center.Y);
+    }
+
+    private static Vector2 StackCenter(Rect target, HoverLabelSide side, float width, float height, float gap,
+        float rise, float left, float right)
+    {
+        var centerY = side == HoverLabelSide.Above
+            ? target.Min.Y - gap - height * 0.5f + rise
+            : target.Max.Y + gap + height * 0.5f - rise;
+        var anchorX = side == HoverLabelSide.BelowEnd ? target.Max.X - width * 0.5f : target.Center.X;
+        var centerX = right - left > width
+            ? Math.Clamp(anchorX, left + width * 0.5f, right - width * 0.5f)
+            : (left + right) * 0.5f;
+        return new Vector2(centerX, centerY);
+    }
+
+    private static float Step(uint key, bool hovered)
     {
         var delta = MathF.Min(ImGui.GetIO().DeltaTime, MaxFrameSeconds);
-        if (!springs.TryGetValue(id, out var spring))
+        if (!springs.TryGetValue(key, out var spring))
         {
             spring = default;
         }
@@ -155,18 +174,14 @@ internal static class HoverTooltip
         var value = Math.Clamp(spring.Value, 0f, 1f);
         if (!hovered && value <= 0.001f)
         {
-            springs.Remove(id);
+            springs.Remove(key);
             return 0f;
         }
 
-        springs[id] = spring;
+        springs[key] = spring;
         return value;
     }
 
-    private static string Key(Rect target)
-    {
-        var x = (int)MathF.Round(target.Center.X);
-        var y = (int)MathF.Round(target.Center.Y);
-        return string.Concat("t:", x.ToString(), ":", y.ToString());
-    }
+    private static uint Key(Rect target) =>
+        (uint)HashCode.Combine((int)MathF.Round(target.Center.X), (int)MathF.Round(target.Center.Y));
 }

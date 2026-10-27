@@ -236,6 +236,20 @@ internal sealed class HomeGridRenderer
             return;
         }
 
+        if (tile.Link is { } link)
+        {
+            HomeTileView.DrawLink(center, rect.Width, link, theme, pointer.Scale, labelAlpha, showLabels,
+                metrics.CellWidth, zoom, pointer);
+            if (interaction.RemoveBadgesLive(motion) &&
+                HomeTileView.RemoveBadge(new Vector2(rect.Min.X + 2f * scale, rect.Min.Y + 2f * scale), scale, theme))
+            {
+                layout.RemoveTile(tile);
+                interaction.ConsumeEditGesture();
+            }
+
+            return;
+        }
+
         if (tile.IsFolder && ReferenceEquals(tile, interaction.OpenFolder))
         {
             HomeTileView.DrawFolderLabel(center, rect.Width, tile, theme, labelAlpha, showLabels,
@@ -330,7 +344,7 @@ internal sealed class HomeGridRenderer
             var visualSlot = showGap && slot >= interaction.DockInsertIndex ? slot + 1 : slot;
             var target = metrics.DockSlotRect(Math.Max(1, slotCount), visualSlot);
             var local = new Rect(target.Min - metrics.DockBar.Min, target.Max - metrics.DockBar.Min);
-            var rect = poses.Resolve(string.Concat("dock:", tile.Key), -1, local,
+            var rect = poses.Resolve(tile.DockKey, -1, local,
                 metrics.DockBar.Min, delta, motion.Interactive);
             slot++;
             if (ReferenceEquals(tile, interaction.SettleTile) || Revealing(tile, motion))
@@ -342,9 +356,9 @@ internal sealed class HomeGridRenderer
             var pointer = interaction.Pointer(tile, rect.Center, rect.Width);
             HomeTileView.DrawApp(rect.Center + jiggle, rect.Width, tile.App!, theme, pointer.Scale, 0f, true, 0f,
                 configuration, motion.Zoom, pointer);
-            if (!interaction.Editing && dragTile is null)
+            if (interaction.WidgetsInteractive(motion))
             {
-                HoverTooltip.Show(string.Concat("dock:", tile.Key), rect, tile.App!.DisplayName,
+                HoverTooltip.Show(tile.DockKey, rect, tile.App!.DisplayName,
                     HoverLabelSide.Above);
             }
 
@@ -387,7 +401,7 @@ internal sealed class HomeGridRenderer
             var size = page >= 0 && index < layout.Placements(page).Count
                 ? metrics.TileRect(page, pager.Value, layout.Placements(page)[index], tile).Size
                 : new Vector2(metrics.CellWidth * tile.ColumnSpan - (metrics.CellWidth - metrics.IconSize),
-                    metrics.CellHeight * tile.RowSpan - HomeMetrics.LabelBandUnits * metrics.Scale);
+                    metrics.WidgetHeight(tile.RowSpan));
             var half = size * 0.5f * scale;
             var rect = new Rect(position - half, position + half);
             Elevation.Floating(drawList, rect.Min, rect.Max, WidgetChrome.Radius(metrics.Scale), metrics.Scale);
@@ -408,6 +422,12 @@ internal sealed class HomeGridRenderer
         {
             HomeTileView.DrawShortcut(position, metrics.IconSize, tile.Shortcut!, shortcuts.Icon(tile.Shortcut!), theme,
                 scale, 0f, true, metrics.CellWidth);
+            return;
+        }
+
+        if (tile.Link is { } link)
+        {
+            HomeTileView.DrawLink(position, metrics.IconSize, link, theme, scale, 0f, true, metrics.CellWidth);
             return;
         }
 

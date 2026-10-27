@@ -50,6 +50,7 @@ internal sealed class ImagePickCrop
     private bool cropStage;
     private string sourcePath = string.Empty;
     private string[] pickerPaths = Array.Empty<string>();
+    private PhotoLibraryWatch libraryWatch;
     private string? pendingPickedPath;
     private Spring zoomSpring = new(1f);
     private Spring centerXSpring = new(0.5f);
@@ -75,6 +76,7 @@ internal sealed class ImagePickCrop
         cropStage = false;
         sourcePath = string.Empty;
         pendingPickedPath = null;
+        libraryWatch.Mark(library);
         pickerPaths = library.List();
     }
 
@@ -95,6 +97,11 @@ internal sealed class ImagePickCrop
     private ImagePickCropEvent DrawPick(Rect area, in PhoneContext context, in ImagePickCropLabels labels,
         Vector4 accent)
     {
+        if (libraryWatch.Changed(library))
+        {
+            pickerPaths = library.List();
+        }
+
         var theme = context.Theme;
         var cancelled = false;
         AppHeader.Draw(context, labels.PickTitle, () => cancelled = true);

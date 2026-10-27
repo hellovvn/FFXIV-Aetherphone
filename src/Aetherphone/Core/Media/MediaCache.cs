@@ -58,30 +58,61 @@ internal sealed class MediaCache : IDisposable
         return Request(new LedgerKey(key, level), source, ready.Nearest(key, level));
     }
 
+    public MediaResult GetOrRequest<TState>(string key, TState state,
+        Func<TState, CancellationToken, Task<byte[]?>> source, float drawnPixels)
+    {
+        var level = TextureSizes.LevelFor(drawnPixels);
+        if (ready.Get(key, level) is { } wrap)
+        {
+            return new MediaResult(wrap, false);
+        }
+
+        var ledgerKey = new LedgerKey(key, level);
+        var standIn = ready.Nearest(key, level);
+        if (TryBegin(ledgerKey, out var loading))
+        {
+            Launch(ledgerKey, state, source);
+        }
+
+        return new MediaResult(standIn, loading);
+    }
+
     public Task<byte[]?> BytesFor(string key, Func<CancellationToken, Task<byte[]?>> source) =>
         BytesAsync(key, source, cancellation.Token);
 
     private MediaResult Request(LedgerKey key, Func<CancellationToken, Task<byte[]?>> source,
         IDalamudTextureWrap? standIn)
     {
+        if (TryBegin(key, out var loading))
+        {
+            Launch(key, source);
+        }
+
+        return new MediaResult(standIn, loading);
+    }
+
+    private bool TryBegin(LedgerKey key, out bool loading)
+    {
         if (failed.TryGetValue(key.Name, out var failedAtUtc))
         {
             if (DateTime.UtcNow - failedAtUtc < FailureRetryFor)
             {
-                return new MediaResult(standIn, false);
+                loading = false;
+                return false;
             }
 
             failed.TryRemove(key.Name, out _);
         }
 
-        if (!inFlight.TryAdd(key, 0))
-        {
-            return new MediaResult(standIn, true);
-        }
-
-        _ = Task.Run(() => LoadAsync(key, source));
-        return new MediaResult(standIn, true);
+        loading = true;
+        return inFlight.TryAdd(key, 0);
     }
+
+    private void Launch<TState>(LedgerKey key, TState state, Func<TState, CancellationToken, Task<byte[]?>> source) =>
+        Launch(key, token => source(state, token));
+
+    private void Launch(LedgerKey key, Func<CancellationToken, Task<byte[]?>> source) =>
+        _ = Task.Run(() => LoadAsync(key, source));
 
     private async Task<byte[]?> BytesAsync(string name, Func<CancellationToken, Task<byte[]?>> source,
         CancellationToken token)

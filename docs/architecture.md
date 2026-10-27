@@ -154,7 +154,7 @@ An overlay paints in one of two ways. Some, such as the confirm dialog and the a
 Two layers sit above all of that, both on the foreground draw list:
 
 - **The seal.** `DeviceChrome.SealScreen` draws the rounded screen corner mask and the brightness veil last among the overlays, so no content can show outside the rounded screen.
-- **Tooltips.** After the overlays and the live glass bezel band, `PhoneShell.Draw` ends with `HoverTooltip.Flush`. Tooltips are the top layer, so they can extend past the screen edge.
+- **Tooltips.** After the overlays, `PhoneShell.Draw` ends with `HoverTooltip.Flush`. Tooltips are the top layer, so they can extend past the screen edge.
 
 Two states cut the list short. While the boot screen is up, it draws and returns, so only the seal appears above it. While the first-run setup flow is up, only toasts, the ban notice, and the confirm dialog draw above it.
 

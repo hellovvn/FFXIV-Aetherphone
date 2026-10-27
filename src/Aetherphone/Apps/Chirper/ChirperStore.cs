@@ -10,7 +10,7 @@ using Aetherphone.Core.Wallpapers;
 
 namespace Aetherphone.Apps.Chirper;
 
-internal sealed class ChirperStore : SocialFeedStore
+internal sealed partial class ChirperStore : SocialFeedStore
 {
     public const int MaxImages = 4;
 

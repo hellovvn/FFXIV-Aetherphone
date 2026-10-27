@@ -36,7 +36,7 @@ internal static class ScoreStatIds
         Level("moogleclicker"), Score("pinball"), Score("pegfall"), Level("fling"), Level("snip"), Streak("crater"),
         Level("siege"), Level("siege.endless"), Score("trailblaze"), Score("thrust"), Level("crates"), Level("delve"),
         Streak("luckydraw"), Streak("broadside"), Level("herd"), Score("claim"), Level("tempo"), Streak("fuse"),
-        Score("lander"), Time("minigolf"),
+        Score("lander"), Time("minigolf"), Score("cluster"), Score("harvest"),
     };
 
     public static readonly string[] All = Ids(Catalog);

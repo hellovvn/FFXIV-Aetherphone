@@ -227,9 +227,9 @@ internal sealed class BroadsideApp : IMiniGame
         battle.Step(battleTarget, BattleSmooth, raw);
         var shake = fx.ShakeOffset(scale);
         var blend = Easing.Clamp01(battle.Value);
-        var home = BroadsideLayout.Lerp(layout.PlaceGrid,
-            BroadsideLayout.Lerp(layout.Mini, layout.Big, swap.Value), blend).Translate(shake);
-        var target = BroadsideLayout.Lerp(layout.Big, layout.Mini, swap.Value)
+        var home = Rect.Lerp(layout.PlaceGrid,
+            Rect.Lerp(layout.Mini, layout.Big, swap.Value), blend).Translate(shake);
+        var target = Rect.Lerp(layout.Big, layout.Mini, swap.Value)
             .Translate(new Vector2((1f - blend) * (area.Width + 40f * scale), 0f) + shake);
         var placing = stage == BroadsideStage.Placing;
         if (!finished)

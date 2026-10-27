@@ -91,6 +91,7 @@ Aethernet ging am 2. Juli 2026 an den Start. Bis zum Ende der Saison haben Spiel
         <li>Füge ein Foto ein oder zieh es hinein und gib ihm vor dem Senden eine Bildunterschrift</li>
         <li>Sprachanrufe, zu zweit oder in der Gruppe</li>
         <li>Ende-zu-Ende-verschlüsselt</li>
+        <li>Listen in Komfortabel, Standard oder Kompakt, damit mehr Chats und Kontakte auf den Bildschirm passen</li>
       </ul>
     </td>
     <td width="50%" valign="top">
@@ -101,6 +102,7 @@ Aethernet ging am 2. Juli 2026 an den Start. Bis zum Ende der Saison haben Spiel
         <li>Eine Karte, die zeigt, wonach du suchst</li>
         <li>Stöbere nach Absicht durch die Leute</li>
         <li>Ein Chat beginnt erst, wenn sie auf deine Vorstellung antworten</li>
+        <li>Tippe auf Verbindungen, um jede Verbindung zu finden</li>
         <li>Nur für Erwachsene, mit eigenem Profil und eigenen Regeln</li>
       </ul>
     </td>

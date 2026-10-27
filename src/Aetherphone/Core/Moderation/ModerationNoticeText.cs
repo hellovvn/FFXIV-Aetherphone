@@ -527,6 +527,10 @@ internal static class ModerationNoticeText
                 return L.Moderation.NoticeRemovedAd;
             case "muster":
                 return L.Moderation.NoticeRemovedMuster;
+            case "prism_glam":
+                return L.Moderation.NoticeRemovedGlam;
+            case "prism_look":
+                return L.Moderation.NoticeRemovedLook;
             case "chat_message":
             case "velvet_message":
             case "gram_message":

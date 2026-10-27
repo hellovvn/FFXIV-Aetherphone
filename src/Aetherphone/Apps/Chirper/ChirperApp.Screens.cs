@@ -13,6 +13,13 @@ namespace Aetherphone.Apps.Chirper;
 
 internal sealed partial class ChirperApp
 {
+    private enum ActivityFilter : byte
+    {
+        All,
+        Mentions,
+        Replies,
+    }
+
     private const float BackChipRadius = SocialChrome.BackChipRadius;
     private const float UserRowHeight = 62f;
     private const float FollowPillHeight = 31f;
@@ -26,6 +33,7 @@ internal sealed partial class ChirperApp
     private const float TagGlyphSize = 38f;
     private const float EditAvatarRadius = 46f;
     private const float EditFieldHeight = SearchBar.HeightUnits;
+    private const float UserListSearchPadY = 6f;
     private const float EditBioMinHeight = 64f;
 
     private static readonly TextStyle ScreenTitleStyle = TextStyles.Title3;
@@ -52,7 +60,8 @@ internal sealed partial class ChirperApp
 
     private static Vector4 UnreadTint => SeasonalTheme.Halloween ? MoonlitUnreadTint : StandardUnreadTint;
 
-    private bool mentionsOnly;
+    private readonly UserListSearch userListSearch = new();
+    private ActivityFilter activityFilter;
     private Spring activitySegment;
     private string editDisplay = string.Empty;
     private string editHandle = string.Empty;
@@ -273,15 +282,38 @@ internal sealed partial class ChirperApp
             top = rail.Max.Y;
         }
 
+        var searchable = UserListSearch.Supports(kind);
+        if (searchable)
+        {
+            var fieldHeight = SearchBar.HeightUnits * scale;
+            var fieldTop = top + UserListSearchPadY * scale;
+            var field = new Rect(new Vector2(area.Min.X + 14f * scale, fieldTop),
+                new Vector2(area.Max.X - 14f * scale, fieldTop + fieldHeight));
+            SearchBar.Draw(field, "##chirperUserListSearch", Loc.T(L.Social.ListSearchHint), ref userListSearch.Draft,
+                ui.Ink, UserListSearch.MaxLength);
+            userListSearch.Update(store, sourceId, kind, ImGui.GetTime());
+            top = field.Max.Y + UserListSearchPadY * scale;
+        }
+
         var listRect = new Rect(new Vector2(area.Min.X, top), area.Max);
+        if (searchable && userListSearch.Active)
+        {
+            DrawUserListMatches(listRect);
+            return;
+        }
+
         var snapshot = store.UserListResults;
         using (AppSurface.BeginEdgeToEdge(listRect))
         {
             if (snapshot.Length == 0)
             {
-                var message = store.UserListLoading ? Loc.T(L.Common.Loading)
-                    : store.UserListFailed ? Loc.T(L.Chirper.ProfileError)
-                    : Loc.T(L.Social.ListEmpty);
+                if (store.UserListFailed)
+                {
+                    UserListSearch.DrawFailure(listRect, store, ui);
+                    return;
+                }
+
+                var message = store.UserListLoading ? Loc.T(L.Common.Loading) : Loc.T(L.Social.ListEmpty);
                 Typography.DrawCentered(new Vector2(listRect.Center.X, listRect.Min.Y + 60f * scale), message,
                     ChirperInk.MutedInk, MetaStyle);
                 return;
@@ -290,6 +322,11 @@ internal sealed partial class ChirperApp
             ImGui.Dummy(new Vector2(0f, 4f * scale));
             for (var index = 0; index < snapshot.Length; index++)
             {
+                if (SocialUserRow.SkipHidden(UserRowStyle))
+                {
+                    continue;
+                }
+
                 DrawUserRow(snapshot[index]);
             }
 
@@ -300,6 +337,52 @@ internal sealed partial class ChirperApp
             else if (store.HasMoreUserList && InfiniteScroll.ReachedBottom())
             {
                 store.LoadMoreUserList();
+            }
+
+            ImGui.Dummy(new Vector2(0f, 12f * scale));
+        }
+    }
+
+    private void DrawUserListMatches(Rect listRect)
+    {
+        var scale = UiScale.Current;
+        var matches = userListSearch.Matches;
+        using (AppSurface.BeginEdgeToEdge(listRect))
+        {
+            if (matches.Count == 0)
+            {
+                if (UserListSearch.Failed(store))
+                {
+                    UserListSearch.DrawFailure(listRect, store, ui);
+                    return;
+                }
+
+                Typography.DrawCentered(new Vector2(listRect.Center.X, listRect.Min.Y + 60f * scale),
+                    UserListSearch.EmptyMessage(store), ChirperInk.MutedInk, MetaStyle);
+                return;
+            }
+
+            ImGui.Dummy(new Vector2(0f, 4f * scale));
+            for (var index = 0; index < matches.Count; index++)
+            {
+                if (SocialUserRow.SkipHidden(UserRowStyle))
+                {
+                    continue;
+                }
+
+                DrawUserRow(matches[index]);
+            }
+
+            if (store.UserListSearchFilling)
+            {
+                InfiniteScroll.DrawLoadingRow(listRect.Center.X, ChirperInk.MutedInk);
+            }
+
+            UserListSearch.DrawStalledFooter(store, ui, ChirperInk.MutedInk);
+            var cappedNote = userListSearch.CappedNote(store);
+            if (cappedNote.Length > 0)
+            {
+                UserListSearch.DrawNote(cappedNote, ChirperInk.MutedInk);
             }
 
             ImGui.Dummy(new Vector2(0f, 12f * scale));
@@ -438,16 +521,19 @@ internal sealed partial class ChirperApp
             root ? WordmarkStyle : ScreenTitleStyle);
         var rowTop = area.Min.Y + AppHeader.Height * scale;
         var row = new Rect(new Vector2(area.Min.X, rowTop), new Vector2(area.Max.X, rowTop + FeedTabRowHeight * scale));
-        var picked = UnderlineTabs.Draw(row, Loc.T(L.Chirper.ActivityAll), Loc.T(L.Chirper.ActivityMentions),
-            mentionsOnly, ref activitySegment, ChirperInk.Shared, FeedTabsStyle);
+        var picked = UnderlineTabs.Draw(row,
+            [Loc.T(L.Chirper.ActivityAll), Loc.T(L.Chirper.ActivityMentions), Loc.T(L.Chirper.ActivityReplies)],
+            (int)activityFilter, ref activitySegment, ChirperInk.Shared, FeedTabsStyle);
         if (picked >= 0)
         {
-            mentionsOnly = picked == 1;
+            activityFilter = (ActivityFilter)picked;
         }
 
         var body = new Rect(new Vector2(area.Min.X, row.Max.Y), area.Max);
         activityFeed.EnsureFresh(social.Latest);
         var items = activityFeed.Items;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var bucket = ActivityBucket.None;
         var shown = 0;
         using (AppSurface.BeginEdgeToEdge(body))
         {
@@ -458,14 +544,20 @@ internal sealed partial class ChirperApp
                     continue;
                 }
 
+                var itemBucket = ActivityBuckets.For(items[index].CreatedAtUnix, now);
+                if (itemBucket != bucket)
+                {
+                    bucket = itemBucket;
+                    DrawSectionLabel(Loc.T(ActivityBuckets.Label(bucket)));
+                }
+
                 DrawActivityRow(items[index]);
                 shown++;
             }
 
             if (shown == 0)
             {
-                Typography.DrawWrappedCentered(new Vector2(body.Center.X, body.Min.Y + 90f * scale),
-                    Loc.T(L.Social.ActivityEmpty), ChirperInk.MutedInk, MetaStyle, body.Width - 64f * scale);
+                DrawActivityEmpty(body);
                 return;
             }
 
@@ -477,6 +569,20 @@ internal sealed partial class ChirperApp
         }
     }
 
+    private void DrawActivityEmpty(Rect body)
+    {
+        var scale = UiScale.Current;
+        var searching = activityFeed.HasOlder || !activityFeed.Loaded;
+        if (activityFeed.HasOlder)
+        {
+            activityFeed.LoadOlder();
+        }
+
+        Typography.DrawWrappedCentered(new Vector2(body.Center.X, body.Min.Y + 90f * scale),
+            Loc.T(searching ? L.Common.Loading : L.Social.ActivityEmpty), ChirperInk.MutedInk, MetaStyle,
+            body.Width - 64f * scale);
+    }
+
     private bool ShowsActivity(NotificationDto item)
     {
         if (item.App != Id || SocialActivity.IsModerationNotice(item.Type))
@@ -484,9 +590,12 @@ internal sealed partial class ChirperApp
             return false;
         }
 
-        return !mentionsOnly
-            || item.Type == SocialActivity.TypeMention
-            || item.Type == SocialActivity.TypeCommentMention;
+        return activityFilter switch
+        {
+            ActivityFilter.Mentions => item.Type is SocialActivity.TypeMention or SocialActivity.TypeCommentMention,
+            ActivityFilter.Replies => item.Type == SocialActivity.TypeComment,
+            _ => true,
+        };
     }
 
     private void DrawActivityRow(NotificationDto item)
@@ -749,8 +858,8 @@ internal sealed partial class ChirperApp
             var bioInputSize = new Vector2(bioField.Width - Metrics.Space.Sm * 2f * scale,
                 bioField.Height - Metrics.Space.Xs * 2f * scale);
             ImGui.SetCursorScreenPos(bioInputMin);
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
-            using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.TitleInk))
+            using (UiScope.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
+            using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.TitleInk))
             {
                 var wrapWidth = bioInputSize.X - ImGui.GetStyle().FramePadding.X * 2f - 4f * scale;
                 SoftWrapField.Multiline("##chirperEditBio", ref editBio, SocialProfilePages.BioMax, bioInputSize,
@@ -779,8 +888,8 @@ internal sealed partial class ChirperApp
         ImGui.SetCursorScreenPos(new Vector2(left, rowTop + rowHeight * 0.5f - ImGui.GetFrameHeight() * 0.5f));
         ImGui.SetNextItemWidth(MathF.Max(1f, right - left));
         Plugin.Fonts.NoticeText(value);
-        using (ImRaii.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
-        using (ImRaii.PushColor(ImGuiCol.Text, ink))
+        using (UiScope.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
+        using (UiScope.PushColor(ImGuiCol.Text, ink))
         {
             return ImGui.InputText(id, ref value, maxLength, flags);
         }

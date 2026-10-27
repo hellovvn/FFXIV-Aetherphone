@@ -1,5 +1,6 @@
 using Aetherphone.Core;
 using Aetherphone.Core.Aethernet.Contracts;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Maps;
 using Aetherphone.Core.Muster;
@@ -89,6 +90,10 @@ internal sealed partial class MessageApp
         else if (AdShare.IsToken(message.Body))
         {
             text = Loc.T(L.YellowPages.AdPreview);
+        }
+        else if (GifShare.IsToken(message.Body))
+        {
+            text = Loc.T(L.DirectMessages.GifPreview);
         }
         else
         {

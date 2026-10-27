@@ -46,6 +46,13 @@ internal sealed partial class LinkpearlApp
                 router.Push(LinkpearlRoute.Wallpaper(string.Empty));
             }
 
+            var listSizeRow = NextSettingRow(scale);
+            if (chrome.DrawSettingRow(drawList, PhoneIcons.Menu, ChatListChrome.TintGreen, Loc.T(L.Message.ListSize),
+                    Loc.T(ListRowSize.Label(configuration.LinkpearlListDensity))))
+            {
+                settingsMenu.Toggle("linkpearl.settings.listSize", listSizeRow);
+            }
+
             var layoutRow = NextSettingRow(scale);
             var bubblesDefault = configuration.LinkpearlDefaultDensity == (int)ChatDensity.Bubbles;
             if (chrome.DrawSettingRow(drawList, PhoneIcons.LayoutList, ChatListChrome.TintAzure,
@@ -403,6 +410,19 @@ internal sealed partial class LinkpearlApp
             {
                 configuration.LinkpearlPopoutPlacement = (int)PlacementChoices[pickedPlacement];
                 configuration.LinkpearlPopoutLastPlacement = null;
+                configuration.Save();
+            }
+
+            return;
+        }
+
+        if (settingsMenu.IsOpenFor("linkpearl.settings.listSize"))
+        {
+            ListRowSize.FillMenu(settingsItems, configuration.LinkpearlListDensity);
+            var pickedSize = settingsMenu.Draw(area, frameTheme, CollectionsMarshal.AsSpan(settingsItems));
+            if (pickedSize >= 0)
+            {
+                configuration.LinkpearlListDensity = ListRowSize.Order[pickedSize];
                 configuration.Save();
             }
 

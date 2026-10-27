@@ -43,6 +43,7 @@ internal sealed partial class MessageApp
         ui.Palette = ChatThemes.PaletteFor(id);
         chrome.Ink = ink;
         chrome.Theme = theme;
+        chrome.Density = configuration.MessageListDensity;
     }
 
     private float DrawScreenHeader(Rect area, string title, int trailingSlots = 0, bool showBack = true,
@@ -100,6 +101,10 @@ internal sealed partial class MessageApp
     private void DrawRowTitleAndSub(ImDrawListPtr drawList, MarqueeId id, string title, string subtitle,
         float left, float right, float centerY, Vector4 titleInk, Vector4 subInk) =>
         chrome.DrawRowTitleAndSub(drawList, id, title, subtitle, left, right, centerY, titleInk, subInk);
+
+    private void DrawRowTitleAndSub(ImDrawListPtr drawList, MarqueeId id, string title, string subtitle,
+        float left, float right, float centerY, Vector4 titleInk, Vector4 subInk, in ListRowSize size) =>
+        chrome.DrawRowTitleAndSub(drawList, id, title, subtitle, left, right, centerY, titleInk, subInk, size);
 
     private bool DrawActionRow(ImDrawListPtr drawList, string glyph, string label, string subtitle = "",
         bool chevron = false, bool separator = true) =>

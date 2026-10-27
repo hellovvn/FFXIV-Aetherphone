@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Aetherphone.Core.Video;
 
 namespace Aetherphone.Core.Songs;
@@ -38,6 +39,7 @@ internal sealed class SongLinkResolver
     private static readonly TimeSpan SearchTimeout = TimeSpan.FromSeconds(45);
     private static readonly TimeSpan PlaylistTimeout = TimeSpan.FromMinutes(3);
     private static readonly HttpClient StreamingClient = new() { Timeout = Timeout.InfiniteTimeSpan };
+    private static readonly UTF8Encoding ResolverOutputEncoding = new(encoderShouldEmitUTF8Identifier: false);
 
     private readonly string stagingDirectory;
     private volatile MediaDependencies? dependencies;
@@ -393,7 +395,11 @@ internal sealed class SongLinkResolver
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = ResolverOutputEncoding,
+            StandardErrorEncoding = ResolverOutputEncoding,
         };
+        startInfo.ArgumentList.Add("--encoding");
+        startInfo.ArgumentList.Add("utf-8");
         startInfo.ArgumentList.Add("--quiet");
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-progress");

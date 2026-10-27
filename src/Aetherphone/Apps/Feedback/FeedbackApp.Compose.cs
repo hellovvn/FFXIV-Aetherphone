@@ -10,7 +10,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Feedback;
 
@@ -175,8 +174,8 @@ internal sealed partial class FeedbackApp
         var framePadding = ImGui.GetStyle().FramePadding;
         var before = draft.Text;
         ImGui.SetCursorScreenPos(fieldMin);
-        using (ImRaii.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
-        using (ImRaii.PushColor(ImGuiCol.Text, ui.TitleInk))
+        using (UiScope.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
+        using (UiScope.PushColor(ImGuiCol.Text, ui.TitleInk))
         using (Plugin.Fonts.Push(TextStyles.Body.Scale, TextStyles.Body.Weight))
         {
             var wrapWidth = fieldSize.X - framePadding.X * 2f - Metrics.Space.Xxs * scale;
@@ -626,6 +625,7 @@ internal sealed partial class FeedbackApp
 
     private void OpenPicker()
     {
+        pickerLibraryWatch.Mark(library);
         pickerPaths = library.List();
         router.Push(FeedbackRoute.Photos);
     }

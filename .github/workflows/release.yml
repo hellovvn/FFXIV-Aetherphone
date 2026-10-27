@@ -59,7 +59,9 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          # Pinned to the SDK the windows runner image ships: on 2026-10-25 the .NET feed
+          # answered HTTP 409 for 10.0.403, so resolving 10.0.x to it failed every run.
+          dotnet-version: '10.0.402'
 
       - name: Download Dalamud
         shell: pwsh

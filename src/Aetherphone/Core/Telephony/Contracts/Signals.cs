@@ -33,8 +33,12 @@ internal static class SignalType
     public const string SocialPing = "social.ping";
     public const string MusterPing = "muster.ping";
     public const string AnnouncePing = "announce.ping";
+    public const string CampaignPing = "campaign.ping";
     public const string PollPing = "poll.ping";
     public const string FeedbackPing = "feedback.ping";
+    public const string ServerRestarting = "server.restarting";
+    public const string FlagsChanged = "flags.changed";
+    public const string TeamMessage = "team.message";
     public const string ChatTyping = "chat.typing";
     public const string VelvetTyping = "velvet.typing";
     public const string GramTyping = "gram.typing";
@@ -309,6 +313,9 @@ internal sealed record CallControl
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public GamePayload? Game { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TeamMessageDto? TeamMessage { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? StationId { get; init; }

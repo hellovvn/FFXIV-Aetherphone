@@ -6,6 +6,7 @@ internal sealed class HomeLayout
     public List<HomePage> Pages { get; set; } = new();
     public List<string> Installed { get; set; } = new();
     public List<string> Known { get; set; } = new();
+    public bool KnownBaseline { get; set; }
     public List<string>? Dock { get; set; }
 }
 
@@ -33,4 +34,6 @@ internal sealed class HomeItem
     public int StackIndex { get; set; }
     public bool SmartRotate { get; set; } = true;
     public string ShortcutId { get; set; } = string.Empty;
+    public string LinkAppId { get; set; } = string.Empty;
+    public string LinkArgument { get; set; } = string.Empty;
 }

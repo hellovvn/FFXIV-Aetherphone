@@ -29,6 +29,7 @@ internal sealed partial class VelvetShell
     private const float ProfileActionHeight = Button.RegularHeight;
     private const float ProfileBottomPad = 14f;
     private const float ProfileGridGap = 1.5f;
+    private const float ProfileTileAspect = 4f / 3f;
     private const float ProfileTabUnderline = 2f;
     private const float ProfileAboutLead = 4f;
     private const int ProfileColumns = 3;
@@ -224,8 +225,22 @@ internal sealed partial class VelvetShell
             return;
         }
 
-        DrawProfileStat(drawList, left + column, top, column, valueHeight, store.Connections.Length,
+        var connectionsLeft = left + column;
+        DrawProfileStat(drawList, connectionsLeft, top, column, valueHeight, ConnectedCount(),
             Loc.T(L.Velvet.ProfileConnections));
+        var hitMin = new Vector2(connectionsLeft, top);
+        var hitMax = new Vector2(connectionsLeft + column, top + valueHeight
+            + Typography.LineHeight(ProfileStatLabelStyle));
+        var hovered = UiInteract.Hover(hitMin, hitMax);
+        if (hovered)
+        {
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+        }
+
+        if (UiInteract.Click(hitMin, hitMax, hovered))
+        {
+            OpenConnections();
+        }
     }
 
     private static void DrawProfileStat(ImDrawListPtr drawList, float left, float top, float column, float valueHeight,
@@ -291,7 +306,7 @@ internal sealed partial class VelvetShell
             case VelvetConnectionState.OutgoingRequest:
                 if (Button.Draw(drawList, rect, Loc.T(L.Velvet.Requested), VelvetTheme.Ink, ButtonStyle.Gray))
                 {
-                    store.CancelRequest(user.UserId);
+                    AskWithdrawIntro(user.UserId, DisplayNameOf(user.DisplayName, user.Handle));
                 }
 
                 break;
@@ -501,6 +516,18 @@ internal sealed partial class VelvetShell
                 store.Disconnect(userId);
                 router.Reset();
             },
+        });
+    }
+
+    private void AskWithdrawIntro(string userId, string name)
+    {
+        confirm.Ask(new ConfirmRequest
+        {
+            Message = Loc.T(L.Velvet.WithdrawIntroConfirm, name),
+            ConfirmLabel = Loc.T(L.Velvet.WithdrawIntro),
+            CancelLabel = Loc.T(L.Velvet.DeleteCancel),
+            Sheet = true,
+            Confirm = () => store.CancelRequest(userId),
         });
     }
 

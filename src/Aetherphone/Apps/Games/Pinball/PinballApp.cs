@@ -40,7 +40,7 @@ internal sealed class PinballApp : IMiniGame
     private const int MaxComboScaleSteps = 6;
     private const float FeverGlow = 0.45f;
     private static readonly GameSpec StageSpec = new(GameId, L.Pinball.Title, GameGenre.Arcade, L.Pinball.Hook,
-        Backdrop.Neon, HudStyle.Compact, ScoreKind.Score, clocked: true, keyboard: true);
+        Backdrop.Neon, HudStyle.Compact, ScoreKind.Score, clocked: true, keyboard: true, guide: PinballGuide.Guide);
     private static readonly Rect WorldRect = new(new Vector2(-0.1f, -0.06f), new Vector2(6.1f, 12.32f));
     private static readonly Vector2 BannerPoint = new(2.7f, 6.4f);
     private static readonly Vector2 PromptPoint = new(2.7f, 8.15f);

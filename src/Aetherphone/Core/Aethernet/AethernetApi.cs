@@ -1,4 +1,5 @@
 using Aetherphone.Core.Aethernet.Clients;
+using Aetherphone.Core.Campaigns;
 using Aetherphone.Core.Net;
 
 namespace Aetherphone.Core.Aethernet;
@@ -18,10 +19,13 @@ internal sealed class AethernetApi
         GramDm = new GramDmClient(net);
         Velvet = new VelvetClient(net);
         Media = new MediaClient(net);
-        Safety = new SafetyClient(net);
+        Safety = new SafetyClient(net, session.Blocks);
         Feedback = new FeedbackClient(net);
         Polls = new PollsClient(net);
+        Prism = new PrismClient(net);
+        Glams = new GlamClient(net);
         Translation = new TranslationClient(net);
+        Gifs = new GifsClient(net);
         Announcements = new AnnouncementsClient(net);
         Musters = new MusterClient(net);
         Ads = new YellowPagesClient(net);
@@ -31,6 +35,8 @@ internal sealed class AethernetApi
         Casino = new CasinoClient(net);
         Games = new GamesClient(net);
         Scores = new ScoresClient(net);
+        Campaigns = new CampaignClient(net);
+        Team = new TeamClient(net);
     }
 
     public AuthClient Auth { get; }
@@ -46,7 +52,10 @@ internal sealed class AethernetApi
     public SafetyClient Safety { get; }
     public FeedbackClient Feedback { get; }
     public PollsClient Polls { get; }
+    public PrismClient Prism { get; }
+    public GlamClient Glams { get; }
     public TranslationClient Translation { get; }
+    public GifsClient Gifs { get; }
     public AnnouncementsClient Announcements { get; }
     public MusterClient Musters { get; }
     public YellowPagesClient Ads { get; }
@@ -56,4 +65,6 @@ internal sealed class AethernetApi
     public CasinoClient Casino { get; }
     public GamesClient Games { get; }
     public ScoresClient Scores { get; }
+    public CampaignClient Campaigns { get; }
+    public TeamClient Team { get; }
 }

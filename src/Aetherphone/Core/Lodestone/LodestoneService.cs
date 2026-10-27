@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.Media;
 using Aetherphone.Core.Net;
@@ -9,11 +10,22 @@ namespace Aetherphone.Core.Lodestone;
 
 internal sealed class LodestoneService : IDisposable
 {
+    private readonly record struct ImageKeySource(string Name, string World, bool FullBody);
+
+    private readonly record struct NameFetch(LodestoneService Service, string Name, string World, bool FullBody);
+
+    private readonly record struct IdFetch(LodestoneService Service, string Id);
+
+    private readonly record struct UriFetch(HttpService Http, Uri Uri);
+
     internal static readonly TimeSpan NetStoneTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan InitRetryFor = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan UnresolvedRetryAfter = TimeSpan.FromMinutes(10);
     private const int IdIndexVersion = 2;
     private const string ImageKeyVersion = "v2";
+    private const int ImageKeyLimit = 4096;
+    private readonly ConcurrentDictionary<ImageKeySource, string> nameImageKeys = new();
+    private readonly ConcurrentDictionary<string, string> idImageKeys = new(StringComparer.Ordinal);
     private readonly Configuration configuration;
     private readonly GameData gameData;
     private readonly HttpService http;
@@ -113,7 +125,8 @@ internal sealed class LodestoneService : IDisposable
             return AvatarHandle.Disabled;
         }
 
-        var result = media.GetOrRequest(cacheKey, token => http.GetBytesAsync(uri, token), drawnPixels);
+        var result = media.GetOrRequest(cacheKey, new UriFetch(http, uri),
+            static (fetch, token) => fetch.Http.GetBytesAsync(fetch.Uri, token), drawnPixels);
         var state = result.Texture is not null ? AvatarLoadState.Ready :
             result.Loading ? AvatarLoadState.Loading : AvatarLoadState.Failed;
         return new AvatarHandle(result.Texture, state, cacheKey);
@@ -126,8 +139,9 @@ internal sealed class LodestoneService : IDisposable
             return AvatarHandle.Disabled;
         }
 
-        var key = string.Concat("lodestone:", ImageKeyVersion, ":avatar:id:", id);
-        var result = media.GetOrRequest(key, token => FetchByIdAsync(id, token), drawnPixels);
+        var key = IdImageKey(id);
+        var result = media.GetOrRequest(key, new IdFetch(this, id),
+            static (fetch, token) => fetch.Service.FetchByIdAsync(fetch.Id, token), drawnPixels);
         var state = result.Texture is not null ? AvatarLoadState.Ready :
             result.Loading ? AvatarLoadState.Loading : AvatarLoadState.Failed;
         return new AvatarHandle(result.Texture, state, key);
@@ -169,11 +183,44 @@ internal sealed class LodestoneService : IDisposable
             return AvatarHandle.Disabled;
         }
 
-        var key = $"lodestone:{ImageKeyVersion}:{(fullBody ? "portrait" : "avatar")}:{name}@{world}".ToLowerInvariant();
-        var result = media.GetOrRequest(key, token => FetchAsync(name, world, fullBody, token), drawnPixels);
+        var key = NameImageKey(name, world, fullBody);
+        var result = media.GetOrRequest(key, new NameFetch(this, name, world, fullBody),
+            static (fetch, token) => fetch.Service.FetchAsync(fetch.Name, fetch.World, fetch.FullBody, token),
+            drawnPixels);
         var state = result.Texture is not null ? AvatarLoadState.Ready :
             result.Loading ? AvatarLoadState.Loading : AvatarLoadState.Failed;
         return new AvatarHandle(result.Texture, state, key);
+    }
+
+    private string NameImageKey(string name, string world, bool fullBody)
+    {
+        var source = new ImageKeySource(name, world, fullBody);
+        if (nameImageKeys.TryGetValue(source, out var key))
+        {
+            return key;
+        }
+
+        key = $"lodestone:{ImageKeyVersion}:{(fullBody ? "portrait" : "avatar")}:{name}@{world}".ToLowerInvariant();
+        return Remember(nameImageKeys, source, key);
+    }
+
+    private string IdImageKey(string id)
+    {
+        return idImageKeys.TryGetValue(id, out var key)
+            ? key
+            : Remember(idImageKeys, id, string.Concat("lodestone:", ImageKeyVersion, ":avatar:id:", id));
+    }
+
+    private static string Remember<TSource>(ConcurrentDictionary<TSource, string> keys, TSource source, string key)
+        where TSource : notnull
+    {
+        if (keys.Count >= ImageKeyLimit)
+        {
+            keys.Clear();
+        }
+
+        keys[source] = key;
+        return key;
     }
 
     private async Task<byte[]?> FetchAsync(string name, string world, bool fullBody, CancellationToken token)

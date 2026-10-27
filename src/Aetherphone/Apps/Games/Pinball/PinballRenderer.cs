@@ -16,6 +16,7 @@ internal enum LampState : byte
 internal static class PinballRenderer
 {
     public const float PlungerTravel = 0.45f;
+    public const float FeverShowLevel = 0.25f;
     private const float KickTravel = 0.3f;
     public static readonly Vector4 Magenta = new(1f, 0.36f, 0.74f, 1f);
     public static readonly Vector4 Cyan = new(0.36f, 0.9f, 1f, 1f);
@@ -39,7 +40,6 @@ internal static class PinballRenderer
     private const int EllipseSegments = 32;
     private const int MeterSegments = 48;
     private const float FeverHueSpeed = 0.6f;
-    private const float FeverShowLevel = 0.25f;
     private const float ShowWaveLength = 0.9f;
     private const float ShowWaveSpeed = 14f;
     private const float MeterRadius = 0.72f;
@@ -48,7 +48,7 @@ internal static class PinballRenderer
     private static readonly Vector2 RampShadowOffset = new(0.14f, 0.2f);
     public static readonly Vector2 EmblemCenter = new(2.7f, 7.25f);
     private static readonly Vector2 ShootAgainLamp = new(2.7f, 11.32f);
-    private static readonly Vector2 JackpotLamp = new(4.6f, 6.5f);
+    public static readonly Vector2 JackpotLamp = new(4.6f, 6.5f);
     private static readonly Vector2 SaucerLamp = new(1.68f, 4.2f);
     private static readonly Vector2 SpinnerLamp = new(0.3f, 5.55f);
     private static readonly Vector2 OrbitLamp = new(5.12f, 5.2f);
@@ -110,7 +110,10 @@ internal static class PinballRenderer
         drawList.AddCircleFilled(center - new Vector2(radius * 0.32f), radius * 0.3f, ImGui.GetColorU32(White), 12);
     }
 
-    public static void DrawRamp(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, float time)
+    public static void DrawRamp(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, float time) =>
+        DrawRamp(drawList, in camera, board.RampFlash, board.JackpotLit, time);
+
+    public static void DrawRamp(ImDrawListPtr drawList, in Camera2D camera, float flash, bool jackpotLit, float time)
     {
         var outer = PinballTable.RampOuterRail;
         var inner = PinballTable.RampInnerRail;
@@ -122,7 +125,6 @@ internal static class PinballRenderer
                 camera.ToScreen(inner[index] + RampShadowOffset), shadow);
         }
 
-        var flash = board.RampFlash;
         var floor = ImGui.GetColorU32(Cyan with { W = 0.1f + 0.25f * flash });
         for (var index = 0; index < outer.Length - 1; index++)
         {
@@ -130,17 +132,18 @@ internal static class PinballRenderer
                 camera.ToScreen(inner[index + 1]), camera.ToScreen(inner[index]), floor);
         }
 
-        DrawChevrons(drawList, in camera, board, time);
+        DrawChevrons(drawList, in camera, flash, jackpotLit, time);
         Stroke(drawList, in camera, outer, Cyan, RailCore, RailHalo);
         Stroke(drawList, in camera, inner, Cyan, RailCore, RailHalo);
         var lip = ImGui.GetColorU32(GamePalette.Lighten(Cyan, 0.4f));
         drawList.AddLine(camera.ToScreen(outer[0]), camera.ToScreen(inner[0]), lip, MathF.Max(1f, camera.Px(0.05f)));
     }
 
-    private static void DrawChevrons(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, float time)
+    private static void DrawChevrons(ImDrawListPtr drawList, in Camera2D camera, float flash, bool jackpotLit,
+        float time)
     {
         var path = PinballTable.RampPath;
-        var hot = board.JackpotLit || board.RampFlash > 0f;
+        var hot = jackpotLit || flash > 0f;
         var march = (int)(time * (hot ? 10f : 3f));
         for (var index = 1; index < path.Length - 2; index += 2)
         {
@@ -148,7 +151,7 @@ internal static class PinballRenderer
             var side = new Vector2(-direction.Y, direction.X);
             var tip = path[index] + direction * 0.09f;
             var lit = ((index / 2 + march) % 4) == 0;
-            var color = (board.JackpotLit ? GamePalette.Lighten(Ember, 0.2f) : Cyan) with
+            var color = (jackpotLit ? GamePalette.Lighten(Ember, 0.2f) : Cyan) with
             {
                 W = lit ? (hot ? 0.95f : 0.5f) : 0.16f,
             };
@@ -160,7 +163,7 @@ internal static class PinballRenderer
         }
     }
 
-    private static void DrawPlayfield(ImDrawListPtr drawList, in Camera2D camera, Vector4 accent, float time)
+    public static void DrawPlayfield(ImDrawListPtr drawList, in Camera2D camera, Vector4 accent, float time)
     {
         var cabinet = PinballTable.Cabinet;
         drawList.PathClear();
@@ -190,9 +193,17 @@ internal static class PinballRenderer
     private static void DrawEmblem(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 accent,
         float time, string playfieldText)
     {
+        var fever = board.FeverActive ? board.FeverLeft / PinballBoard.FeverSeconds : board.FeverCharge;
+        var ending = board.PlayfieldLeft < 5f && ((int)(time * FastBlinkHertz) & 1) == 0;
+        DrawEmblem(drawList, in camera, accent, time, playfieldText, board.PlayfieldMultiplier > 1, ending, fever,
+            board.FeverActive);
+    }
+
+    public static void DrawEmblem(ImDrawListPtr drawList, in Camera2D camera, Vector4 accent, float time,
+        string playfieldText, bool boosted, bool ending, float fever, bool feverActive)
+    {
         var center = camera.ToScreen(EmblemCenter);
         var line = MathF.Max(1f, camera.Px(0.025f));
-        var boosted = board.PlayfieldMultiplier > 1;
         var saucer = ImGui.GetColorU32(GamePalette.Lighten(accent, 0.2f) with { W = boosted ? 0.1f : 0.22f });
         var ellipseCenter = center + new Vector2(0f, camera.Px(0.06f));
         var radii = new Vector2(camera.Px(0.46f), camera.Px(0.13f));
@@ -200,26 +211,24 @@ internal static class PinballRenderer
         drawList.PathClear();
         drawList.PathArcTo(center + new Vector2(0f, camera.Px(0.02f)), camera.Px(0.24f), MathF.PI, MathF.Tau, 16);
         drawList.PathStroke(saucer, ImDrawFlags.None, line * 1.4f);
-        DrawFeverMeter(drawList, in camera, board, center, time);
+        DrawFeverMeter(drawList, in camera, center, fever, feverActive, time);
         if (!boosted)
         {
             return;
         }
 
-        var ending = board.PlayfieldLeft < 5f && ((int)(time * FastBlinkHertz) & 1) == 0;
-        var ink = board.FeverActive ? FeverInk(time, 0.5f) : Gold;
+        var ink = feverActive ? FeverInk(time, 0.5f) : Gold;
         ProgressRing.Glow(center, camera.Px(0.55f), ink, ending ? 0.2f : 0.6f);
         Typography.DrawCentered(drawList, center, playfieldText, (ending ? ink with { W = 0.45f } : ink),
             TextStyles.Title2);
     }
 
-    private static void DrawFeverMeter(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector2 center,
-        float time)
+    private static void DrawFeverMeter(ImDrawListPtr drawList, in Camera2D camera, Vector2 center, float fraction,
+        bool active, float time)
     {
         var radius = camera.Px(MeterRadius);
         var width = MathF.Max(1.5f, camera.Px(MeterWidth));
         drawList.AddCircle(center, radius, ImGui.GetColorU32(Magenta with { W = 0.12f }), MeterSegments, width);
-        var fraction = board.FeverActive ? board.FeverLeft / PinballBoard.FeverSeconds : board.FeverCharge;
         if (fraction <= 0.005f)
         {
             return;
@@ -228,12 +237,12 @@ internal static class PinballRenderer
         var start = -MathF.PI * 0.5f;
         var segments = Math.Max(2, (int)(MeterSegments * fraction));
         var step = MathF.Tau * fraction / segments;
-        var thickness = width * (board.FeverActive ? 1.4f : 1f);
+        var thickness = width * (active ? 1.4f : 1f);
         for (var segment = 0; segment < segments; segment++)
         {
             var from = start + step * segment;
             var to = from + step;
-            var color = board.FeverActive
+            var color = active
                 ? FeverInk(time, segment / (float)MeterSegments)
                 : Vector4.Lerp(Magenta, Ember, segment / (float)MeterSegments);
             drawList.AddLine(center + new Vector2(MathF.Cos(from), MathF.Sin(from)) * radius,
@@ -242,11 +251,11 @@ internal static class PinballRenderer
 
         var tipAngle = start + MathF.Tau * fraction;
         var tip = center + new Vector2(MathF.Cos(tipAngle), MathF.Sin(tipAngle)) * radius;
-        var hot = board.FeverActive || board.FeverCharge > 0.85f;
+        var hot = active || fraction > 0.85f;
         ProgressRing.Glow(tip, width * 2.5f, hot ? White : Ember, hot ? 0.9f : 0.5f);
     }
 
-    private static void DrawLamps(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold,
+    public static void DrawLamps(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold,
         float time, float show)
     {
         var skillShowing = board.BallInLane || board.SkillArmed;
@@ -324,7 +333,7 @@ internal static class PinballRenderer
             MathF.Max(1f, camera.Px(0.03f)));
     }
 
-    private static void DrawWalls(ImDrawListPtr drawList, in Camera2D camera, Vector4 gold)
+    public static void DrawWalls(ImDrawListPtr drawList, in Camera2D camera, Vector4 gold)
     {
         Stroke(drawList, in camera, PinballTable.Cabinet, gold, WallCore * 1.6f, WallHalo * 1.4f);
         Stroke(drawList, in camera, PinballTable.LaneWall, gold, WallCore, WallHalo);
@@ -358,23 +367,27 @@ internal static class PinballRenderer
     {
         for (var sling = 0; sling < PinballTable.SlingCount; sling++)
         {
-            var points = PinballTable.Sling(sling);
-            var flash = board.SlingFlash(sling);
-            var top = camera.ToScreen(points[0]);
-            var corner = camera.ToScreen(points[1]);
-            var bottom = camera.ToScreen(points[2]);
-            drawList.AddTriangleFilled(top, corner, bottom, ImGui.GetColorU32(Violet with { W = 0.16f + 0.4f * flash }));
-            Stroke(drawList, in camera, points, Violet, WallCore, WallHalo);
-            var face = Vector4.Lerp(GamePalette.Lighten(Violet, 0.3f), White, flash);
-            var normal = PinballTable.SlingFaceNormal(sling) * (0.05f * flash);
-            var faceStart = camera.ToScreen(points[0] + normal);
-            var faceEnd = camera.ToScreen(points[2] + normal);
-            drawList.AddLine(faceStart, faceEnd, ImGui.GetColorU32(face with { W = 0.3f }), camera.Px(0.16f + 0.1f * flash));
-            drawList.AddLine(faceStart, faceEnd, ImGui.GetColorU32(face), MathF.Max(1.5f, camera.Px(0.06f)));
+            DrawSling(drawList, in camera, sling, board.SlingFlash(sling));
         }
     }
 
-    private static void DrawPosts(ImDrawListPtr drawList, in Camera2D camera, Vector4 gold)
+    public static void DrawSling(ImDrawListPtr drawList, in Camera2D camera, int sling, float flash)
+    {
+        var points = PinballTable.Sling(sling);
+        var top = camera.ToScreen(points[0]);
+        var corner = camera.ToScreen(points[1]);
+        var bottom = camera.ToScreen(points[2]);
+        drawList.AddTriangleFilled(top, corner, bottom, ImGui.GetColorU32(Violet with { W = 0.16f + 0.4f * flash }));
+        Stroke(drawList, in camera, points, Violet, WallCore, WallHalo);
+        var face = Vector4.Lerp(GamePalette.Lighten(Violet, 0.3f), White, flash);
+        var normal = PinballTable.SlingFaceNormal(sling) * (0.05f * flash);
+        var faceStart = camera.ToScreen(points[0] + normal);
+        var faceEnd = camera.ToScreen(points[2] + normal);
+        drawList.AddLine(faceStart, faceEnd, ImGui.GetColorU32(face with { W = 0.3f }), camera.Px(0.16f + 0.1f * flash));
+        drawList.AddLine(faceStart, faceEnd, ImGui.GetColorU32(face), MathF.Max(1.5f, camera.Px(0.06f)));
+    }
+
+    public static void DrawPosts(ImDrawListPtr drawList, in Camera2D camera, Vector4 gold)
     {
         for (var post = 0; post < PinballTable.Posts.Length; post++)
         {
@@ -389,33 +402,38 @@ internal static class PinballRenderer
 
     private static void DrawTargets(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board)
     {
-        var half = PinballTable.TargetHalfExtents;
         for (var target = 0; target < PinballTable.TargetCount; target++)
         {
-            var color = BankColor(target / PinballTable.BankSize);
-            var min = camera.ToScreen(PinballTable.Targets[target] - half);
-            var max = camera.ToScreen(PinballTable.Targets[target] + half);
-            if (board.TargetDown(target))
-            {
-                drawList.AddRect(min, max, ImGui.GetColorU32(color with { W = 0.3f }), camera.Px(0.02f), ImDrawFlags.None,
-                    MathF.Max(1f, camera.Px(0.015f)));
-                continue;
-            }
-
-            var shadow = camera.Px(0.05f);
-            drawList.AddRectFilled(min + new Vector2(shadow), max + new Vector2(shadow), ImGui.GetColorU32(Shadow),
-                camera.Px(0.02f));
-            drawList.AddRectFilled(min - new Vector2(camera.Px(0.05f)), max + new Vector2(camera.Px(0.05f)),
-                ImGui.GetColorU32(color with { W = 0.16f }), camera.Px(0.06f));
-            drawList.AddRectFilledMultiColor(min, max, ImGui.GetColorU32(GamePalette.Lighten(color, 0.35f)),
-                ImGui.GetColorU32(GamePalette.Lighten(color, 0.35f)), ImGui.GetColorU32(GamePalette.Darken(color, 0.2f)),
-                ImGui.GetColorU32(GamePalette.Darken(color, 0.2f)));
-            drawList.AddRect(min, max, ImGui.GetColorU32(White with { W = 0.5f }), 0f, ImDrawFlags.None,
-                MathF.Max(1f, camera.Px(0.012f)));
+            DrawTarget(drawList, in camera, target, board.TargetDown(target));
         }
     }
 
-    private static void DrawSaucer(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, float time)
+    public static void DrawTarget(ImDrawListPtr drawList, in Camera2D camera, int target, bool down)
+    {
+        var half = PinballTable.TargetHalfExtents;
+        var color = BankColor(target / PinballTable.BankSize);
+        var min = camera.ToScreen(PinballTable.Targets[target] - half);
+        var max = camera.ToScreen(PinballTable.Targets[target] + half);
+        if (down)
+        {
+            drawList.AddRect(min, max, ImGui.GetColorU32(color with { W = 0.3f }), camera.Px(0.02f), ImDrawFlags.None,
+                MathF.Max(1f, camera.Px(0.015f)));
+            return;
+        }
+
+        var shadow = camera.Px(0.05f);
+        drawList.AddRectFilled(min + new Vector2(shadow), max + new Vector2(shadow), ImGui.GetColorU32(Shadow),
+            camera.Px(0.02f));
+        drawList.AddRectFilled(min - new Vector2(camera.Px(0.05f)), max + new Vector2(camera.Px(0.05f)),
+            ImGui.GetColorU32(color with { W = 0.16f }), camera.Px(0.06f));
+        drawList.AddRectFilledMultiColor(min, max, ImGui.GetColorU32(GamePalette.Lighten(color, 0.35f)),
+            ImGui.GetColorU32(GamePalette.Lighten(color, 0.35f)), ImGui.GetColorU32(GamePalette.Darken(color, 0.2f)),
+            ImGui.GetColorU32(GamePalette.Darken(color, 0.2f)));
+        drawList.AddRect(min, max, ImGui.GetColorU32(White with { W = 0.5f }), 0f, ImDrawFlags.None,
+            MathF.Max(1f, camera.Px(0.012f)));
+    }
+
+    public static void DrawSaucer(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, float time)
     {
         var center = camera.ToScreen(PinballTable.Saucer);
         var radius = camera.Px(PinballTable.SaucerRadius);
@@ -430,11 +448,14 @@ internal static class PinballRenderer
             MathF.Max(1f, camera.Px(0.03f)));
     }
 
-    private static void DrawSpinner(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold)
+    private static void DrawSpinner(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold) =>
+        DrawSpinner(drawList, in camera, board.SpinnerAngle, gold);
+
+    public static void DrawSpinner(ImDrawListPtr drawList, in Camera2D camera, float angle, Vector4 gold)
     {
         var center = PinballTable.Spinner;
         var width = PinballTable.SpinnerHalfWidth;
-        var depth = 0.12f * MathF.Cos(board.SpinnerAngle);
+        var depth = 0.12f * MathF.Cos(angle);
         var facing = depth >= 0f ? gold : GamePalette.Darken(gold, 0.45f);
         var min = camera.ToScreen(center - new Vector2(width, MathF.Abs(depth) + 0.01f));
         var max = camera.ToScreen(center + new Vector2(width, MathF.Abs(depth) + 0.01f));
@@ -450,22 +471,26 @@ internal static class PinballRenderer
     {
         for (var bumper = 0; bumper < PinballTable.BumperCount; bumper++)
         {
-            var world = PinballTable.Bumpers[bumper];
-            var flash = board.BumperFlash(bumper);
-            var center = camera.ToScreen(world);
-            var radius = camera.Px(PinballTable.BumperRadius);
-            var cap = camera.Px(BumperCapRadius * (1f - 0.08f * flash));
-            drawList.AddCircleFilled(camera.ToScreen(world + ShadowOffset), radius, ImGui.GetColorU32(Shadow), 28);
-            ProgressRing.Glow(center, radius * (1.1f + 0.3f * flash), Magenta, 0.35f + flash);
-            drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(GamePalette.Darken(Magenta, 0.55f)), 28);
-            drawList.AddCircle(center, radius, ImGui.GetColorU32(Vector4.Lerp(Magenta, White, flash)), 28,
-                MathF.Max(1.5f, camera.Px(0.05f)));
-            Squircle.FillCircleVerticalGradient(drawList, center, cap,
-                ImGui.GetColorU32(Vector4.Lerp(GamePalette.Lighten(Magenta, 0.35f), White, flash)),
-                ImGui.GetColorU32(GamePalette.Darken(Magenta, 0.1f)), 28);
-            drawList.AddCircle(center, cap, ImGui.GetColorU32(gold), 28, MathF.Max(1f, camera.Px(0.025f)));
-            DrawCrystal(drawList, center, cap * 0.55f, ImGui.GetColorU32(White with { W = 0.9f }));
+            DrawBumper(drawList, in camera, bumper, board.BumperFlash(bumper), gold);
         }
+    }
+
+    public static void DrawBumper(ImDrawListPtr drawList, in Camera2D camera, int bumper, float flash, Vector4 gold)
+    {
+        var world = PinballTable.Bumpers[bumper];
+        var center = camera.ToScreen(world);
+        var radius = camera.Px(PinballTable.BumperRadius);
+        var cap = camera.Px(BumperCapRadius * (1f - 0.08f * flash));
+        drawList.AddCircleFilled(camera.ToScreen(world + ShadowOffset), radius, ImGui.GetColorU32(Shadow), 28);
+        ProgressRing.Glow(center, radius * (1.1f + 0.3f * flash), Magenta, 0.35f + flash);
+        drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(GamePalette.Darken(Magenta, 0.55f)), 28);
+        drawList.AddCircle(center, radius, ImGui.GetColorU32(Vector4.Lerp(Magenta, White, flash)), 28,
+            MathF.Max(1.5f, camera.Px(0.05f)));
+        Squircle.FillCircleVerticalGradient(drawList, center, cap,
+            ImGui.GetColorU32(Vector4.Lerp(GamePalette.Lighten(Magenta, 0.35f), White, flash)),
+            ImGui.GetColorU32(GamePalette.Darken(Magenta, 0.1f)), 28);
+        drawList.AddCircle(center, cap, ImGui.GetColorU32(gold), 28, MathF.Max(1f, camera.Px(0.025f)));
+        DrawCrystal(drawList, center, cap * 0.55f, ImGui.GetColorU32(White with { W = 0.9f }));
     }
 
     private static void DrawCrystal(ImDrawListPtr drawList, Vector2 center, float size, uint color)
@@ -475,9 +500,12 @@ internal static class PinballRenderer
     }
 
     private static void DrawPlunger(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold,
+        float kick) =>
+        DrawPlunger(drawList, in camera, board.PlungerPull, board.BallWaiting, gold, kick);
+
+    public static void DrawPlunger(ImDrawListPtr drawList, in Camera2D camera, float pull, bool waiting, Vector4 gold,
         float kick)
     {
-        var pull = board.PlungerPull;
         var tipY = PinballTable.PlungerFloorY + pull * PlungerTravel - MathF.Min(KickTravel, kick * KickTravel);
         var tipMin = camera.ToScreen(new Vector2(PinballTable.LaneCenterX - 0.18f, tipY));
         var tipMax = camera.ToScreen(new Vector2(PinballTable.LaneCenterX + 0.18f, tipY + 0.1f));
@@ -500,7 +528,7 @@ internal static class PinballRenderer
         drawList.AddRectFilled(tipMin, tipMax, steel, camera.Px(0.04f));
         drawList.AddRectFilled(tipMin, new Vector2(tipMax.X, tipMin.Y + camera.Px(0.03f)),
             ImGui.GetColorU32(White with { W = 0.8f }), camera.Px(0.02f));
-        if (!board.BallWaiting)
+        if (!waiting)
         {
             return;
         }
@@ -513,7 +541,7 @@ internal static class PinballRenderer
             ImGui.GetColorU32(White), ImGui.GetColorU32(White), ImGui.GetColorU32(gold), ImGui.GetColorU32(gold));
     }
 
-    private static void DrawApron(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold,
+    public static void DrawApron(ImDrawListPtr drawList, in Camera2D camera, PinballBoard board, Vector4 gold,
         float time, float show)
     {
         var min = camera.ToScreen(new Vector2(0f, ApronTop));
@@ -535,25 +563,29 @@ internal static class PinballRenderer
     {
         for (var flipper = 0; flipper < PinballTable.FlipperCount; flipper++)
         {
-            var pivot = PinballTable.Pivot(flipper);
-            var angle = board.FlipperAngle(flipper);
-            var lift = board.FlipperLift(flipper);
-            var direction = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-            var tip = pivot + direction * (PinballTable.FlipperLength - FlipperTipRadius);
-            DrawCapsule(drawList, in camera, pivot + ShadowOffset, tip + ShadowOffset, FlipperPivotRadius,
-                FlipperTipRadius, ImGui.GetColorU32(Shadow));
-            if (lift > 0.05f)
-            {
-                DrawCapsule(drawList, in camera, pivot, tip, FlipperPivotRadius + 0.05f, FlipperTipRadius + 0.05f,
-                    ImGui.GetColorU32(gold with { W = 0.22f * lift }));
-            }
-
-            DrawCapsule(drawList, in camera, pivot, tip, FlipperPivotRadius, FlipperTipRadius,
-                ImGui.GetColorU32(GamePalette.Lighten(gold, 0.15f)));
-            DrawCapsule(drawList, in camera, pivot, tip, FlipperPivotRadius * 0.72f, FlipperTipRadius * 0.6f,
-                ImGui.GetColorU32(Vector4.Lerp(new Vector4(0.96f, 0.95f, 0.92f, 1f), White, lift)));
-            drawList.AddCircleFilled(camera.ToScreen(pivot), camera.Px(0.035f), ImGui.GetColorU32(Steel), 10);
+            DrawFlipper(drawList, in camera, flipper, board.FlipperAngle(flipper), board.FlipperLift(flipper), gold);
         }
+    }
+
+    public static void DrawFlipper(ImDrawListPtr drawList, in Camera2D camera, int flipper, float angle, float lift,
+        Vector4 gold)
+    {
+        var pivot = PinballTable.Pivot(flipper);
+        var direction = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+        var tip = pivot + direction * (PinballTable.FlipperLength - FlipperTipRadius);
+        DrawCapsule(drawList, in camera, pivot + ShadowOffset, tip + ShadowOffset, FlipperPivotRadius,
+            FlipperTipRadius, ImGui.GetColorU32(Shadow));
+        if (lift > 0.05f)
+        {
+            DrawCapsule(drawList, in camera, pivot, tip, FlipperPivotRadius + 0.05f, FlipperTipRadius + 0.05f,
+                ImGui.GetColorU32(gold with { W = 0.22f * lift }));
+        }
+
+        DrawCapsule(drawList, in camera, pivot, tip, FlipperPivotRadius, FlipperTipRadius,
+            ImGui.GetColorU32(GamePalette.Lighten(gold, 0.15f)));
+        DrawCapsule(drawList, in camera, pivot, tip, FlipperPivotRadius * 0.72f, FlipperTipRadius * 0.6f,
+            ImGui.GetColorU32(Vector4.Lerp(new Vector4(0.96f, 0.95f, 0.92f, 1f), White, lift)));
+        drawList.AddCircleFilled(camera.ToScreen(pivot), camera.Px(0.035f), ImGui.GetColorU32(Steel), 10);
     }
 
     private static void DrawCapsule(ImDrawListPtr drawList, in Camera2D camera, Vector2 from, Vector2 to,
@@ -589,7 +621,7 @@ internal static class PinballRenderer
             MathF.Max(1f, camera.Px(0.012f)));
     }
 
-    private static void DrawArrowLamp(ImDrawListPtr drawList, in Camera2D camera, Vector2 position, Vector2 direction,
+    public static void DrawArrowLamp(ImDrawListPtr drawList, in Camera2D camera, Vector2 position, Vector2 direction,
         float size, Vector4 color, LampState state, float time, float flash, float show)
     {
         var side = new Vector2(-direction.Y, direction.X);

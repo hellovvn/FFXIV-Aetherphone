@@ -8,6 +8,7 @@ using Aetherphone.Core.Conduct;
 using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Game;
+using Aetherphone.Core.Gifs;
 using Aetherphone.Core.Home;
 using Aetherphone.Core.Honorific;
 using Aetherphone.Core.Localization;
@@ -28,7 +29,6 @@ using Aetherphone.Windows;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Aethergram;
 
@@ -257,9 +257,10 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         PhoneVisibility visibility, RealtimeSignalBus realtimeSignals,
         WallpaperImageCache wallpaperImages, ConfirmService confirm, TranslationService translation,
         ReportService report, ConductGateService conduct,
-        AppInstaller installer, EncryptionHelpService encryptionHelp)
+        AppInstaller installer, EncryptionHelpService encryptionHelp, GifSearch gifs)
     {
         this.translation = translation;
+        this.gifs = gifs;
         store = new AethergramStore(session, net.Account, net.Social, net.Grams, net.Safety, net.Media, realtimeSignals);
         store.SetFeedRegions(SocialRegion.FilterCsv(configuration.AethergramFeedRegionMask));
         store.SetFeedSensitive(configuration.AethergramShowSensitivePosts, activeScope);
@@ -430,7 +431,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         }
 
         DrawNight(screen, context.Content.Min.Y);
-        using (InputShield.Engage(avatarLightbox.Expanded))
+        using (InputShield.Engage(avatarLightbox.Expanded || GifSheetCaptures))
         using (intro.FadeContent())
         {
             router.Draw(SceneChrome.AppAreaFrom(context.Content, theme, UiScale.Current), AppSkin.Transparent,
@@ -448,6 +449,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawPostSheet(screen);
         DrawFeedExplainer(screen);
         DrawCommentSheet(screen);
+        DrawGifSheet(screen);
         DrawProfileMenu(screen);
         DrawProfileActionSheet(screen);
         DrawInboxRowSheet(screen);
@@ -570,7 +572,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         }
 
         using (TabBar.ReserveContent(scale))
-        using (ImRaii.PushId((int)activeTab))
+        using (UiScope.PushId((int)activeTab))
         {
             switch (activeTab)
             {
@@ -688,7 +690,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
 
     private bool HiddenByMediaPreference(CommentDto comment)
     {
-        return comment.Text.Length == 0 && CommentMediaHidden(comment.MediaUrl);
+        return comment.Text.Length == 0 && CommentMediaHidden(comment.Media);
     }
 
     private bool CommentMediaHidden(string? mediaUrl)
@@ -1154,7 +1156,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             Typography.FitText(Loc.T(L.PhotoTag.PendingTitle), textWidth, CardNameStyle), Ink.TitleInk, CardNameStyle);
         ImGui.SetCursorScreenPos(new Vector2(textLeft, titleTop + titleHeight + TagPromptTitleGap * scale));
         using (Typography.WrapAt(textLeft + textWidth))
-        using (ImRaii.PushColor(ImGuiCol.Text, Ink.MutedInk))
+        using (UiScope.PushColor(ImGuiCol.Text, Ink.MutedInk))
         using (Plugin.Fonts.Push(CardMetaStyle.Scale, CardMetaStyle.Weight))
         {
             Typography.Wrapped(Loc.T(L.PhotoTag.PendingHint));
@@ -1305,7 +1307,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             OpenProfileFromPost(post.AuthorId, post.Id);
         }
 
-        var moreExtent = new Vector2(moreRadius, moreRadius);
+        var moreExtent = new Vector2(MathF.Max(moreRadius, Metrics.Size.TapTarget * 0.5f * scale));
         var moreHovered = UiInteract.Hover(moreCenter - moreExtent, moreCenter + moreExtent);
         if (moreHovered)
         {
@@ -1407,7 +1409,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             {
                 ImGui.SetCursorScreenPos(new Vector2(innerX, y));
                 using (Typography.WrapAt(innerX + innerWidth))
-                using (ImRaii.PushColor(ImGuiCol.Text, Ink.BodyInk))
+                using (UiScope.PushColor(ImGuiCol.Text, Ink.BodyInk))
                 using (Plugin.Fonts.Push(CardCaptionScale))
                 {
                     Typography.Wrapped(captionText);

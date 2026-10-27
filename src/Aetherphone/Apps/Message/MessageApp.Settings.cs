@@ -1,6 +1,8 @@
+using System.Runtime.InteropServices;
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Localization;
+using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 
@@ -13,6 +15,8 @@ internal sealed partial class MessageApp
     private readonly Action<string> pickWallpaper;
     private readonly Action<bool> setWallpaperPattern;
     private readonly Action clearWallpaperOverride;
+    private readonly DropdownMenu listSizeMenu = new();
+    private readonly List<DropdownMenu.Item> listSizeItems = new(3);
     private string wallpaperScope = string.Empty;
 
     private void DrawSettingsTab(Rect area)
@@ -36,6 +40,15 @@ internal sealed partial class MessageApp
             if (DrawSettingRow(drawList, PhoneIcons.Wallpaper, TintTeal, Loc.T(L.Message.Wallpaper)))
             {
                 router.Push(MessageRoute.DefaultWallpaper);
+            }
+
+            var listSizeOrigin = ImGui.GetCursorScreenPos();
+            var listSizeRow = new Rect(listSizeOrigin, new Vector2(listSizeOrigin.X + ScrollLayout.StableContentWidth(),
+                listSizeOrigin.Y + SettingRowHeight * scale));
+            if (DrawSettingRow(drawList, PhoneIcons.Menu, TintGreen, Loc.T(L.Message.ListSize),
+                    Loc.T(ListRowSize.Label(configuration.MessageListDensity))))
+            {
+                listSizeMenu.Toggle("message.settings.listSize", listSizeRow);
             }
 
             var starredCount = configuration.MessageStarredMessages.Count;
@@ -81,6 +94,27 @@ internal sealed partial class MessageApp
             DrawInlineEmpty(drawList, Loc.T(L.Message.OpensSettings));
             ImGui.Dummy(new Vector2(0f, 24f * scale));
         }
+
+        DrawListSizeMenu(area);
+    }
+
+    private void DrawListSizeMenu(Rect area)
+    {
+        if (!listSizeMenu.IsOpenFor("message.settings.listSize"))
+        {
+            return;
+        }
+
+        ListRowSize.FillMenu(listSizeItems, configuration.MessageListDensity);
+        var picked = listSizeMenu.Draw(area, PhoneTheme.WithAccent(theme, activeTheme.Accent),
+            CollectionsMarshal.AsSpan(listSizeItems));
+        if (picked < 0)
+        {
+            return;
+        }
+
+        configuration.MessageListDensity = ListRowSize.Order[picked];
+        configuration.Save();
     }
 
     private void DrawChatTheme(Rect area)

@@ -258,6 +258,7 @@ internal sealed class PhotoLibrary
             Directory.CreateDirectory(trashDirectory);
             var target = FreeSibling(trashDirectory, Path.GetFileName(path));
             File.Move(path, target);
+            MarkChanged();
             File.SetCreationTimeUtc(target, DateTime.UtcNow);
         }
         catch (Exception exception)
@@ -285,6 +286,7 @@ internal sealed class PhotoLibrary
         {
             var target = FreeSibling(directory, Path.GetFileName(trashPath));
             File.Move(trashPath, target);
+            MarkChanged();
             return target;
         }
         catch (Exception exception)

@@ -8,7 +8,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Core.Translation;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Aethergram;
 
@@ -22,6 +21,7 @@ internal sealed partial class AethergramApp
     private const float CommentTextGap = 3f;
     private const float CommentMetaGap = 8f;
     private const float CommentMediaGap = 6f;
+    private const float CommentReplyGap = 4f;
     private const float CommentHeartColumn = 40f;
     private const float CommentHeartSize = 16f;
     private const float CommentHeartHitRadius = 14f;
@@ -35,6 +35,7 @@ internal sealed partial class AethergramApp
     private static readonly TextStyle CommentNameStyle = TextStyles.Headline;
     private static readonly TextStyle CommentBodyStyle = TextStyles.Callout;
     private static readonly TextStyle CommentMetaStyle = TextStyles.Footnote;
+    private static readonly TextStyle CommentReplyStyle = TextStyles.FootnoteEmphasized;
     private static readonly TextStyle CommentCountStyle = TextStyles.Caption1;
     private static readonly TextStyle EarlierCommentsStyle = TextStyles.SubheadlineEmphasized;
 
@@ -173,10 +174,14 @@ internal sealed partial class AethergramApp
             : commentLayout?.Size.Y ?? Typography.MeasureWrapped(commentText, textWidth, CommentBodyStyle.Scale);
         var textGap = textHeight > 0f ? CommentTextGap * scale : 0f;
         var linkHeight = TranslateLink.Height(translation, commentKey, comment.Lang, scale);
-        var mediaHidden = CommentMediaHidden(comment.MediaUrl);
+        var mediaHidden = CommentMediaHidden(comment.Media);
         var mediaHeight = mediaHidden ? 0f : CommentMedia.MeasureHeight(comment, textWidth, scale);
         var mediaGap = mediaHeight > 0f && (textHeight > 0f || linkHeight > 0f) ? CommentMediaGap * scale : 0f;
-        var contentHeight = nameHeight + textGap + textHeight + linkHeight + mediaGap + mediaHeight;
+        var canReply = !mine && comment.AuthorHandle.Length > 0;
+        var replyGap = canReply ? CommentReplyGap * scale : 0f;
+        var replyHeight = canReply ? ReplyMention.Height(CommentReplyStyle) : 0f;
+        var contentHeight = nameHeight + textGap + textHeight + linkHeight + mediaGap + mediaHeight + replyGap
+            + replyHeight;
         var rowHeight = padY * 2f + MathF.Max(contentHeight, radius * 2f);
         var rowMax = new Vector2(origin.X + width, origin.Y + rowHeight);
 
@@ -204,7 +209,7 @@ internal sealed partial class AethergramApp
             {
                 ImGui.SetCursorScreenPos(new Vector2(textLeft, textTop));
                 using (Typography.WrapAt(textRight))
-                using (ImRaii.PushColor(ImGuiCol.Text, Ink.BodyInk))
+                using (UiScope.PushColor(ImGuiCol.Text, Ink.BodyInk))
                 using (Plugin.Fonts.Push(CommentBodyStyle.Scale))
                 {
                     Typography.Wrapped(commentText);
@@ -225,15 +230,24 @@ internal sealed partial class AethergramApp
                 new Vector2(textLeft, textTop + textHeight), textWidth, Ink.MutedInk, Ink.AccentLink, scale);
         }
 
-        if (comment.MediaUrl is { } commentMediaUrl && !mediaHidden)
+        if (comment.Media is { } commentMediaUrl && !mediaHidden)
         {
+            var held = HeldGif(commentMediaUrl);
             var mediaRect = CommentMedia.Draw(drawList, images, comment,
                 new Vector2(textLeft, textTop + textHeight + linkHeight + mediaGap), textWidth, scale, Ink.ThumbFill,
-                Ink.MutedInk);
+                Ink.MutedInk, held);
             if (UiInteract.HoverClick(mediaRect.Min, mediaRect.Max))
             {
-                photoViewer.Open(this, () => GifMedia.Texture(images, commentMediaUrl, ImGui.GetTime()));
+                OpenCommentMedia(commentMediaUrl, held);
             }
+        }
+
+        if (canReply && ReplyMention.DrawLink(drawList,
+                new Vector2(textLeft, textTop + textHeight + linkHeight + mediaGap + mediaHeight + replyGap),
+                Loc.T(L.Aethergram.ReplyToComment), textWidth, CommentReplyStyle, Ink.MutedInk, Ink.TitleInk))
+        {
+            commentDraft = ReplyMention.Prefill(commentDraft, comment.AuthorHandle, MaxCommentLength);
+            commentFocusPending = true;
         }
 
         var avatarExtent = new Vector2(radius, radius);
@@ -334,6 +348,8 @@ internal sealed partial class AethergramApp
             commentAttachment.Restore(returnedAttachment);
         }
 
+        PrepareCommentGifs();
+
         var scale = UiScale.Current;
         if (commentFailure.Failed)
         {
@@ -356,7 +372,7 @@ internal sealed partial class AethergramApp
 
         var style = new CommentComposerStyle(AppSkin.Transparent, Ink.FieldFill, Ink.TitleInk, Ink.Accent,
             AppSkin.Transparent, Ink.White, true, 11f, 56f, 1f, 19f);
-        var canSend = !string.IsNullOrWhiteSpace(commentDraft) || commentAttachment.Path is not null;
+        var canSend = !string.IsNullOrWhiteSpace(commentDraft) || commentAttachment.HasAttachment;
         var delta = MathF.Min(ImGui.GetIO().DeltaTime, TransitionTiming.MaxFrameSeconds);
         commentSendReveal.Step(canSend ? 1f : 0f, Motion.Appear, delta);
         var hint = post.AuthorDisplayName.Length > 0 || post.AuthorHandle.Length > 0
@@ -370,10 +386,17 @@ internal sealed partial class AethergramApp
         {
             var text = commentDraft;
             var attachmentPath = commentAttachment.Path;
+            var attachedGif = commentAttachment.Gif;
             var postId = post.Id;
             commentDraft = string.Empty;
             commentAttachment.Clear();
             commentFailure.Clear();
+            if (attachedGif is not null)
+            {
+                SubmitCommentGif(postId, text, attachedGif);
+                return;
+            }
+
             store.AddComment(postId, text, attachmentPath, accepted =>
             {
                 if (accepted)

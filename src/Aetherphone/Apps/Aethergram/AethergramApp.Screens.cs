@@ -10,15 +10,6 @@ namespace Aetherphone.Apps.Aethergram;
 
 internal sealed partial class AethergramApp
 {
-    private enum ActivityBucket
-    {
-        None,
-        Today,
-        Week,
-        Month,
-        Earlier,
-    }
-
     private const float ActivityAvatarRadius = 22f;
     private const float ActivityBadgeRadius = 9f;
     private const float ActivityBadgeRimFraction = 0.70711f;
@@ -28,9 +19,6 @@ internal sealed partial class AethergramApp
     private const float ActivityLoadOlderMargin = 300f;
     private const float RequestPillWidth = 76f;
     private const float RequestPillGap = 8f;
-    private const long SecondsPerDay = 86400L;
-    private const long WeekSeconds = 7L * SecondsPerDay;
-    private const long MonthSeconds = 30L * SecondsPerDay;
 
     private static readonly TextStyle ActivityActorStyle = TextStyles.Headline;
     private static readonly TextStyle ActivityBodyStyle = TextStyles.Subheadline;
@@ -78,11 +66,11 @@ internal sealed partial class AethergramApp
                     continue;
                 }
 
-                var itemBucket = BucketFor(items[index].CreatedAtUnix, now);
+                var itemBucket = ActivityBuckets.For(items[index].CreatedAtUnix, now);
                 if (itemBucket != bucket)
                 {
                     bucket = itemBucket;
-                    SocialChrome.DrawSectionLabel(Loc.T(BucketLabel(bucket)), Ink, ActivitySectionStyle);
+                    SocialChrome.DrawSectionLabel(Loc.T(ActivityBuckets.Label(bucket)), Ink, ActivitySectionStyle);
                 }
 
                 DrawActivityRow(items[index]);
@@ -106,30 +94,6 @@ internal sealed partial class AethergramApp
 
     private bool ShowsActivity(NotificationDto item) =>
         item.App == Id && !SocialActivity.IsModerationNotice(item.Type);
-
-    private static ActivityBucket BucketFor(long createdAtUnix, long now)
-    {
-        if (TimeText.SameLocalDay(createdAtUnix, now))
-        {
-            return ActivityBucket.Today;
-        }
-
-        var age = now - createdAtUnix;
-        if (age < WeekSeconds)
-        {
-            return ActivityBucket.Week;
-        }
-
-        return age < MonthSeconds ? ActivityBucket.Month : ActivityBucket.Earlier;
-    }
-
-    private static LocString BucketLabel(ActivityBucket bucket) => bucket switch
-    {
-        ActivityBucket.Today => L.Aethergram.ActivityToday,
-        ActivityBucket.Week => L.Aethergram.ActivityThisWeek,
-        ActivityBucket.Month => L.Aethergram.ActivityThisMonth,
-        _ => L.Aethergram.ActivityEarlier,
-    };
 
     private void OpenActivity()
     {

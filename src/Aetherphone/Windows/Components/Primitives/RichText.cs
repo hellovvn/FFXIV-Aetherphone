@@ -131,7 +131,8 @@ internal static class RichText
         var hasLink = text.Length >= 7 && HasLinkCandidate(text);
         var hasEmoji = EmojiScanner.MightContain(text);
         var hasTag = scanHashtags && text.Contains('#');
-        if (!hasMention && !hasLink && !hasEmoji && !hasTag)
+        var keepsNumbers = HasGroupedDigits(text) && ImGui.CalcTextSize(text).X > wrapWidth;
+        if (!hasMention && !hasLink && !hasEmoji && !hasTag && !keepsNumbers)
         {
             return null;
         }
@@ -139,7 +140,12 @@ internal static class RichText
         var spans = ParseSpans(text, mentions, scanHashtags, out var urls, out var emojiFiles, out var tags);
         if (spans is null)
         {
-            return null;
+            if (!keepsNumbers)
+            {
+                return null;
+            }
+
+            spans = new List<RichSpan>();
         }
 
         Plugin.Fonts.NoticeText(text);
@@ -242,6 +248,25 @@ internal static class RichText
     {
         return text.Contains("http", StringComparison.OrdinalIgnoreCase) ||
                text.Contains("www.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool HasGroupedDigits(string text)
+    {
+        for (var index = 1; index < text.Length - 1; index++)
+        {
+            var separator = text[index];
+            if (separator is not (',' or '.'))
+            {
+                continue;
+            }
+
+            if (char.IsAsciiDigit(text[index - 1]) && char.IsAsciiDigit(text[index + 1]))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private readonly struct RichSpan

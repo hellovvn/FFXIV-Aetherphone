@@ -241,6 +241,16 @@ internal sealed class CasinoInfoSheet
             y += height + gap;
         }
 
+        if (CasinoHomeLinks.IsLinkable(spec.GameId))
+        {
+            if (DrawButton(left, y, width, height, Loc.T(L.HomeLinks.AddToHome), ButtonStyle.Gray))
+            {
+                Choose(CasinoInfoRequest.AddToHome);
+            }
+
+            y += height + gap;
+        }
+
         if (DrawButton(left, y, width, height, Loc.T(L.Casino.FairnessRow), ButtonStyle.Plain))
         {
             Choose(CasinoInfoRequest.Fairness);

@@ -16,10 +16,17 @@ internal sealed class MinimizedPhonePage : ISettingsPage
     private const float ToggleGap = 10f;
     private const float StagePadding = Metrics.Space.Lg;
 
+    private static readonly SettingsEntry[] Searchable =
+    {
+        new(L.Minimized.LockPosition, L.Minimized.Placement),
+        new(L.Minimized.AlwaysOnTop, L.Minimized.Placement),
+    };
+
     public string Title => Loc.T(L.Minimized.Title);
     public string Summary => string.Empty;
     public FontAwesomeIcon Icon => FontAwesomeIcon.MobileAlt;
     public Vector4 Tint => new(0.98f, 0.58f, 0.16f, 1f);
+    public ReadOnlySpan<SettingsEntry> Entries => Searchable;
     private readonly MinimizedLayoutService layout;
     private readonly MinimizedPreview preview;
     private readonly Configuration configuration;
@@ -49,6 +56,8 @@ internal sealed class MinimizedPhonePage : ISettingsPage
             SettingsSection.Hint(Loc.T(L.Minimized.ShapeHint), theme);
             ImGui.Dummy(new Vector2(0f, Metrics.Space.Sm * scale));
             SettingsSection.Hint(Loc.T(L.Minimized.ResizeHint), theme);
+            ImGui.Dummy(new Vector2(0f, Metrics.Space.Xl * scale));
+            DrawPlacementSettings(theme, scale);
             ImGui.Dummy(new Vector2(0f, Metrics.Space.Xl * scale));
             if (configuration.MinimizedShape == MinimizedShape.Minimap)
             {
@@ -96,6 +105,27 @@ internal sealed class MinimizedPhonePage : ISettingsPage
         }
 
         configuration.MinimizedShape = (MinimizedShape)picked;
+        configuration.Save();
+    }
+
+    private void DrawPlacementSettings(PhoneTheme theme, float scale)
+    {
+        SettingsSection.Header(Loc.T(L.Minimized.Placement), theme);
+        var card = GroupCard.Begin(theme, 2);
+        var locked = SettingsRow.Bool(card.NextRow(), Loc.T(L.Minimized.LockPosition),
+            configuration.LockMinimizedPosition, theme, "minimized.lockPosition");
+        var onTop = SettingsRow.Bool(card.NextRow(), Loc.T(L.Minimized.AlwaysOnTop),
+            configuration.MinimizedAlwaysOnTop, theme, "minimized.alwaysOnTop");
+        card.End();
+        ImGui.Dummy(new Vector2(0f, Metrics.Space.Md * scale));
+        SettingsSection.Hint(Loc.T(L.Minimized.PlacementHint), theme);
+        if (locked == configuration.LockMinimizedPosition && onTop == configuration.MinimizedAlwaysOnTop)
+        {
+            return;
+        }
+
+        configuration.LockMinimizedPosition = locked;
+        configuration.MinimizedAlwaysOnTop = onTop;
         configuration.Save();
     }
 

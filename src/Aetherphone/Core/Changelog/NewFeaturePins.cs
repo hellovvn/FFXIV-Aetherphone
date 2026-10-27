@@ -4,7 +4,7 @@ internal static class NewFeaturePins
 {
     public const string Nameplate = "settings.nameplate.1100";
     public const string Music = "app.music.1104";
-    public const string Games = "app.games.1200";
-    public const string GamesWhatsNew = "games.whatsnew.1200";
+    public const string Games = "app.games.1400";
+    public const string GamesWhatsNew = "games.whatsnew.1400";
     public const string Casino = "app.casino.1300";
 }

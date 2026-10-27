@@ -38,8 +38,11 @@ Some apps call public services directly. None of them receive the Aethernet toke
 | YouTube, through YoutubeExplode | Songs in Music |
 | GitHub | Media tool downloads (see [Media and video](media-and-video.md)), Dalamud's plugin list for Shortcuts |
 | GitHub and Debian's package archive | Doom game data |
+| KLIPY | GIF search in Chirper, after the player turns it on |
 
 Most ride `HttpService`; services that ask for polite pacing also go through `RequestThrottle` (src/Aetherphone/Core/Net/RequestThrottle.cs).
+
+KLIPY's integration rules say searches and GIF images must load straight from the player's PC, never through a partner server or cache, so Aethernet does not proxy it. `GET /gifs/config` hands a signed-in client the KLIPY app key, the content filter and an anonymous per-account customer id; `GifSearch` (src/Aetherphone/Core/Gifs/) calls KLIPY with them, debounced and one request at a time. Every URL `HttpService` logs goes through `LogUrl`, which shows a KLIPY request as its host and endpoint with the key replaced by `***` and the query dropped, so neither the key nor a search reaches the log. Posts and comments carry a KLIPY GIF in `gifUrl`, never in `mediaUrl` or `mediaUrls`, so builds that predate the consent gate show nothing for it; `PostMedia.Photos(post)` and `CommentDto.Media` fold it back into the usual media path. The whole feature stays off until the player accepts the consent card or turns on GIFs from KLIPY in Settings > Privacy; until then a KLIPY GIF in a chirp or reply shows a "GIF, tap to show" tile and loads nothing.
 
 ## The request path
 
@@ -96,11 +99,12 @@ if (page is null)
 
 Each frame, the list screen copies the store's failure into its `FailureSlot` and draws a "Couldn't load this" panel with the slot's text and a Retry button that calls `store.Refresh()`.
 
-Three answers need their own handling:
+Four answers need their own handling:
 
 - **Refusals as data.** Sign-in verification, the game rooms, and the casino answer an expected refusal with HTTP 200 and a reason in the body. A `null` from them is always a transport problem, never a rule.
 - **An app switched off.** `AppAvailability` reads the server's app flags and hides any app reported as off. A call into such an app fails with 503 and the code `app_disabled`. Show it as temporary, never as a sign-out.
 - **Rate limits.** A 429 on a GET pauses every GET to that host until `Retry-After` passes (at most 30 seconds), so unrelated features can look broken meanwhile; the `RateLimitPill` under the status bar counts down. A 429 on a write fails only that call. A 429 without `Retry-After` pauses nothing, and a GET is retried once.
+- **Gateway hiccups.** A GET that comes back 502, 504, 520 to 527 or 530, or loses its connection partway, is retried once after a second or two (`TransientFailures`). Writes and the 503 of a switched-off app are never retried.
 
 ## Adding an endpoint
 
@@ -169,7 +173,7 @@ stateDiagram-v2
 
 `CallHub` owns the state, and every teardown returns straight to `Idle` (it never rests in `Ended`). An incoming call is declined at once as unavailable when calls are off or ChocoChat (the Message app) is not installed, and as busy during another call. The server's roster is the only truth about who is in a call. After a socket drop the hub keeps the call for a short grace window: if the socket returns in time it sends `call.rejoin` (and repeats `call.accept` if it was still connecting), otherwise the call ends. A call that is still ringing when the socket drops is logged as missed instead.
 
-Audio goes out through `AudioCapture` (microphone, gain, a noise gate that skips silence), `OpusAudio` (the managed Concentus codec), and `MediaFrame` (call id, slot, sequence). Mute stops encoding, so nothing is sent. Coming in, `VoiceMixer` keeps a decoder and jitter buffer per person, applies per-person volume, mixes, and plays.
+Audio goes out through `AudioCapture` (microphone, automatic gain capped at -3 dBFS or the manual volume, and a noise gate that opens at the player's mic threshold, set on the same scale as the input meter in `MicThreshold`), `OpusAudio` (the managed Concentus codec), and `MediaFrame` (call id, slot, sequence). Mute stops encoding, so nothing is sent. Coming in, `VoiceMixer` keeps a decoder and jitter buffer per person, applies per-person volume, mixes, and plays.
 
 `CallLogStore` keeps the call log. Missed calls also arrive later as social notifications, and `CallLogStore` skips one that echoes a miss it logged moments before. ChocoChat owns the call screens, and every surface reads `CallHub.Snapshot()`, an immutable `CallView`, each frame.
 

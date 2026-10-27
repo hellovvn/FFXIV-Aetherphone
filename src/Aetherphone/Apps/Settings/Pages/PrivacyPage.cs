@@ -21,6 +21,7 @@ internal sealed class PrivacyPage : ISettingsPage, IDisposable
     private static readonly SettingsEntry[] Searchable =
     {
         new(L.Settings.TellArchive),
+        new(L.Gifs.Setting),
         new(L.Settings.ReadReceipts),
         new(L.Settings.LastSeenOnline),
         new(L.Stage.ShowOnLeaderboards),
@@ -241,13 +242,21 @@ internal sealed class PrivacyPage : ISettingsPage, IDisposable
     private void DrawChatPrivacy(PhoneTheme theme, float scale)
     {
         ImGui.Dummy(new Vector2(0f, Metrics.Space.Md * scale));
-        var archiveCard = GroupCard.Begin(theme, 1);
+        var archiveCard = GroupCard.Begin(theme, 2);
         var archive = SettingsRow.Bool(archiveCard.NextRow(), Loc.T(L.Settings.TellArchive),
             configuration.ArchiveTellsToDisk, theme, null, Loc.T(L.Settings.TellArchiveHint));
+        var klipyGifs = SettingsRow.Bool(archiveCard.NextRow(), Loc.T(L.Gifs.Setting), configuration.KlipyGifsAllowed,
+            theme, null, Loc.T(L.Gifs.SettingHint));
         archiveCard.End();
         if (archive != configuration.ArchiveTellsToDisk)
         {
             configuration.ArchiveTellsToDisk = archive;
+            configuration.Save();
+        }
+
+        if (klipyGifs != configuration.KlipyGifsAllowed)
+        {
+            configuration.KlipyGifsAllowed = klipyGifs;
             configuration.Save();
         }
 

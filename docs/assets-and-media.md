@@ -54,6 +54,7 @@ Text renders in Inter, in four weights. `FontService` owns Dalamud's font atlas 
 - **Shared handles**: two Noto Sans CJK fonts (Regular and Medium) baked once at the largest size for scripts too big to bake per tier. Their glyphs are copied into every text font after each build.
 - **Icon handles**: FontAwesome with the Tabler subset merged on top, at a few sizes.
 - **Display handle**: Pirata One at one size, Latin only, built only while the Halloween theme is on. `NightWordmark` draws the seasonal wordmarks and blackletter user names with it, and falls back to the normal style for text outside that range.
+- **Title and numeral handles**: Inter Bold at two sizes past the largest text tier (Latin and Cyrillic), and Inter Regular digits and number signs at four large sizes. They build with the rest of the atlas, scale with the phone and text size like the text tiers, and fall back to the largest text tier for anything outside their ranges. `PushTitle` and `PushNumerals` take a size from `TitleScaleAtMost` or `NumeralScaleAtMost`, which pick the text tiers below that; Prism uses them for its large type.
 
 Draw sites never pass raw sizes. `TextStyles` names the ladder, and each style snaps to a tier:
 
@@ -73,6 +74,8 @@ No language bakes the whole Han block, and players write in every script. A draw
 ### Icon font
 
 src/Aetherphone/Fonts/TablerIcons.ttf is a subset of Tabler Icons that tools/icon-font builds together with the `PhoneIcons` constants. The script remaps every glyph into a private block starting at U+E600, because Tabler's own codepoints collide with FontAwesome, and `FontService` never asks FontAwesome for that block, because the first font in a merge wins. Draw a Tabler glyph with `PhoneIcon.Draw(drawList, center, PhoneIcons.Home, color, boxHeight)`; FontAwesome icons go through the widgets that take a `FontAwesomeIcon`.
+
+At the same `boxHeight` a FontAwesome solid glyph is about a fifth taller than a Tabler outline and carries two to four times the ink. Where both families sit side by side at one level (tab bars, header and glass circle buttons), pass `optical: true`: `IconInk` measures each glyph's ink once per atlas build, scales FontAwesome glyphs to Tabler's optical size (0.8 of the box by the geometric mean of the ink, never past 22 of 24 units), and draws filled and solid glyphs 4% smaller than outlines. Tabler outlines keep their designed size, and no glyph grows. Leave it off where a screen was tuned to FontAwesome's own size, such as settings tiles.
 
 Every FontAwesome icon the source draws must be listed in `IconPlan.FontAwesomeCodepoints`. An unlisted one is learned on its first draw and costs a full atlas rebuild. `IconFontCoverageTests` checks the list, the bounds of the Tabler block, and that every `PhoneIcons` constant has a glyph in the TTF.
 
@@ -175,6 +178,10 @@ public static readonly LocString CaseNightBloom = new("catalog.case.nightbloom",
 ### The case template folder
 
 src/Aetherphone/Cases/_template holds the guide SVG and two PowerShell scripts. The guide script keeps its own copies of the case geometry, so a change to the canvas, corners, band, glass or hardware keys means updating it and rerunning it, and forces artists to re-export their cases. Its README lists which source files it copies and has the run lines.
+
+## Baking photos
+
+`ImageProcessor` (src/Aetherphone/Core/Media/ImageProcessor.cs) decodes, crops and resizes with ImageSharp, then encodes every JPEG through `ScalarJpegEncoder`, a baseline encoder written as plain loops. ImageSharp's SIMD encoder produced red, blue and white dashes on machines where an injected overlay drops the upper AVX lanes across a thread suspension, so keep the encoder free of `Vector<T>` and intrinsics. It uses mozjpeg's default luminance table, the Annex K chrominance table, and Huffman tables built per image. Post, story and DM photos bake at `UploadJpegQuality` (95) because the zoom and pop-out viewers show them at full size; avatars, banners, covers, icons and thumbnails are shown small and bake at 90, which on these tables matches the old encoder's 88.
 
 ## Landing delivered art
 

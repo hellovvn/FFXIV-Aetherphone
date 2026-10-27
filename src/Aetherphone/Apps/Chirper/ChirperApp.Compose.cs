@@ -9,7 +9,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Chirper;
 
@@ -41,6 +40,7 @@ internal sealed partial class ChirperApp
             composeAttachments.Clear();
             composePicking = false;
             composeSensitive = false;
+            composePoll.Reset();
             store.RefreshFeed(SocialFeedScope.Latest);
             store.RefreshFeed(SocialFeedScope.Following);
             feedScrollTopPending = true;
@@ -110,14 +110,15 @@ internal sealed partial class ChirperApp
                     (inputWidth - stripGap * (composeAttachments.Count - 1)) / MathF.Max(2f, composeAttachments.Count))
                 : 0f;
             var stripHeight = composeAttachments.Count > 0 ? stripTile + 10f * scale : 0f;
+            var pollEditorHeight = ComposePollHeight();
             var measuredText = draft.Length == 0
                 ? Typography.Measure("Ag", ComposeInputStyle).Y
                 : Typography.MeasureWrapped(draft, composeWrapWidth, ComposeInputStyle.Scale);
             var statusHeight = composeStatus.Length > 0
                 ? Typography.MeasureWrapped(composeStatus, inputWidth, TextStyles.Subheadline.Scale) + 6f * scale
                 : 0f;
-            var availableInput = contentLimit - inputTop - quotePreviewHeight - stripHeight - statusHeight
-                - 8f * scale;
+            var availableInput = contentLimit - inputTop - quotePreviewHeight - stripHeight - pollEditorHeight
+                - statusHeight - 8f * scale;
             var desiredInput = MathF.Max(measuredText + 34f * scale, 96f * scale);
             var inputHeight = MathF.Max(40f * scale, MathF.Min(desiredInput, availableInput));
             if (me is not null)
@@ -141,8 +142,8 @@ internal sealed partial class ChirperApp
                 composeFocus = false;
             }
 
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
-            using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.TitleInk))
+            using (UiScope.PushColor(ImGuiCol.FrameBg, AppSkin.Transparent))
+            using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.TitleInk))
             using (Plugin.Fonts.Push(ComposeInputStyle.Scale))
             {
                 SoftWrapField.Paragraphs("##chirpBody", ref draft, MaxPostLength,
@@ -161,7 +162,8 @@ internal sealed partial class ChirperApp
             if (draft.Length == 0)
             {
                 Typography.Draw(drawList, new Vector2(inputX + 4f * scale, inputTop + 2f * scale),
-                    Typography.FitText(Loc.T(L.Chirper.Compose), inputWidth, ComposeInputStyle), ChirperInk.MutedInk,
+                    Typography.FitText(Loc.T(composePoll.Active ? L.Chirper.PollQuestionHint : L.Chirper.Compose),
+                        inputWidth, ComposeInputStyle), ChirperInk.MutedInk,
                     ComposeInputStyle);
             }
 
@@ -169,6 +171,11 @@ internal sealed partial class ChirperApp
             {
                 DrawComposeAttachmentStrip(drawList, inputX, inputTop + inputHeight + 10f * scale, stripTile,
                     stripGap, scale);
+            }
+
+            if (pollEditorHeight > 0f)
+            {
+                DrawComposePoll(drawList, new Vector2(inputX, inputTop + inputHeight + stripHeight), inputWidth);
             }
 
             if (quoteTarget is not null)
@@ -180,11 +187,11 @@ internal sealed partial class ChirperApp
 
             if (composeStatus.Length > 0)
             {
-                var statusTop = inputTop + inputHeight + stripHeight + quotePreviewHeight + 4f * scale;
+                var statusTop = inputTop + inputHeight + stripHeight + pollEditorHeight + quotePreviewHeight + 4f * scale;
                 ImGui.SetCursorScreenPos(new Vector2(inputX, statusTop));
                 using (Typography.WrapAt(inputX + inputWidth))
                 using (Plugin.Fonts.Push(TextStyles.Subheadline.Scale, TextStyles.Subheadline.Weight))
-                using (ImRaii.PushColor(ImGuiCol.Text, ChirperInk.Danger))
+                using (UiScope.PushColor(ImGuiCol.Text, ChirperInk.Danger))
                 {
                     Typography.Wrapped(composeStatus);
                 }
@@ -246,7 +253,7 @@ internal sealed partial class ChirperApp
         drawList.AddLine(barMin, new Vector2(area.Max.X, barMin.Y), ImGui.GetColorU32(ChirperInk.Hairline), 1f);
         var centerY = barMin.Y + height * 0.5f;
         var iconRadius = 17f * scale;
-        var canAttach = composeAttachments.Count < ChirperStore.MaxImages && !ComposeHasGif();
+        var canAttach = composeAttachments.Count < ChirperStore.MaxImages && !ComposeHasGif() && !composePoll.Active;
         var photoInk = canAttach ? ChirperInk.MutedInk : Palette.WithAlpha(ChirperInk.MutedInk, 0.4f);
         var photoCenter = new Vector2(area.Min.X + CellPadX * scale + iconRadius, centerY);
         var photoExtent = new Vector2(iconRadius, iconRadius);
@@ -269,9 +276,7 @@ internal sealed partial class ChirperApp
             }
             else
             {
-                toast.Show(ComposeHasGif()
-                    ? Loc.T(L.Common.GifRidesAlone)
-                    : Loc.T(L.Chirper.MaxPhotos, ChirperStore.MaxImages));
+                toast.Show(ComposeMediaRefusal());
             }
         }
 
@@ -279,7 +284,7 @@ internal sealed partial class ChirperApp
         var chipHeight = Button.SmallHeight * scale;
         var gifMin = new Vector2(photoCenter.X + iconRadius + 8f * scale, centerY - chipHeight * 0.5f);
         var gifMax = new Vector2(gifMin.X + Button.WidthFor(gifLabel, ButtonSize.Small), centerY + chipHeight * 0.5f);
-        var gifEnabled = composeAttachments.Count == 0;
+        var gifEnabled = composeAttachments.Count == 0 && !composePoll.Active;
         var gifClicked = Button.Draw(new Rect(gifMin, gifMax), gifLabel, ui.Ink,
             gifEnabled ? ButtonStyle.Tinted : ButtonStyle.Gray, id: "chirper.compose.gif");
         HoverTooltip.Show(new Rect(gifMin, gifMax), Loc.T(L.Settings.ChirperShowGifs), HoverLabelSide.Above);
@@ -287,15 +292,16 @@ internal sealed partial class ChirperApp
         {
             if (gifEnabled)
             {
-                OpenComposePicker(true);
+                OpenComposeGifSource();
             }
             else
             {
-                toast.Show(Loc.T(L.Common.GifRidesAlone));
+                toast.Show(ComposeGifRefusal());
             }
         }
 
-        var emojiCenter = new Vector2(gifMax.X + 8f * scale + iconRadius, centerY);
+        var pollRight = DrawComposePollButton(drawList, gifMax.X, centerY, iconRadius);
+        var emojiCenter = new Vector2(pollRight + 8f * scale + iconRadius, centerY);
         var emojiExtent = new Vector2(iconRadius, iconRadius);
         if (UiInteract.Hover(emojiCenter - emojiExtent, emojiCenter + emojiExtent))
         {
@@ -337,6 +343,12 @@ internal sealed partial class ChirperApp
 
     private void Submit()
     {
+        if (AttachedComposeGif() is { } gif)
+        {
+            SubmitComposeGif(gif);
+            return;
+        }
+
         if ((string.IsNullOrWhiteSpace(draft) && composeAttachments.Count == 0) || store.Posting)
         {
             return;
@@ -344,6 +356,11 @@ internal sealed partial class ChirperApp
 
         composeStatus = string.Empty;
         composeFailure.Clear();
+        if (SubmitComposePoll())
+        {
+            return;
+        }
+
         var attachments = composeAttachments.ToArray();
         if (quoteTargetId is not null)
         {
@@ -380,7 +397,7 @@ internal sealed partial class ChirperApp
     private bool DrawComposeAttachmentThumb(ImDrawListPtr drawList, string path, Vector2 min, Vector2 max,
         float rounding, float scale)
     {
-        var texture = wallpaperImages.Get(path);
+        var texture = ComposeThumbTexture(path, max.X - min.X);
         if (texture is null)
         {
             Squircle.Fill(drawList, min, max, rounding, ImGui.GetColorU32(ChirperInk.ChipFill));
@@ -416,6 +433,11 @@ internal sealed partial class ChirperApp
 
     private void DrawComposePicker(Rect area)
     {
+        if (composePickerLibraryWatch.Changed(library))
+        {
+            ListComposePicker();
+        }
+
         SocialChrome.DrawScreenHeader(area, Loc.T(L.Chirper.AddPhotos), ChirperInk.Shared, closeComposePicker,
             ScreenTitleStyle);
         var scale = UiScale.Current;
@@ -509,36 +531,41 @@ internal sealed partial class ChirperApp
 
     private void OpenComposePicker(bool gifsOnly)
     {
+        composePickerGifsOnly = gifsOnly;
+        composePickerLibraryWatch.Mark(library);
+        ListComposePicker();
+        composePicking = true;
+    }
+
+    private void ListComposePicker()
+    {
         var all = library.List();
-        if (!gifsOnly)
+        if (!composePickerGifsOnly)
         {
             composePickerPaths = all;
+            return;
         }
-        else
+
+        var gifCount = 0;
+        for (var index = 0; index < all.Length; index++)
         {
-            var gifCount = 0;
-            for (var index = 0; index < all.Length; index++)
+            if (GifMedia.IsGif(all[index]))
             {
-                if (GifMedia.IsGif(all[index]))
-                {
-                    gifCount++;
-                }
+                gifCount++;
             }
-
-            var gifs = new string[gifCount];
-            var cursor = 0;
-            for (var index = 0; index < all.Length; index++)
-            {
-                if (GifMedia.IsGif(all[index]))
-                {
-                    gifs[cursor++] = all[index];
-                }
-            }
-
-            composePickerPaths = gifs;
         }
 
-        composePicking = true;
+        var gifs = new string[gifCount];
+        var cursor = 0;
+        for (var index = 0; index < all.Length; index++)
+        {
+            if (GifMedia.IsGif(all[index]))
+            {
+                gifs[cursor++] = all[index];
+            }
+        }
+
+        composePickerPaths = gifs;
     }
 
     private bool ComposeHasGif()
@@ -551,6 +578,12 @@ internal sealed partial class ChirperApp
         composePicking = false;
         if (string.IsNullOrEmpty(path))
         {
+            return;
+        }
+
+        if (composePoll.Active)
+        {
+            composeStatus = Loc.T(L.Chirper.PollBlocksMedia);
             return;
         }
 
