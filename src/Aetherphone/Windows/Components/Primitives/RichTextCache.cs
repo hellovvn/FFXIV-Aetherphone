@@ -18,7 +18,7 @@ internal sealed class RichTextCache
 
     private static readonly MentionSpan[] NoMentions = Array.Empty<MentionSpan>();
 
-    private readonly Dictionary<string, Entry> entries = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Key, float Width), Entry> entries = new();
     private readonly bool scanHashtags;
     private readonly bool layoutPlain;
     private int lastSweepFrame = -1;
@@ -32,7 +32,8 @@ internal sealed class RichTextCache
     public RichTextLayout? LayoutFor(string key, string text, MentionDto[]? mentions, float wrapWidth)
     {
         var frame = ImGui.GetFrameCount();
-        if (entries.TryGetValue(key, out var entry) && Matches(entry, text, mentions, wrapWidth))
+        var slot = (key, wrapWidth);
+        if (entries.TryGetValue(slot, out var entry) && Matches(entry, text, mentions, wrapWidth))
         {
             entry.LastUsedFrame = frame;
             return entry.Layout;
@@ -49,7 +50,7 @@ internal sealed class RichTextCache
         entry.Mentions = Convert(mentions);
         entry.Layout = RichText.Build(text, entry.Mentions, wrapWidth, scanHashtags, layoutPlain);
         entry.LastUsedFrame = frame;
-        entries[key] = entry;
+        entries[slot] = entry;
         return entry.Layout;
     }
 
