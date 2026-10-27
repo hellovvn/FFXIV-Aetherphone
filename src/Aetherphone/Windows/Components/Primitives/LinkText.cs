@@ -4,7 +4,7 @@ namespace Aetherphone.Windows.Components;
 
 internal static class LinkText
 {
-    private static readonly RichTextCache Cache = new();
+    private static readonly RichTextCache Cache = new(layoutPlain: true);
 
     public static RichTextLayout? LayoutFor(string text, float wrapWidth)
     {

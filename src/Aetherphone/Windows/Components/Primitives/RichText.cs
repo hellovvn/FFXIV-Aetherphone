@@ -120,7 +120,7 @@ internal static class RichText
     private static readonly string[] NoTags = Array.Empty<string>();
 
     public static RichTextLayout? Build(string text, ReadOnlySpan<MentionSpan> mentions, float wrapWidth,
-        bool scanHashtags = false)
+        bool scanHashtags = false, bool layoutPlain = false)
     {
         if (wrapWidth <= 0f)
         {
@@ -131,8 +131,8 @@ internal static class RichText
         var hasLink = text.Length >= 7 && HasLinkCandidate(text);
         var hasEmoji = EmojiScanner.MightContain(text);
         var hasTag = scanHashtags && text.Contains('#');
-        var keepsNumbers = HasGroupedDigits(text) && ImGui.CalcTextSize(text).X > wrapWidth;
-        if (!hasMention && !hasLink && !hasEmoji && !hasTag && !keepsNumbers)
+        var keepsLayout = layoutPlain || (HasGroupedDigits(text) && ImGui.CalcTextSize(text).X > wrapWidth);
+        if (!hasMention && !hasLink && !hasEmoji && !hasTag && !keepsLayout)
         {
             return null;
         }
@@ -140,7 +140,7 @@ internal static class RichText
         var spans = ParseSpans(text, mentions, scanHashtags, out var urls, out var emojiFiles, out var tags);
         if (spans is null)
         {
-            if (!keepsNumbers)
+            if (!keepsLayout)
             {
                 return null;
             }

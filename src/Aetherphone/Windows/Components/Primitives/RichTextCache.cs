@@ -20,11 +20,13 @@ internal sealed class RichTextCache
 
     private readonly Dictionary<string, Entry> entries = new(StringComparer.Ordinal);
     private readonly bool scanHashtags;
+    private readonly bool layoutPlain;
     private int lastSweepFrame = -1;
 
-    public RichTextCache(bool scanHashtags = false)
+    public RichTextCache(bool scanHashtags = false, bool layoutPlain = false)
     {
         this.scanHashtags = scanHashtags;
+        this.layoutPlain = layoutPlain;
     }
 
     public RichTextLayout? LayoutFor(string key, string text, MentionDto[]? mentions, float wrapWidth)
@@ -45,7 +47,7 @@ internal sealed class RichTextCache
         entry.Text = text;
         entry.Source = mentions;
         entry.Mentions = Convert(mentions);
-        entry.Layout = RichText.Build(text, entry.Mentions, wrapWidth, scanHashtags);
+        entry.Layout = RichText.Build(text, entry.Mentions, wrapWidth, scanHashtags, layoutPlain);
         entry.LastUsedFrame = frame;
         entries[key] = entry;
         return entry.Layout;
