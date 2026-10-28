@@ -44,3 +44,5 @@ internal sealed record StoryResponseDto(
 
 internal sealed record StoryResponsesPage(StoryResponseDto[] Items, int VoteCount, int AnswerCount,
     string? NextCursor = null);
+
+internal sealed record StoryItem(StoryDto Story, string AuthorDisplayName, string AuthorHandle, string? AuthorAvatarUrl);

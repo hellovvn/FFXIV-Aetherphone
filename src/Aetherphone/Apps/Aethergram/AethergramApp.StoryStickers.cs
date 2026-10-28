@@ -29,47 +29,29 @@ internal sealed partial class AethergramApp
     private readonly Rect[] stickerDraftBounds = new Rect[StickerSlots];
     private readonly Rect[] stickerCloseBounds = new Rect[StickerSlots];
     private readonly PersonPicker mentionPicker;
+    private readonly Action<string> storyUnavailable;
     private int stickerEditIndex = -1;
     private int stickerEditKind;
     private int stickerDragIndex = -1;
     private Vector2 stickerDragOrigin;
     private Vector2 stickerDragStart;
     private bool stickerDragMoved;
-    private string? pendingMentionAuthorId;
-    private string? pendingMentionStoryId;
 
     private bool StickerEditorCaptures => stickerEditor.CapturesPointer;
 
     private void OpenMentionedStory(string authorId, string storyId)
     {
-        pendingMentionAuthorId = authorId;
-        pendingMentionStoryId = storyId;
-        stories.RefreshTray();
-        AdvanceMentionedStory();
-    }
-
-    private void AdvanceMentionedStory()
-    {
-        if (pendingMentionAuthorId is not { } authorId || pendingMentionStoryId is not { } storyId)
-        {
-            return;
-        }
-
         if (stories.TryRing(authorId, out var ring))
         {
-            pendingMentionAuthorId = null;
-            pendingMentionStoryId = null;
             stories.OpenRingAt(ring, storyId);
             return;
         }
 
-        if (stories.TrayLoading)
-        {
-            return;
-        }
+        stories.OpenStoryItem(authorId, storyId, storyUnavailable);
+    }
 
-        pendingMentionAuthorId = null;
-        pendingMentionStoryId = null;
+    private void ShowStoryUnavailable(string authorId)
+    {
         toast.Show(Loc.T(L.Story.Unavailable));
         OpenProfile(authorId);
     }
