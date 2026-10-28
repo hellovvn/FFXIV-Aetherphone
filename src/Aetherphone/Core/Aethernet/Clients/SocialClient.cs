@@ -52,6 +52,14 @@ internal sealed partial class SocialClient
         return net.PostAsync("/posts", new CreatePostRequest(text, null, mediaKeys, mediaWidth, mediaHeight, sensitive, ReplyPolicy: replyPolicy, AltTexts: altTexts), AethernetJsonContext.Default.CreatePostRequest, AethernetJsonContext.Default.PostDto, token, null, onFailure);
     }
 
+    public Task<PostDto?> CreateVideoPostAsync(string text, string? quotedPostId, string videoKey, string posterKey,
+        bool sensitive, int replyPolicy, CancellationToken token, Action<AepFailure>? onFailure = null)
+    {
+        return net.PostAsync("/posts", new CreatePostRequest(text, quotedPostId, Sensitive: sensitive,
+                ReplyPolicy: replyPolicy, VideoKey: videoKey, PosterKey: posterKey),
+            AethernetJsonContext.Default.CreatePostRequest, AethernetJsonContext.Default.PostDto, token, null, onFailure);
+    }
+
     public Task<FeedPage?> UserPostsAsync(string userId, string? cursor, CancellationToken token,
         Action<AepFailure>? onFailure = null)
     {

@@ -91,15 +91,17 @@ internal sealed partial class ChirperApp
             var nameHeight = displayName.Length > 0 ? Typography.LineHeight(NameStyle) : 0f;
             var inputTop = origin.Y + CellPadTop * scale + nameHeight + 4f * scale;
             var wrapWidth = inputWidth - ImGui.GetStyle().FramePadding.X * 2f - 4f * scale;
-            var photos = PostMedia.Photos(post);
+            var photos = ChirpPhotos(post);
+            var video = post.Video;
+            var tileCount = video is null ? photos.Length : 1;
             var gap = 8f * scale;
-            var tile = photos.Length > 0
-                ? MathF.Min(ComposeTileMax * scale, (inputWidth - gap * (photos.Length - 1)) / MathF.Max(2f, photos.Length))
+            var tile = tileCount > 0
+                ? MathF.Min(ComposeTileMax * scale, (inputWidth - gap * (tileCount - 1)) / MathF.Max(2f, tileCount))
                 : 0f;
-            var stripHeight = photos.Length > 0 ? tile + 10f * scale : 0f;
+            var stripHeight = tileCount > 0 ? tile + 10f * scale : 0f;
             var quoteHeight = post.QuotedPostId is not null ? QuotedCardHeight(post.ReferencedPost, inputWidth) : 0f;
             var quoteBlock = quoteHeight > 0f ? quoteHeight + 10f * scale : 0f;
-            var keepsAttachments = photos.Length > 0 || quoteHeight > 0f;
+            var keepsAttachments = tileCount > 0 || quoteHeight > 0f;
             var noteLine = Typography.LineHeight(ChirpEditNoteStyle);
             var notesHeight = noteLine * (keepsAttachments ? 2f : 1f) + 6f * scale;
             var measuredText = chirpEditDraft.Length == 0
@@ -126,7 +128,14 @@ internal sealed partial class ChirperApp
 
             DrawChirpEditField(area, inputX, inputTop, inputWidth, inputHeight, wrapWidth);
             var cursorY = inputTop + inputHeight + 10f * scale;
-            if (photos.Length > 0)
+            if (video is not null)
+            {
+                var thumbMin = new Vector2(inputX, cursorY);
+                DrawVideoThumb(drawList, post, video, new Rect(thumbMin, thumbMin + new Vector2(tile, tile)),
+                    ComposeTileRounding * scale);
+                cursorY += stripHeight;
+            }
+            else if (photos.Length > 0)
             {
                 DrawChirpEditPhotos(drawList, photos, post.GifMedia is null, inputX, cursorY, tile, gap, scale);
                 cursorY += stripHeight;
@@ -177,7 +186,7 @@ internal sealed partial class ChirperApp
         var hasWords = !chirpEditDraft.AsSpan().Trim().IsEmpty;
         var altChanged = !PostAltTexts.Same(chirpEditAltTexts, post.AltTexts, chirpEditAltTexts.Length);
         var canSave = !saving && chirpEditDraft.Length <= MaxPostLength
-            && (hasWords || PostMedia.Photos(post).Length > 0)
+            && (hasWords || ChirpPhotos(post).Length > 0 || post.Video is not null)
             && (altChanged || !ChirperEdits.Unchanged(chirpEditDraft, post.Text));
         var action = HeaderActionRect(area, actionLabel);
         DrawScreenHeader(area, Loc.T(L.Chirper.EditChirp), action.Width + HeaderActionGap * UiScale.Current);

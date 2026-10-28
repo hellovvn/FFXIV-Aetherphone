@@ -193,7 +193,9 @@ internal sealed record CreatePostRequest(
     string? GifUrl = null,
     string? GifSlug = null,
     int ReplyPolicy = 0,
-    string[]? AltTexts = null);
+    string[]? AltTexts = null,
+    string? VideoKey = null,
+    string? PosterKey = null);
 
 internal sealed record SetSensitiveRequest(bool Sensitive);
 

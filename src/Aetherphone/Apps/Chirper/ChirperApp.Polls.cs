@@ -442,7 +442,8 @@ internal sealed partial class ChirperApp
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         }
 
-        var blocked = !composePoll.Active && (composeAttachments.Count > 0 || quoteTarget is not null);
+        var blocked = !composePoll.Active
+            && (composeAttachments.Count > 0 || quoteTarget is not null || ComposeVideoPending);
         var ink = composePoll.Active ? ChirperInk.Accent
             : blocked ? Palette.WithAlpha(ChirperInk.MutedInk, 0.4f)
             : ChirperInk.AccentLink;
@@ -486,6 +487,12 @@ internal sealed partial class ChirperApp
             return;
         }
 
+        if (ComposeVideoPending)
+        {
+            toast.Show(Loc.T(L.Chirper.VideoBlocksMedia));
+            return;
+        }
+
         if (composeAttachments.Count > 0)
         {
             toast.Show(Loc.T(ComposeHasGif() ? L.Gifs.PollBlockedByGif : L.Chirper.PollRidesAlone));
@@ -499,6 +506,11 @@ internal sealed partial class ChirperApp
 
     private string ComposeMediaRefusal()
     {
+        if (ComposeVideoPending)
+        {
+            return Loc.T(L.Chirper.VideoBlocksMedia);
+        }
+
         if (FocusedTakesPoll && composePoll.Active)
         {
             return Loc.T(L.Chirper.PollBlocksMedia);
@@ -510,7 +522,9 @@ internal sealed partial class ChirperApp
     }
 
     private string ComposeGifRefusal() =>
-        FocusedTakesPoll && composePoll.Active ? Loc.T(L.Chirper.PollBlocksMedia) : Loc.T(L.Common.GifRidesAlone);
+        ComposeVideoPending ? Loc.T(L.Chirper.VideoBlocksMedia)
+        : FocusedTakesPoll && composePoll.Active ? Loc.T(L.Chirper.PollBlocksMedia)
+        : Loc.T(L.Common.GifRidesAlone);
 
     private bool SubmitComposePoll()
     {

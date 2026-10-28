@@ -113,7 +113,7 @@ internal sealed partial class ChirperApp
 
     private static string[] EditableAltTexts(PostDto post)
     {
-        if (post.GifMedia is not null)
+        if (post.GifMedia is not null || post.Video is not null)
         {
             return Array.Empty<string>();
         }

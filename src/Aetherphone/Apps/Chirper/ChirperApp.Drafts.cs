@@ -20,6 +20,7 @@ internal sealed partial class ChirperApp
         None,
         Unsent,
         Schedule,
+        Video,
     }
 
     private const int DraftsTab = 0;
@@ -64,6 +65,9 @@ internal sealed partial class ChirperApp
             case ComposePanel.Schedule:
                 DrawSchedulePanel(area);
                 return true;
+            case ComposePanel.Video:
+                DrawComposeVideoEditor(area);
+                return true;
             default:
                 return false;
         }
@@ -97,7 +101,7 @@ internal sealed partial class ChirperApp
     }
 
     private bool ComposeHasContent() =>
-        !string.IsNullOrWhiteSpace(draft) || composeAttachments.Count > 0 || composePoll.Active;
+        !string.IsNullOrWhiteSpace(draft) || composeAttachments.Count > 0 || composePoll.Active || ComposeHasVideo;
 
     private void RequestComposeClose()
     {
@@ -146,6 +150,7 @@ internal sealed partial class ChirperApp
         composePoll.Reset();
         composeReplyPolicy = ChirperReplyPolicy.Everyone;
         threadDraft.Clear();
+        CloseComposeVideo();
         ResetComposeExtras();
     }
 
@@ -228,7 +233,7 @@ internal sealed partial class ChirperApp
 
         ComposerDrafts.Put(configuration.ChirperDrafts, accountId, saved);
         configuration.Save();
-        toast.Show(Loc.T(L.Social.DraftSaved));
+        toast.Show(Loc.T(ComposeHasVideo ? L.Chirper.DraftSavedNoVideo : L.Social.DraftSaved));
     }
 
     private void RestoreComposeDraft(ComposerDraft saved)

@@ -30,7 +30,7 @@ internal sealed partial class ChirperApp
             return MathF.Max(floor, measuredText + ThreadBoxTextPad * scale);
         }
 
-        var addRow = threadDraft.CanAdd ? ThreadAddRowHeight() : 0f;
+        var addRow = ThreadCanGrow ? ThreadAddRowHeight() : 0f;
         return MathF.Max(floor, MathF.Min(desired, available - addRow));
     }
 
@@ -195,7 +195,7 @@ internal sealed partial class ChirperApp
             threadDraft.RemoveAt(removeIndex);
         }
 
-        if (threadDraft.CanAdd)
+        if (ThreadCanGrow)
         {
             cursorY = DrawThreadAddRow(drawList, openingAvatar.X, inputX, inputWidth, previousAvatarBottom, cursorY);
         }

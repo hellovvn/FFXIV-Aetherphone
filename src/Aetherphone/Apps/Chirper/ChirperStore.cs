@@ -51,6 +51,12 @@ internal sealed partial class ChirperStore : SocialFeedStore
 
     public bool AvatarBusy => avatarBusy;
 
+    protected override void OnAccountReset()
+    {
+        ResetScheduled();
+        DismissVideoShare();
+    }
+
     protected override Task<FeedPage?> FetchFeedAsync(string feedKey, string? cursor, string? regions, bool includeSensitive,
         CancellationToken token, Action<AepFailure>? onFailure = null) =>
         client.FeedAsync(feedKey, cursor, regions, includeSensitive, token, onFailure);
