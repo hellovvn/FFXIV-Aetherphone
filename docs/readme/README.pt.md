@@ -71,7 +71,7 @@ O Aethernet abriu em 2 de julho de 2026. Até o fim da temporada, jogadores de 1
       <em>Clicado no jogo. Compartilhado no Aethergram.</em>
       <ul>
         <li>Até oito fotos direto da sua galeria, ou coladas e arrastadas</li>
-        <li>Stories que duram um dia</li>
+        <li>Stories que duram um dia, com enquetes, perguntas e menções por cima</li>
         <li>Marque quem aparece na foto</li>
         <li>Um editor de fotos embutido antes de compartilhar</li>
       </ul>

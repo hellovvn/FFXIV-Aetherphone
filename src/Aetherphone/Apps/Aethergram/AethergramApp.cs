@@ -281,11 +281,12 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         editPostMentions = new MentionAutocomplete(store.NewMentionSuggestions());
         editPostPreviewPage = DrawEditPostPreviewPage;
         personPicker = new PersonPicker(store.NewMentionSuggestions());
+        mentionPicker = new PersonPicker(store.NewMentionSuggestions(), L.Story.MentionPick);
         stories = new StoryPresenter(session, net.Grams, net.Media, images, lodestone, AethergramArt.StoryRing,
             AppPalettes.Aethergram, new StoryConfirmLabels(L.Aethergram.DeleteConfirm, L.Aethergram.DeleteCancel,
                 L.Aethergram.Saving), confirm, translation, realtimeSignals, "Aethergram stories", StartStoryCompose,
             new StoryReplyHooks(L.Aethergram.ReplyToStory, dmStore.SendStoryReply, OpenThread), OpenProfile,
-            OnHighlightStory, OpenDetailFromStory);
+            OnHighlightStory, OpenDetailFromStory, BlockFromStory);
         highlights = new HighlightStore(session, net.Grams);
         storyArchive = new StoryArchiveStore(session, net.Grams);
         closeFriends = new CloseFriendsStore(net.Grams);
@@ -392,6 +393,10 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             {
                 StartReelCompose();
             }
+            else if (link.Kind == SocialLinkKind.Story)
+            {
+                OpenMentionedStory(link.OwnerId, link.Id);
+            }
             else if (link.Kind == SocialLinkKind.Compose)
             {
                 StartCompose(false);
@@ -455,6 +460,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         AdvancePendingReelTap();
         ConsumeOpenedHighlight();
         stories.Advance();
+        AdvanceMentionedStory();
         if (photoViewer.Active)
         {
             photoViewer.Draw(screen, theme);
@@ -471,7 +477,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawNight(screen, context.Content.Min.Y);
         using (InputShield.Engage(avatarLightbox.Expanded || GifSheetCaptures || StoryShareCaptures
                    || ReelCommentsCaptures))
-        using (InputShield.Engage(AltTextCapturesPointer))
+        using (InputShield.Engage(AltTextCapturesPointer || StickerEditorCaptures))
         using (intro.FadeContent())
         {
             router.Draw(SceneChrome.AppAreaFrom(context.Content, theme, UiScale.Current), AppSkin.Transparent,
@@ -494,6 +500,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawFeedExplainer(screen);
         DrawPostViewsSheet(screen);
         DrawAltText(screen);
+        DrawStoryStickerEditor(screen);
         DrawReelComments(screen);
         DrawCommentSheet(screen);
         DrawGifSheet(screen);

@@ -98,6 +98,7 @@ internal sealed partial class StoryStore : IDisposable
         rings = Array.Empty<StoryRingDto>();
         CloseAuthor();
         ClearViewers();
+        ClearResponses();
         lock (seenLock)
         {
             seenStoryIds.Clear();
@@ -110,6 +111,7 @@ internal sealed partial class StoryStore : IDisposable
     public StoryDto[] OpenStories => openStories;
     public string? OpenAuthorId => openAuthorId;
     public bool GroupLoading => groupLoading;
+    public bool TrayLoading => trayLoading;
     public bool Posting => posting;
     public StoryViewerDto[] Viewers => viewers;
     public int ViewersTotal => viewersTotal;
@@ -293,7 +295,7 @@ internal sealed partial class StoryStore : IDisposable
     }
 
     public void CreateStory(string sourcePath, WallpaperCrop crop, PhotoEdit edit, string caption,
-        Action<bool> onComplete, int audience = StoryAudiences.Everyone)
+        Action<bool> onComplete, int audience = StoryAudiences.Everyone, StoryStickerInput[]? stickers = null)
     {
         if (posting)
         {
@@ -318,7 +320,7 @@ internal sealed partial class StoryStore : IDisposable
             }
 
             var created = await client.CreateStoryAsync(caption.Trim(), upload.Key, baked.Width, baked.Height, token,
-                    audience: audience)
+                    audience: audience, stickers: stickers)
                 .ConfigureAwait(false);
             if (created is null)
             {

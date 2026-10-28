@@ -129,6 +129,7 @@ internal sealed partial class AethergramApp
         captionEmoji.Close();
         personPicker.Close();
         ResetComposeCollab();
+        ResetStoryStickers();
         composeSession.Open(avatarMode || storyMode, !avatarMode && !storyMode);
         composeIntake.Discard();
         ResetComposeDraft();
@@ -327,6 +328,7 @@ internal sealed partial class AethergramApp
     private void DrawComposeCaption(Rect area)
     {
         personPicker.Gate();
+        mentionPicker.Gate();
         GateComposeCollabPicker();
         var scale = UiScale.Current;
         if (composeTagMode && !composeStoryMode)
@@ -359,9 +361,11 @@ internal sealed partial class AethergramApp
         var captionCard = new Rect(new Vector2(left, captionBottom - captionHeight), new Vector2(right, captionBottom));
         var stripHeight = composeSession.SelectedCount > 1 ? PhotoComposeSession.StripHeight * scale : 0f;
         var stripBlock = stripHeight > 0f ? stripHeight + ComposeStripGap * scale : 0f;
+        var trayBlock = StickerTrayBlock(scale);
         var previewHalfWidth = area.Width * ComposePreviewWidthFraction * 0.5f;
         var previewRegion = new Rect(new Vector2(area.Center.X - previewHalfWidth, top + ComposePreviewGap * scale),
-            new Vector2(area.Center.X + previewHalfWidth, captionCard.Min.Y - ComposePreviewGap * scale - stripBlock));
+            new Vector2(area.Center.X + previewHalfWidth,
+                captionCard.Min.Y - ComposePreviewGap * scale - stripBlock - trayBlock));
         var preview = ImageFit.CenteredRect(previewRegion, ComposeAspect);
         if (DrawCaptionPreview(preview, scale, Loc.T(L.Social.ComposeTapToEdit)) && !composeSession.GifSelected)
         {
@@ -370,6 +374,12 @@ internal sealed partial class AethergramApp
         }
 
         DrawComposeAltChip(preview);
+        if (composeStoryMode)
+        {
+            var trayBottom = captionCard.Min.Y - ComposePreviewGap * scale;
+            DrawStoryStickerTray(new Rect(new Vector2(left, trayBottom - StickerTrayHeight * scale),
+                new Vector2(right, trayBottom)), scale);
+        }
 
         if (stripHeight > 0f)
         {
@@ -413,6 +423,7 @@ internal sealed partial class AethergramApp
         DrawComposeCollabPicker(area);
         if (composeStoryMode)
         {
+            DrawMentionPicker(area);
             DrawStoryShareButtons(shareRect, busy);
             return;
         }
@@ -776,6 +787,7 @@ internal sealed partial class AethergramApp
             return false;
         }
 
+        overClose |= composeStoryMode && !composeTagMode && DrawComposeStickers(drawList, preview, scale);
         var hovered = !overClose && UiInteract.Hover(preview.Min, preview.Max);
         if (tooltip.Length > 0 && !overClose)
         {
@@ -814,7 +826,7 @@ internal sealed partial class AethergramApp
 
         composeStatus = string.Empty;
         stories.CreateStory(composeSession.FirstSelected, composeSession.CropAt(0), composeSession.EditAt(0), caption,
-            ok => composeOutcome = ok ? 1 : 2, audience);
+            ok => composeOutcome = ok ? 1 : 2, audience, storyStickers.ToInputs());
     }
 
     private void CommitAvatar()

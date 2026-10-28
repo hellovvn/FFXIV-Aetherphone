@@ -71,7 +71,7 @@ Aethernet ging am 2. Juli 2026 an den Start. Bis zum Ende der Saison haben Spiel
       <em>Im Spiel geknipst. Auf Aethergram geteilt.</em>
       <ul>
         <li>Bis zu acht Fotos direkt aus deiner Galerie, oder eingefügt und hineingezogen</li>
-        <li>Storys, die einen Tag lang bleiben</li>
+        <li>Storys, die einen Tag lang bleiben, mit Umfragen, Fragen und Erwähnungen darauf</li>
         <li>Markiere die Leute im Bild</li>
         <li>Ein eingebauter Fotoeditor vor dem Teilen</li>
       </ul>

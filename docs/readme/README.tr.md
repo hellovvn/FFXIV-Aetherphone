@@ -71,7 +71,7 @@ Aethernet 2 Temmuz 2026'da açıldı. Sezon sonuna kadar 113 dünyadaki oyuncula
       <em>Oyunda çekildi. Aethergram'da paylaşıldı.</em>
       <ul>
         <li>Doğrudan galerinden ya da yapıştırıp sürükleyerek sekiz fotoğrafa kadar</li>
-        <li>Bir gün süren hikayeler</li>
+        <li>Bir gün süren hikayeler, üzerinde anketler, sorular ve bahsetmelerle</li>
         <li>Karedeki kişileri etiketle</li>
         <li>Paylaşmadan önce yerleşik fotoğraf düzenleyici</li>
       </ul>

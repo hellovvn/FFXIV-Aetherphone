@@ -62,6 +62,7 @@ internal sealed partial class StoryViewerOverlay
     private string? authorAvatarUrl;
     private string authorFrameId = string.Empty;
     private bool canDelete;
+    private bool ownsStory;
     private int index;
     private float elapsed;
     private bool open;
@@ -89,8 +90,11 @@ internal sealed partial class StoryViewerOverlay
     private bool sheetOpen;
 
     public StoryViewerOverlay(RemoteImageCache images, LodestoneService lodestone, TranslationService translation,
-        ConfirmService confirm, Action<string>? openProfile = null, Action<StorySharedPostDto>? openPost = null)
+        ConfirmService confirm, Vector4 stickerAccent, Action<string>? openProfile = null,
+        Action<StorySharedPostDto>? openPost = null)
     {
+        this.stickerAccent = stickerAccent;
+        answerDone = OnAnswerDone;
         this.openPost = openPost;
         this.translation = translation;
         this.confirm = confirm;
@@ -106,13 +110,19 @@ internal sealed partial class StoryViewerOverlay
         Action<StoryDto>? delete = null, Func<StoryDto, StoryViewers>? viewers = null, Action? exhausted = null,
         Func<bool>? nextGroup = null, Func<bool>? previousGroup = null, bool startAtEnd = false,
         StoryReplyPrompt? reply = null, Action? loadMoreViewers = null, Action<StoryDto>? highlight = null,
-        Action<StoryDto>? toggleLike = null, string? replyTo = null, int startIndex = -1)
+        Action<StoryDto>? toggleLike = null, string? replyTo = null, int startIndex = -1,
+        StoryStickerHooks? stickers = null, bool author = false)
     {
+        stickerHooks = stickers;
+        ownsStory = mine || author;
+        sheetTab = SheetTabViewers;
+        answerCard.Close();
         onToggleLike = toggleLike;
         replyName = replyTo;
         stories = items;
         onHighlight = highlight;
         authorLabel = label;
+        NameHeader(label);
         authorAvatarUrl = avatarUrl;
         authorFrameId = items.Length > 0 ? items[0].AuthorFrameId : string.Empty;
         canDelete = mine;
@@ -166,6 +176,7 @@ internal sealed partial class StoryViewerOverlay
         open = false;
         holding = false;
         sheetOpen = false;
+        answerCard.Close();
         awaitingGroup = false;
         replyFocused = false;
         replyDraft = string.Empty;
@@ -199,6 +210,7 @@ internal sealed partial class StoryViewerOverlay
         replyPrompt = null;
         viewersSource = null;
         viewersLoadMore = null;
+        stickerHooks = null;
     }
 
     public void Draw(Rect area, PhoneTheme theme, bool suspended = false)
@@ -240,17 +252,19 @@ internal sealed partial class StoryViewerOverlay
         var contentTop = area.Min.Y + theme.TopZoneHeight * scale;
         var baseStage = new Rect(new Vector2(area.Min.X, contentTop + 44f * scale),
             new Vector2(area.Max.X, area.Max.Y - 16f * scale));
-        if (open && !suspended && !sheetOpen)
+        var interactive = open && !suspended && !sheetOpen && !AnswerCaptures;
+        if (interactive)
         {
             HandleInput(baseStage, delta, StageReady(story), ReplyZone(baseStage, scale));
         }
 
         var shift = new Vector2(0f, dragOffset * scale);
         var stage = new Rect(baseStage.Min + shift, baseStage.Max + shift);
-        DrawStage(drawList, stage, theme, story, scale, open && !suspended && !sheetOpen);
+        DrawStage(drawList, stage, theme, story, scale, interactive);
         var footerInset = replyPrompt is null ? 0f : (ReplyBarHeight + FooterGap) * scale;
         DrawFooter(drawList, stage, story, scale, delta, footerInset);
-        if (replyPrompt is not null && !suspended)
+        DrawStickers(drawList, stage, story, scale, interactive);
+        if (replyPrompt is not null && !suspended && !AnswerCaptures)
         {
             DrawReplyBar(drawList, stage, story, scale);
         }
@@ -260,6 +274,10 @@ internal sealed partial class StoryViewerOverlay
         DrawHeader(new Rect(new Vector2(area.Min.X + 12f * scale, contentTop + 18f * scale) + shift,
             new Vector2(area.Max.X - 12f * scale, contentTop + 42f * scale) + shift), theme, story, scale);
         DrawViewersSheet(area, theme, story, scale);
+        if (!suspended)
+        {
+            DrawAnswerCard(area, theme);
+        }
     }
 
     private Rect ReplyZone(Rect stage, float scale)
@@ -347,7 +365,7 @@ internal sealed partial class StoryViewerOverlay
         Squircle.Stroke(drawList, barMin, barMax, radius, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.35f)),
             1.2f * scale);
         var centerY = (barMin.Y + barMax.Y) * 0.5f;
-        var hint = Loc.T(prompt.Hint, replyName ?? authorLabel);
+        var hint = ReplyHint(prompt);
         var hasDraft = replyDraft.Length > 0;
         var sendCenter = new Vector2(barMax.X - 20f * scale, centerY);
         var inputLeft = barMin.X + 16f * scale;
@@ -449,7 +467,7 @@ internal sealed partial class StoryViewerOverlay
     private void DrawSeenPill(ImDrawListPtr drawList, Vector2 origin, StoryDto story, float height, float scale,
         float delta)
     {
-        var label = Loc.Plural(L.Story.SeenBy, story.ViewCount);
+        var label = SeenLabel(story);
         var size = Typography.Measure(label, TextStyles.FootnoteEmphasized);
         var padding = 12f * scale;
         var iconWidth = 11f * scale;
@@ -482,6 +500,7 @@ internal sealed partial class StoryViewerOverlay
 
         if (UiInteract.Click(origin, max, hovered))
         {
+            sheetTab = SheetTabViewers;
             sheetOpen = true;
         }
     }
@@ -489,7 +508,7 @@ internal sealed partial class StoryViewerOverlay
     private void DrawViewersSheet(Rect area, PhoneTheme theme, StoryDto story, float scale)
     {
         var reveal = Math.Clamp(sheetReveal.Value, 0f, 1f);
-        if (reveal <= 0.01f || viewersSource is null)
+        if (reveal <= 0.01f || (viewersSource is null && !ShowsResponses(story)))
         {
             return;
         }
@@ -511,11 +530,14 @@ internal sealed partial class StoryViewerOverlay
             new Vector2(panel.Center.X + 18f * scale, panel.Min.Y + 11f * scale),
             ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.25f)), 2f * scale);
 
+        var listRect = new Rect(new Vector2(panel.Min.X, DrawSheetHeader(panel, theme, story, scale)), panel.Max);
+        if (SheetTabFor(story) == SheetTabResponses || viewersSource is null)
+        {
+            DrawResponsesList(listRect, theme, story, scale);
+            return;
+        }
+
         var viewers = viewersSource(story);
-        var headerY = panel.Min.Y + 26f * scale;
-        Typography.DrawCentered(new Vector2(panel.Center.X, headerY),
-            Loc.Plural(L.Story.SeenBy, story.ViewCount), theme.TextStrong, TextStyles.Headline);
-        var listRect = new Rect(new Vector2(panel.Min.X, headerY + 18f * scale), panel.Max);
         if (viewers.Items.Length == 0)
         {
             Typography.DrawCentered(new Vector2(panel.Center.X, listRect.Min.Y + 40f * scale),
@@ -587,7 +609,8 @@ internal sealed partial class StoryViewerOverlay
             pressOrigin = ImGui.GetIO().MousePos;
             pressInChrome = (replyPrompt is not null && UiInteract.Hover(replyZone.Min, replyZone.Max))
                 || (ShowSeenPill && UiInteract.Hover(seenPillBounds.Min, seenPillBounds.Max))
-                || PressOnSharedCard();
+                || PressOnSharedCard()
+                || PressOnSticker();
         }
 
         var down = ImGui.IsMouseDown(ImGuiMouseButton.Left);
@@ -764,14 +787,14 @@ internal sealed partial class StoryViewerOverlay
         var canHighlight = canDelete && onHighlight is not null;
         var closeReserve = (34f + ((canDelete ? 1 : 0) + (canHighlight ? 1 : 0)) * ActionSpacing) * scale;
         var badgeWidth = story.Audience == StoryAudiences.CloseFriends ? CloseFriendsBadgeWidth(scale) : 0f;
-        var stamp = TimeText.Short(story.CreatedAtUnix);
+        var stamp = HeaderStamp(story);
         var stampWidth = Typography.Measure(stamp, TextStyles.Footnote).X;
         var nameMaxWidth = MathF.Max(1f, row.Max.X - closeReserve - badgeWidth - stampWidth - 8f * scale - left);
         var nameSize = Typography.Measure(authorLabel, TextStyles.SubheadlineEmphasized);
         var authorMin = new Vector2(row.Min.X, row.Min.Y);
         var authorMax = new Vector2(left + MathF.Min(nameSize.X, nameMaxWidth), row.Max.Y);
         var headerHovering = UiInteract.Hover(authorMin, authorMax);
-        var nameWidth = UserName.Draw("storyviewer.header.author." + authorLabel, authorLabel, story.AuthorBadges, story.AuthorBadgeIds,
+        var nameWidth = UserName.Draw(headerNameId, authorLabel, story.AuthorBadges, story.AuthorBadgeIds,
             left, row.Center.Y - nameSize.Y * 0.5f, nameMaxWidth, TextStyles.SubheadlineEmphasized,
             new Vector4(1f, 1f, 1f, 0.98f), headerHovering, false);
         Typography.Draw(new Vector2(left + nameWidth + 8f * scale, row.Center.Y - nameSize.Y * 0.5f + 1f * scale),

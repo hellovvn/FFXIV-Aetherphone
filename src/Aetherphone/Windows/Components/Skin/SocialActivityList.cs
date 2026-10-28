@@ -140,6 +140,7 @@ internal static class SocialActivityList
             SocialActivity.TypeCommentLike => (IconGlyph.Of(FontAwesomeIcon.Heart), theme.Danger),
             SocialActivity.TypeMention => (IconGlyph.Of(FontAwesomeIcon.At), theme.Accent),
             SocialActivity.TypeCommentMention => (IconGlyph.Of(FontAwesomeIcon.At), theme.Accent),
+            SocialActivity.TypeStoryMention => (IconGlyph.Of(FontAwesomeIcon.At), theme.Accent),
             SocialActivity.TypePhotoTag => (IconGlyph.Of(FontAwesomeIcon.UserTag), theme.Accent),
             SocialActivity.TypeRepost => (IconGlyph.Of(FontAwesomeIcon.Retweet), theme.Accent),
             SocialActivity.TypeQuote => (IconGlyph.Of(FontAwesomeIcon.QuoteRight), theme.Accent),
