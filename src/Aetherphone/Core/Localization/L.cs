@@ -2622,6 +2622,12 @@ internal static class L
                 "Fixed accented letters in playlist, song and channel names turning into garbled characters: re-import a playlist to fix names it already saved, contributed by GitHixy"),
         };
 
+        public static readonly LocString[] Release1411AutoPlay =
+        {
+            new("changelog.r1411.autoplay",
+                "Fixed auto play sometimes starting the next round before the last one was shown, so two bets left your stack with only one roll on screen. Every game now waits until each result has played out"),
+        };
+
         public static readonly LocString[] Release1410Maintenance =
         {
             new("changelog.r1410.maintenance",
