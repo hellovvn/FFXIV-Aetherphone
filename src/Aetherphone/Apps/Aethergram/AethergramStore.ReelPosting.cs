@@ -15,14 +15,11 @@ internal sealed partial class AethergramStore
     }
 
     private static readonly TimeSpan OwnReelsRetry = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan StaleReelFileAge = TimeSpan.FromDays(1);
-    private static readonly string ReelWorkFolder = Path.Combine(Path.GetTempPath(), "AetherphoneReels");
 
     private readonly RetryGate ownReelsGate = new(OwnReelsRetry);
     private volatile ReelShareJob? reelShare;
     private volatile OwnReels ownReels;
     private volatile bool ownReelsChecking;
-    private bool reelFolderSwept;
 
     public ReelShareJob? ReelShare => reelShare;
 
@@ -47,13 +44,9 @@ internal sealed partial class AethergramStore
         }
 
         DismissReelShare();
-        if (!reelFolderSwept)
-        {
-            reelFolderSwept = true;
-            ReelWorkFiles.SweepStale(ReelWorkFolder, StaleReelFileAge);
-        }
-
-        var job = new ReelShareJob(reelMedia, new AethernetReelPublisher(media, grams), ReelWorkFolder, request, true);
+        ReelWorkFiles.SweepStaleOnce();
+        var job = new ReelShareJob(reelMedia, new AethernetReelPublisher(media, grams.CreateReelAsync),
+            ReelWorkFiles.Folder, request, true);
         reelShare = job;
         job.Start();
         return true;

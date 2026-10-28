@@ -28,18 +28,15 @@ internal sealed partial class AethergramApp
     private const float ComposeModeStripHeight = 52f;
     private const float ComposeModeStripWidth = 280f;
     private const float ComposeModeTrackHeight = 32f;
-    private const float ReelComposeSpinnerRadius = 18f;
     private const float ReelProblemInset = 28f;
     private const int MaxReelSeconds = (int)ReelFormat.MaxDurationSeconds;
 
     private static readonly IReelMedia ReelMedia = new WindowsReelMedia();
 
     private readonly string[] composeModeLabels = new string[ComposeModeCount];
-    private readonly ReelEditorFrames reelFrames = new(ReelMedia);
+    private readonly ReelTrimEditor reelEditor = new(ReelMedia);
     private bool composeReelMode;
     private ReelComposeStage reelStage;
-    private string reelPath = string.Empty;
-    private ReelEdit reelEdit;
     private ReelTranscodeFailure reelProbeFailure;
     private int reelProbeTicket;
     private volatile ReelProbed? reelProbeArrived;
@@ -66,15 +63,12 @@ internal sealed partial class AethergramApp
     {
         composeReelMode = false;
         reelStage = ReelComposeStage.Pick;
-        reelPath = string.Empty;
-        reelEdit = default;
         reelProbeFailure = ReelTranscodeFailure.None;
         reelProbing = false;
         reelPickedPath = null;
         reelProbeArrived = null;
         reelProbeTicket++;
-        reelTrimDrag = ReelTrimDrag.None;
-        reelFrames.Close();
+        reelEditor.Close();
     }
 
     private float DrawComposeModeStrip(Rect area)
@@ -145,7 +139,7 @@ internal sealed partial class AethergramApp
             new Vector2(area.Max.X, stripTop));
         if (reelProbing)
         {
-            LoadingPulse.Draw(body.Center, ReelComposeSpinnerRadius * scale, Accent, Ink.MutedInk,
+            LoadingPulse.Draw(body.Center, ReelTrimEditor.SpinnerRadius * scale, Accent, Ink.MutedInk,
                 Loc.T(L.Aethergram.ReelChecking));
             return;
         }
@@ -194,10 +188,7 @@ internal sealed partial class AethergramApp
             return;
         }
 
-        var info = arrived.Result.Info;
-        reelPath = arrived.Path;
-        reelEdit = ReelEdit.Begin(info.DurationSeconds, info.DisplayWidth, info.DisplayHeight);
-        reelFrames.Open(reelPath, info.DurationSeconds);
+        reelEditor.Open(arrived.Path, arrived.Result.Info);
         reelStage = ReelComposeStage.Edit;
     }
 

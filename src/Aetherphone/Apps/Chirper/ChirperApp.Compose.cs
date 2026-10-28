@@ -44,6 +44,7 @@ internal sealed partial class ChirperApp
             composePoll.Reset();
             composeReplyPolicy = ChirperReplyPolicy.Everyone;
             threadDraft.Clear();
+            CloseComposeVideo();
             store.RefreshFeed(SocialFeedScope.Latest);
             store.RefreshFeed(SocialFeedScope.Following);
             feedScrollTopPending = true;
@@ -58,6 +59,7 @@ internal sealed partial class ChirperApp
             composeStatus = composeFailure.Failed ? composeFailure.Text() : Loc.T(L.Account.CannotReach);
         }
 
+        AcceptComposeVideo();
         var pickedPath = Interlocked.Exchange(ref pendingComposePickedPath, null);
         if (pickedPath is not null)
         {
@@ -118,7 +120,7 @@ internal sealed partial class ChirperApp
             var stripTile = composeAttachments.Count > 0
                 ? ComposeTileSize(inputWidth, composeAttachments.Count, stripGap)
                 : 0f;
-            var stripHeight = composeAttachments.Count > 0 ? stripTile + 10f * scale : 0f;
+            var stripHeight = composeAttachments.Count > 0 ? stripTile + 10f * scale : ComposeVideoStripHeight();
             var pollEditorHeight = ComposePollHeight();
             var measuredText = draft.Length == 0
                 ? Typography.Measure("Ag", ComposeInputStyle).Y
@@ -181,6 +183,10 @@ internal sealed partial class ChirperApp
                 DrawComposeAttachmentStrip(drawList, composeAttachments, inputX, inputTop + inputHeight + 10f * scale,
                     stripTile, stripGap, scale);
             }
+            else if (ComposeVideoPending)
+            {
+                DrawComposeVideoTile(drawList, inputX, inputTop + inputHeight + 10f * scale, inputWidth, scale);
+            }
 
             if (pollEditorHeight > 0f)
             {
@@ -233,8 +239,9 @@ internal sealed partial class ChirperApp
     {
         var actionLabel = store.Posting ? Loc.T(L.Chirper.Saving)
             : Loc.T(ComposingThread ? L.Chirper.ChirpAll : ComposeActionLabel);
-        var canPost = (!string.IsNullOrWhiteSpace(draft) || composeAttachments.Count > 0)
-            && draft.Length <= MaxPostLength && !store.Posting && !ComposeScheduleBlocked && ThreadDraftReady();
+        var canPost = (!string.IsNullOrWhiteSpace(draft) || composeAttachments.Count > 0 || ComposeHasVideo)
+            && !videoProbing && draft.Length <= MaxPostLength && !store.Posting && !ComposeScheduleBlocked
+            && ThreadDraftReady();
         var action = HeaderActionRect(area, actionLabel);
         UiAnchors.Report("chirper.compose.post", action);
         var title = Loc.T(ScheduledComposeTitle(quoteTarget is not null ? L.Chirper.QuoteTitle : L.Chirper.NewChirp));
@@ -271,7 +278,7 @@ internal sealed partial class ChirperApp
         var iconRadius = 17f * scale;
         var focusedAttachments = FocusedAttachments();
         var canAttach = focusedAttachments.Count < ChirperStore.MaxImages && !HoldsGif(focusedAttachments)
-            && !(FocusedTakesPoll && composePoll.Active);
+            && !(FocusedTakesPoll && composePoll.Active) && !ComposeVideoPending;
         var photoInk = canAttach ? ChirperInk.MutedInk : Palette.WithAlpha(ChirperInk.MutedInk, 0.4f);
         var photoCenter = new Vector2(area.Min.X + CellPadX * scale + iconRadius, centerY);
         var photoExtent = new Vector2(iconRadius, iconRadius);
@@ -298,11 +305,13 @@ internal sealed partial class ChirperApp
             }
         }
 
+        var videoRight = DrawComposeVideoButton(drawList, photoCenter.X + iconRadius, centerY, iconRadius);
         const string gifLabel = "GIF";
         var chipHeight = Button.SmallHeight * scale;
-        var gifMin = new Vector2(photoCenter.X + iconRadius + 8f * scale, centerY - chipHeight * 0.5f);
+        var gifMin = new Vector2(videoRight + 8f * scale, centerY - chipHeight * 0.5f);
         var gifMax = new Vector2(gifMin.X + Button.WidthFor(gifLabel, ButtonSize.Small), centerY + chipHeight * 0.5f);
-        var gifEnabled = focusedAttachments.Count == 0 && !(FocusedTakesPoll && composePoll.Active);
+        var gifEnabled = focusedAttachments.Count == 0 && !(FocusedTakesPoll && composePoll.Active)
+            && !ComposeVideoPending;
         var gifClicked = Button.Draw(new Rect(gifMin, gifMax), gifLabel, ui.Ink,
             gifEnabled ? ButtonStyle.Tinted : ButtonStyle.Gray, id: "chirper.compose.gif");
         HoverTooltip.Show(new Rect(gifMin, gifMax), Loc.T(L.Settings.ChirperShowGifs), HoverLabelSide.Above);
@@ -329,7 +338,7 @@ internal sealed partial class ChirperApp
 
         composeEmoji.DrawToggle(ui, emojiCenter, iconRadius, ChirperInk.MineInk, ChirperInk.AccentLink,
             Loc.T(L.Common.Emoji));
-        if (composeAttachments.Count > 0 || threadDraft.HasPhotos())
+        if (composeAttachments.Count > 0 || threadDraft.HasPhotos() || ComposeHasVideo)
         {
             var sensitiveRadius = RoundButton.SmallRadius * scale;
             var sensitiveCenter = new Vector2(emojiCenter.X + iconRadius + 8f * scale + sensitiveRadius, centerY);
@@ -354,6 +363,12 @@ internal sealed partial class ChirperApp
 
         if (TrySubmitScheduled())
         {
+            return;
+        }
+
+        if (ComposeHasVideo)
+        {
+            SubmitComposeVideo();
             return;
         }
 
@@ -597,6 +612,12 @@ internal sealed partial class ChirperApp
         if (FocusedTakesPoll && composePoll.Active)
         {
             composeStatus = Loc.T(L.Chirper.PollBlocksMedia);
+            return;
+        }
+
+        if (ComposeVideoPending)
+        {
+            composeStatus = Loc.T(L.Chirper.VideoBlocksMedia);
             return;
         }
 

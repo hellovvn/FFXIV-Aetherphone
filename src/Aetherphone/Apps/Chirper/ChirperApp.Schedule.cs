@@ -37,7 +37,7 @@ internal sealed partial class ChirperApp
         : EditingScheduled ? L.Chirper.Save
         : L.Social.ScheduleAction;
 
-    private bool ComposeScheduleBlocked => composeScheduleAtUnix > 0 && ComposeHasPhotos();
+    private bool ComposeScheduleBlocked => composeScheduleAtUnix > 0 && (ComposeHasPhotos() || ComposeVideoPending);
 
     private bool ComposeHasPhotos() => composeAttachments.Count > 0 && AttachedComposeGif() is null;
 
@@ -71,18 +71,18 @@ internal sealed partial class ChirperApp
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         }
 
-        var blocked = ComposeHasPhotos();
+        var refusal = ComposeVideoPending ? L.Chirper.ScheduleNoVideo : L.Social.ScheduleNoPhotos;
+        var blocked = ComposeHasPhotos() || ComposeVideoPending;
         var ink = composeScheduleAtUnix > 0 ? ChirperInk.Accent
             : blocked ? Palette.WithAlpha(ChirperInk.MutedInk, 0.4f)
             : ChirperInk.AccentLink;
         PhoneIcon.Draw(drawList, center, PhoneIcons.Clock, ink, ScheduleGlyphSize * scale);
-        HoverTooltip.Show(rect, Loc.T(blocked ? L.Social.ScheduleNoPhotos : L.Social.ScheduleLater),
-            HoverLabelSide.Above);
+        HoverTooltip.Show(rect, Loc.T(blocked ? refusal : L.Social.ScheduleLater), HoverLabelSide.Above);
         if (UiInteract.Click(rect.Min, rect.Max, hovered))
         {
             if (blocked)
             {
-                toast.Show(Loc.T(L.Social.ScheduleNoPhotos));
+                toast.Show(Loc.T(refusal));
             }
             else
             {

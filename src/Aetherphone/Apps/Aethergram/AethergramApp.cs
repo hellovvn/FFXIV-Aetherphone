@@ -326,7 +326,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             RemoveCommentConfirmMessage = L.Aethergram.RemoveCommentConfirmMessage,
         }, confirm, report);
         threadView = new ThreadView(this);
-        reelPlayback = new ReelPlayback(video.Screen.Engine.Dependencies, visibility, () => video.Player.Unpaused);
+        reelPlayback = video.Reels;
         reelPlayback.Hidden += OnReelsHidden;
     }
 
@@ -1952,7 +1952,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         settingsCancellation.Cancel();
         settingsCancellation.Dispose();
         composeSession.Dispose();
-        reelFrames.Dispose();
+        reelEditor.Dispose();
         store.DismissReelShare();
         threadView.Dispose();
         dmStore.Dispose();
@@ -1961,8 +1961,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         highlights.Dispose();
         storyArchive.Dispose();
         closeFriends.Dispose();
-        reelPlayback.Dispose();
-        reelSetupWork.Dispose();
+        reelSetup.Dispose();
     }
 
     private void DrawHomeTopBar(Rect area)

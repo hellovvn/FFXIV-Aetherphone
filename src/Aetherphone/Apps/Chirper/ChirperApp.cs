@@ -18,6 +18,7 @@ using Aetherphone.Core.Net;
 using Aetherphone.Core.Notifications;
 using Aetherphone.Core.Onboarding;
 using Aetherphone.Core.Photos;
+using Aetherphone.Core.Reels;
 using Aetherphone.Core.Report;
 using Aetherphone.Core.Sharing;
 using Aetherphone.Core.Social;
@@ -320,8 +321,9 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         Configuration configuration, SocialNotificationService social, WallpaperImageCache wallpaperImages,
         ConfirmService confirm, TranslationService translation, ReportService report, ConductGateService conduct,
         RealtimeSignalBus realtimeSignals, GifSearch gifs, SocialMuteLedger mutes, IChatShareTarget chats,
-        GramClient storyClient)
+        GramClient storyClient, ReelPlayback reels)
     {
+        this.reels = reels;
         this.translation = translation;
         this.confirm = confirm;
         this.chats = chats;
@@ -397,6 +399,8 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         composeSensitive = false;
         composePoll.Reset();
         composeReplyPolicy = ChirperReplyPolicy.Everyone;
+        CloseComposeVideo();
+        CloseChirpVideo();
         ResetComposeExtras();
         store.ClearDiscover();
         trendingRequested = false;
@@ -448,6 +452,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     public void OnClosed()
     {
         store.FlushFeedSignals();
+        CloseChirpVideo();
     }
 
     public void Draw(in PhoneContext context)
@@ -477,15 +482,23 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         ui.Backdrop(screen);
         ConsumeSharedPhoto();
         ConsumeShareOutcomes();
+        DrainVideoShare();
         if (photoViewer.Active)
         {
             photoViewer.Draw(screen, theme);
             return;
         }
 
-        DrawNight(screen, context.Content.Min.Y);
         var appArea = new Rect(new Vector2(screen.Min.X, context.Content.Min.Y),
             new Vector2(screen.Max.X, context.Content.Max.Y));
+        if (videoViewerPost is { Video: { } viewerVideo } viewerPost)
+        {
+            DrawChirpVideoViewer(screen, appArea, viewerPost, viewerVideo);
+            toast.Draw(screen, ToastStyle);
+            return;
+        }
+
+        DrawNight(screen, context.Content.Min.Y);
         using (InputShield.Engage(avatarLightbox.Expanded || GifSheetsCapture || ChirpEditHistoryCaptures))
         using (InputShield.Engage(AltTextCapturesPointer))
         using (intro.FadeContent())
@@ -499,6 +512,8 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             avatarLightbox.Draw(screen, theme);
         }
 
+        PresentChirpVideo();
+        DrawVideoSharePill(screen);
         DrawSheet(screen);
         DrawReplyPolicySheet(screen);
         DrawChirpEditHistory(screen);
@@ -976,7 +991,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         var mine = store.Me is { } me && me.Id == post.AuthorId;
         if (mine)
         {
-            var canVeil = !post.SensitiveLocked && PostMedia.Photos(post).Length > 0;
+            var canVeil = !post.SensitiveLocked && (ChirpPhotos(post).Length > 0 || post.Video is not null);
             if (canVeil)
             {
                 AddSheetItem(PostSheetAction.Sensitive,
@@ -1451,9 +1466,11 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             ? 10f * scale + Typography.LineHeight(DateStyle)
             : 0f;
         var afterText = textTop + textHeight + translateHeight + dateHeight;
-        var photos = PostMedia.Photos(post);
-        var mediaHeight = MediaBlockHeight(photos.Length, isThreadHead);
-        var mediaTop = afterText + (photos.Length > 0 ? 9f * scale : 0f);
+        var video = post.Video;
+        var photos = ChirpPhotos(post);
+        var videoSize = video is null ? Vector2.Zero : VideoBlockSize(video, contentWidth, isThreadHead);
+        var mediaHeight = video is null ? MediaBlockHeight(photos.Length, isThreadHead) : videoSize.Y;
+        var mediaTop = afterText + (mediaHeight > 0f ? 9f * scale : 0f);
         var hasQuote = post.QuotedPostId is not null;
         var quoteHeight = hasQuote ? QuotedCardHeight(post.ReferencedPost, contentWidth, post.Id) : 0f;
         var quoteTop = mediaTop + mediaHeight + (hasQuote ? 9f * scale : 0f);
@@ -1593,7 +1610,12 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
                 FullTimestamp(post.CreatedAtUnix), ChirperInk.MutedInk, DateStyle);
         }
 
-        if (photos.Length > 0)
+        if (video is not null)
+        {
+            DrawChirpVideo(post, video, new Rect(new Vector2(contentLeft, mediaTop),
+                new Vector2(contentLeft + videoSize.X, mediaTop + videoSize.Y)));
+        }
+        else if (photos.Length > 0)
         {
             DrawPostMedia(post, photos, new Rect(new Vector2(contentLeft, mediaTop),
                 new Vector2(contentRight, mediaTop + mediaHeight)));
@@ -2460,8 +2482,8 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             return MutedQuoteHeight(width);
         }
 
-        var quotedPhotos = PostMedia.Photos(quoted);
-        var hasMedia = quotedPhotos.Length > 0 && !HiddenByMediaPreference(quotedPhotos);
+        var quotedPhotos = ChirpPhotos(quoted);
+        var hasMedia = quoted.Video is not null || (quotedPhotos.Length > 0 && !HiddenByMediaPreference(quotedPhotos));
         var innerWidth = width - padX * 2f - (hasMedia ? QuoteThumbSize * scale + 8f * scale : 0f);
         var bodyLine = Typography.LineHeight(QuoteBodyStyle);
         var textHeight = quoted.Text.Length > 0
@@ -2503,13 +2525,14 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             return;
         }
 
-        var quotedPhotos = PostMedia.Photos(quoted);
+        var quotedPhotos = ChirpPhotos(quoted);
         if (HiddenByMediaPreference(quotedPhotos))
         {
             quotedPhotos = Array.Empty<string>();
         }
 
-        var thumbReserve = quotedPhotos.Length > 0 ? QuoteThumbSize * scale + 8f * scale : 0f;
+        var quotedVideo = quoted.Video;
+        var thumbReserve = quotedPhotos.Length > 0 || quotedVideo is not null ? QuoteThumbSize * scale + 8f * scale : 0f;
         var innerWidth = width - padX * 2f - thumbReserve;
         var avatarRadius = QuoteAvatarRadius * scale;
         var headerCenterY = min.Y + padY + headerHeight * 0.5f;
@@ -2585,16 +2608,30 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
             }
         }
 
+        var videoThumb = default(Rect);
+        if (quotedVideo is not null)
+        {
+            var thumbSize = QuoteThumbSize * scale;
+            var thumbMin = new Vector2(max.X - padX - thumbSize, min.Y + (height - thumbSize) * 0.5f);
+            videoThumb = new Rect(thumbMin, thumbMin + new Vector2(thumbSize, thumbSize));
+            DrawVideoThumb(drawList, quoted, quotedVideo, videoThumb, 8f * scale);
+        }
+
         if (tappable && UiInteract.HoverClick(min, max))
         {
             OpenThread(quoted);
+        }
+
+        if (tappable && quotedVideo is not null && UiInteract.HoverClick(videoThumb.Min, videoThumb.Max))
+        {
+            OpenChirpVideo(quoted);
         }
     }
 
     private bool HiddenByMediaPreference(PostDto post)
     {
         var target = post.RepostOfId is not null && post.ReferencedPost is not null ? post.ReferencedPost : post;
-        return HiddenByMediaPreference(PostMedia.Photos(target));
+        return HiddenByMediaPreference(ChirpPhotos(target));
     }
 
     private bool HiddenByMediaPreference(string[] photos)
@@ -2868,6 +2905,9 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
 
     public void Dispose()
     {
+        store.DismissVideoShare();
+        videoEditor.Dispose();
+        videoSetup.Dispose();
         store.Dispose();
     }
 }

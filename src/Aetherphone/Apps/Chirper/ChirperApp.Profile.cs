@@ -608,14 +608,16 @@ internal sealed partial class ChirperApp
                 continue;
             }
 
-            var photos = PostMedia.Photos(post);
-            if (photos.Length == 0 || HiddenByMediaPreference(photos))
+            var photos = ChirpPhotos(post);
+            var video = post.Video;
+            if ((photos.Length == 0 && video is null) || HiddenByMediaPreference(photos))
             {
                 continue;
             }
 
             var veiled = SensitiveReveals.ShouldVeil(post.Sensitive, post.Id, configuration.ShowSensitiveContent);
-            for (var photoIndex = 0; photoIndex < photos.Length; photoIndex++)
+            var cellCount = video is null ? photos.Length : 1;
+            for (var photoIndex = 0; photoIndex < cellCount; photoIndex++)
             {
                 var column = cellIndex % MediaGridColumns;
                 var row = cellIndex / MediaGridColumns;
@@ -629,7 +631,11 @@ internal sealed partial class ChirperApp
 
                 var min = new Vector2(origin.X + column * (cell + gap), origin.Y + rowTop);
                 var max = new Vector2(min.X + cell, min.Y + cell);
-                DrawProfileMediaCell(drawList, post, photos[photoIndex], min, max, veiled, scale);
+                DrawProfileMediaCell(drawList, post, video?.PosterUrl ?? photos[photoIndex], min, max, veiled, scale);
+                if (video is not null && !veiled)
+                {
+                    DrawVideoPlayBadge(drawList, new Rect(min, max).Center, scale);
+                }
                 if (photoIndex == 0)
                 {
                     store.ObserveImpression(post.Id, min.Y, max.Y);
