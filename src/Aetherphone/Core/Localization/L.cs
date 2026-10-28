@@ -2572,6 +2572,8 @@ internal static class L
                 "Added photo descriptions: tap ALT on a photo while posting to describe it or change it later, and tap the ALT badge on a photo to read its description"),
             new("changelog.r1420.13",
                 "Added drafts: closing the composer with something in it offers to save a draft, and Drafts brings it back later, up to 20 per app"),
+            new("changelog.r1420.44",
+                "Added Muted words next to Muted accounts: hide posts, replies and notifications with a word, phrase or #hashtag, from anyone or only people you don't follow, forever or for 24 hours, 7 days or 30 days"),
             new("changelog.r1420.14",
                 "Changed For You to start showing brand new posts that still need their first readers at the third card instead of the tenth"),
             new("changelog.r1420.15",
@@ -2604,6 +2606,12 @@ internal static class L
                 "Added story likes: tap the heart next to the reply field, and see who liked your story in its viewer list"),
             new("changelog.r1420.27",
                 "Added Add post to your story: share a post to your story with an optional caption from the send sheet or the post's menu"),
+            new("changelog.r1420.41",
+                "Added poll stickers to stories: ask a question with two answers, viewers vote once and then see the results, and Responses shows you who picked what"),
+            new("changelog.r1420.42",
+                "Added question stickers to stories: viewers send you answers only you can read, listed under Responses, where you can delete one or block its sender"),
+            new("changelog.r1420.43",
+                "Added mention stickers to stories: tag up to 10 people, who get a notification when they can see the story, and tap a tag to open that profile"),
             new("changelog.r1420.28",
                 "Fixed Translate showing the old caption after a post was edited"),
         };
@@ -2622,6 +2630,8 @@ internal static class L
                 "Added a Chirps tab to search, next to People, to find chirps by their words"),
             new("changelog.r1420.34",
                 "Added sharing chirps: Share chirp sends a chirp to a chat, adds it to your Aethergram story, or copies a link that shows as a chirp card in chats"),
+            new("changelog.r1420.45",
+                "Added videos in chirps: tap Add a video to attach one of up to 90 seconds, trim it and pick a cover. It plays muted in your feed and full screen with sound when you tap it"),
             new("changelog.r1420.35",
                 "Changed Reply on a chirp in a feed to open the chirp with the reply box ready to type"),
         };
@@ -2629,7 +2639,7 @@ internal static class L
         public static readonly LocString[] Release1420Coin =
         {
             new("changelog.r1420.36",
-                "Added the Post a reel quest: post a reel once a day for 35 coins on top of today's quests, paid an hour after the reel goes up"),
+                "Added the Post a reel quest: post a reel once a day for 35 coins on top of today's quests, paid an hour after the reel goes up. It counts toward your daily goal only on days you post one"),
             new("changelog.r1420.37",
                 "Added a one-time 500 coin bonus for your first reel, paid an hour after it goes up"),
             new("changelog.r1420.38",
