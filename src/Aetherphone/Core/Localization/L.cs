@@ -12124,6 +12124,10 @@ internal static class L
         public static readonly LocString RuleCallHint = new("coin.ruleCallHint", "Answered calls of two minutes or more where both of you talk, up to two people a day");
         public static readonly LocString RuleChatHint = new("coin.ruleChatHint", "Send a message to someone in a private chat, up to four people a day");
         public static readonly LocString RulePostHint = new("coin.rulePostHint", "One chirp or gram that stays up for an hour, once a day");
+        public static readonly LocString RuleReelFirst = new("coin.ruleReelFirst", "Your first reel");
+        public static readonly LocString RuleReelDaily = new("coin.ruleReelDaily", "A reel that lasted");
+        public static readonly LocString RuleReelFirstHint = new("coin.ruleReelFirstHint", "A one-time bonus an hour after your first reel goes up");
+        public static readonly LocString RuleReelDailyHint = new("coin.ruleReelDailyHint", "One reel that stays up for an hour, once a day");
         public static readonly LocString RuleCommentsDailyHint = new("coin.ruleCommentsDailyHint", "Comments on other people's posts that stay up for an hour, up to three authors a day");
         public static readonly LocString RuleGameSessionHint = new("coin.ruleGameSessionHint", "Play any arcade game for three minutes, up to five sessions a day");
         public static readonly LocString RuleGameDeepHint = new("coin.ruleGameDeepHint", "Stay in one game for fifteen minutes, up to twice a day");

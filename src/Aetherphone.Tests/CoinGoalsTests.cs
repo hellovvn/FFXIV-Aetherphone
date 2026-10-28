@@ -1,5 +1,6 @@
 using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Coins;
+using Aetherphone.Core.Localization;
 using Xunit;
 
 namespace Aetherphone.Tests;
@@ -52,6 +53,29 @@ public sealed class CoinGoalsTests
         Assert.Equal(0, quietTotal);
         Assert.Equal(1, calledTotal);
         Assert.Equal(0, calledDone);
+    }
+
+    [Fact]
+    public void TheReelQuestOnlyCountsOnDaysWithAReel()
+    {
+        var quiet = new[] { Rule("reel.daily", 35, 35, earned: 0, awards: 0, limit: 1) };
+        var posted = new[] { Rule("reel.daily", 35, 35, earned: 35, awards: 1, limit: 1) };
+
+        CoinGoals.Count(quiet, false, out _, out var quietTotal);
+        CoinGoals.Count(posted, false, out var postedDone, out var postedTotal);
+
+        Assert.Equal(0, quietTotal);
+        Assert.Equal(1, postedTotal);
+        Assert.Equal(1, postedDone);
+    }
+
+    [Fact]
+    public void BothReelRulesHaveTheirOwnLabelAndHint()
+    {
+        Assert.NotEqual(L.Coin.RuleGeneric.Key, CoinRuleLabels.For("reel.first").Key);
+        Assert.NotEqual(L.Coin.RuleGeneric.Key, CoinRuleLabels.For("reel.daily").Key);
+        Assert.True(CoinRuleLabels.TryHint("reel.first", out _));
+        Assert.True(CoinRuleLabels.TryHint("reel.daily", out _));
     }
 
     [Fact]
