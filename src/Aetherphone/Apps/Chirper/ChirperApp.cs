@@ -66,6 +66,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         NotInterested,
         Mute,
         MutedAccounts,
+        MutedWords,
         ReplyPolicy,
         Edit,
         SendInMessage,
@@ -500,7 +501,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
 
         DrawNight(screen, context.Content.Min.Y);
         using (InputShield.Engage(avatarLightbox.Expanded || GifSheetsCapture || ChirpEditHistoryCaptures))
-        using (InputShield.Engage(AltTextCapturesPointer))
+        using (InputShield.Engage(AltTextCapturesPointer || MutedWordSheetCaptures))
         using (intro.FadeContent())
         {
             router.Draw(appArea, AppSkin.Transparent, ImGui.GetIO().DeltaTime, drawView);
@@ -522,6 +523,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
         DrawFeedExplainer(screen);
         DrawPostViewsSheet(screen);
         DrawAltText(screen);
+        DrawMutedWordSheet(screen);
         DrawDraftExitSheet(screen);
         DrawClaw(screen);
         toast.Draw(screen, ToastStyle);
@@ -572,6 +574,9 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
                 break;
             case ChirperScreen.MutedAccounts:
                 DrawMutedAccounts(area);
+                break;
+            case ChirperScreen.MutedWords:
+                DrawMutedWords(area);
                 break;
             case ChirperScreen.EditChirp:
                 DrawChirpEdit(area, route.PostId!);
@@ -2479,7 +2484,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
 
         if (FoldsMutedQuote(quoted, hostId))
         {
-            return MutedQuoteHeight(width);
+            return MutedQuoteHeight(width, MutedQuoteMessage(quoted));
         }
 
         var quotedPhotos = ChirpPhotos(quoted);
@@ -2500,7 +2505,7 @@ internal sealed partial class ChirperApp : IResumableApp, ITabIconDrawer, INamep
     {
         if (tappable && FoldsMutedQuote(quoted, hostId))
         {
-            DrawMutedQuote(drawList, min, width, height, hostId);
+            DrawMutedQuote(drawList, min, width, height, hostId, MutedQuoteMessage(quoted!));
             return;
         }
 

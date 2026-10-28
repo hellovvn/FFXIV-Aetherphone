@@ -72,6 +72,11 @@ internal sealed partial class AethergramApp
                 OpenMutedAccounts();
             }
 
+            if (DrawSettingsLinkRow(Loc.T(L.Social.MutedWords)))
+            {
+                OpenMutedWords();
+            }
+
             if (DrawSettingsLinkRow(Loc.T(L.Story.CloseFriends)))
             {
                 OpenCloseFriends();

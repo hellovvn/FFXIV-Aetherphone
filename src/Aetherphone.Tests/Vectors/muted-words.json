@@ -1,0 +1,731 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "word matches regardless of case",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "Raid tonight at 8",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "word matches shouted text",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "RAID!!!",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "uppercase entry matches lowercase text",
+      "entries": [
+        {
+          "phrase": "Moogle"
+        }
+      ],
+      "text": "a moogle appears",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "accented capitals fold to lowercase",
+      "entries": [
+        {
+          "phrase": "élite"
+        }
+      ],
+      "text": "ÉLITE gear",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "word does not match inside a longer word",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raiders unite",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "word does not match after letters",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "preraid prep",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "underscore joins words",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raid_night",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "digit joins words",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raid2 tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "accented letter joins words",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raidé",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "hyphen is a boundary",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raid-night",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "apostrophe is a boundary",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "the raid's loot",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "emoji is a boundary",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raid🔥",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "later occurrence matches after an early miss",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raider raid",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "empty text never matches",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "word matches inside a hashtag",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "the #raid starts",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "word does not match a longer hashtag",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "#raidnight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "phrase matches across collapsed spaces",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "I love Final   Fantasy XIV",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "phrase matches across a line break",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "final\nfantasy",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "phrase matches across a tab",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "final\tfantasy",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "phrase needs whitespace between its words",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "finalfantasy",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "phrase keeps its order",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "fantasy final",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "phrase needs a boundary after its last word",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "final fantasyxiv",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "punctuation is not whitespace inside a phrase",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "final, fantasy",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "phrase retries after a partial match",
+      "entries": [
+        {
+          "phrase": "final fantasy"
+        }
+      ],
+      "text": "final final fantasy",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "entry whitespace is trimmed and collapsed",
+      "entries": [
+        {
+          "phrase": "  final \t  fantasy "
+        }
+      ],
+      "text": "final fantasy",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "hashtag entry matches that hashtag",
+      "entries": [
+        {
+          "phrase": "#raid"
+        }
+      ],
+      "text": "#Raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "hashtag entry ignores the bare word",
+      "entries": [
+        {
+          "phrase": "#raid"
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "hashtag entry ignores a longer hashtag",
+      "entries": [
+        {
+          "phrase": "#raid"
+        }
+      ],
+      "text": "#raids",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "hashtag entry needs a boundary before the mark",
+      "entries": [
+        {
+          "phrase": "#raid"
+        }
+      ],
+      "text": "go#raid",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "hashtag entry matches inside punctuation",
+      "entries": [
+        {
+          "phrase": "#raid"
+        }
+      ],
+      "text": "(#raid)",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "hashtag entry in another script",
+      "entries": [
+        {
+          "phrase": "#レイド"
+        }
+      ],
+      "text": "今夜の#レイド",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "japanese entry matches as a substring",
+      "entries": [
+        {
+          "phrase": "零式"
+        }
+      ],
+      "text": "今日は零式に行く",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "katakana entry matches as a substring",
+      "entries": [
+        {
+          "phrase": "ファイナルファンタジー"
+        }
+      ],
+      "text": "ファイナルファンタジーXIV最高",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "chinese entry matches as a substring",
+      "entries": [
+        {
+          "phrase": "副本"
+        }
+      ],
+      "text": "我们今天打副本吧",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "mixed latin and cjk entry matches as a substring",
+      "entries": [
+        {
+          "phrase": "raid零式"
+        }
+      ],
+      "text": "newraid零式です",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "cjk entry still needs its characters together",
+      "entries": [
+        {
+          "phrase": "攻略"
+        }
+      ],
+      "text": "攻 略",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "cjk entry longer than the text",
+      "entries": [
+        {
+          "phrase": "零式"
+        }
+      ],
+      "text": "零",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "expired entry stops applying",
+      "entries": [
+        {
+          "phrase": "raid",
+          "expiresInSeconds": -60
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "entry with time left applies",
+      "entries": [
+        {
+          "phrase": "raid",
+          "expiresInSeconds": 3600
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "people you do not follow: followed author stays",
+      "entries": [
+        {
+          "phrase": "raid",
+          "onlyNotFollowing": true
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": true,
+      "hidden": false
+    },
+    {
+      "name": "people you do not follow: stranger is hidden",
+      "entries": [
+        {
+          "phrase": "raid",
+          "onlyNotFollowing": true
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "anyone: followed author is hidden",
+      "entries": [
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": true,
+      "hidden": true
+    },
+    {
+      "name": "an anyone entry wins over a narrower twin",
+      "entries": [
+        {
+          "phrase": "raid",
+          "onlyNotFollowing": true
+        },
+        {
+          "phrase": "raid"
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": true,
+      "hidden": true
+    },
+    {
+      "name": "feeds off: feeds unaffected",
+      "entries": [
+        {
+          "phrase": "raid",
+          "inFeeds": false
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "feeds off: notifications still muted",
+      "entries": [
+        {
+          "phrase": "raid",
+          "inFeeds": false
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "notifications",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "notifications off: notifications unaffected",
+      "entries": [
+        {
+          "phrase": "raid",
+          "inNotifications": false
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "notifications",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "notifications off: feeds still muted",
+      "entries": [
+        {
+          "phrase": "raid",
+          "inNotifications": false
+        }
+      ],
+      "text": "raid tonight",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "any entry of several matches",
+      "entries": [
+        {
+          "phrase": "raid"
+        },
+        {
+          "phrase": "glam"
+        }
+      ],
+      "text": "glam check",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": true
+    },
+    {
+      "name": "no entry of several matches",
+      "entries": [
+        {
+          "phrase": "raid"
+        },
+        {
+          "phrase": "glam"
+        }
+      ],
+      "text": "gil sink",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "a lone hash mark is ignored",
+      "entries": [
+        {
+          "phrase": "#"
+        }
+      ],
+      "text": "# hello",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "a hashtag with a space is ignored",
+      "entries": [
+        {
+          "phrase": "#raid night"
+        }
+      ],
+      "text": "#raid night",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "an entry over sixty characters is ignored",
+      "entries": [
+        {
+          "phrase": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    },
+    {
+      "name": "an empty entry is ignored",
+      "entries": [
+        {
+          "phrase": "   "
+        }
+      ],
+      "text": "anything at all",
+      "scope": "feeds",
+      "followed": false,
+      "hidden": false
+    }
+  ],
+  "phrases": [
+    {
+      "input": "  Final \t Fantasy ",
+      "normalized": "Final Fantasy",
+      "valid": true
+    },
+    {
+      "input": "raid",
+      "normalized": "raid",
+      "valid": true
+    },
+    {
+      "input": "#raid",
+      "normalized": "#raid",
+      "valid": true
+    },
+    {
+      "input": "#raid_night2",
+      "normalized": "#raid_night2",
+      "valid": true
+    },
+    {
+      "input": "#レイド",
+      "normalized": "#レイド",
+      "valid": true
+    },
+    {
+      "input": "#",
+      "normalized": "#",
+      "valid": false
+    },
+    {
+      "input": "# raid",
+      "normalized": "# raid",
+      "valid": false
+    },
+    {
+      "input": "#raid!",
+      "normalized": "#raid!",
+      "valid": false
+    },
+    {
+      "input": "   ",
+      "normalized": "",
+      "valid": false
+    },
+    {
+      "input": "",
+      "normalized": "",
+      "valid": false
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "normalized": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": true
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "normalized": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": false
+    },
+    {
+      "input": " bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ",
+      "normalized": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "valid": true
+    },
+    {
+      "input": "c++",
+      "normalized": "c++",
+      "valid": true
+    }
+  ]
+}

@@ -471,7 +471,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawNight(screen, context.Content.Min.Y);
         using (InputShield.Engage(avatarLightbox.Expanded || GifSheetCaptures || StoryShareCaptures
                    || ReelCommentsCaptures))
-        using (InputShield.Engage(AltTextCapturesPointer))
+        using (InputShield.Engage(AltTextCapturesPointer || MutedWordSheetCaptures))
         using (intro.FadeContent())
         {
             router.Draw(SceneChrome.AppAreaFrom(context.Content, theme, UiScale.Current), AppSkin.Transparent,
@@ -494,6 +494,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawFeedExplainer(screen);
         DrawPostViewsSheet(screen);
         DrawAltText(screen);
+        DrawMutedWordSheet(screen);
         DrawReelComments(screen);
         DrawCommentSheet(screen);
         DrawGifSheet(screen);
@@ -591,6 +592,9 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
                 break;
             case AethergramScreen.MutedAccounts:
                 DrawMutedAccounts(area);
+                break;
+            case AethergramScreen.MutedWords:
+                DrawMutedWords(area);
                 break;
             case AethergramScreen.CloseFriends:
                 DrawCloseFriends(area);

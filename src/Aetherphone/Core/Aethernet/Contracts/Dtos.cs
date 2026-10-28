@@ -280,7 +280,8 @@ internal sealed record PostDto(
     int ThreadCount = 0,
     bool AuthorMuted = false,
     CollaboratorDto[]? Collaborators = null,
-    VideoDto? Video = null) : IIdentified
+    VideoDto? Video = null,
+    bool WordMuted = false) : IIdentified
 {
     [JsonIgnore] public string[]? GifMedia { get; } = GifUrl is null ? null : new[] { GifUrl };
 }

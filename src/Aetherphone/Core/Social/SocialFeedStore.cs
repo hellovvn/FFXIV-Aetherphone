@@ -126,6 +126,8 @@ internal abstract partial class SocialFeedStore : IDisposable
         session.Changed += OnSessionChanged;
         signals.ContentRemoved += OnContentRemoved;
         mutes.Changed += OnMuteChanged;
+        mutes.Words.Applied += OnMutedWordApplied;
+        mutes.Words.Reverted += RefreshLoadedFeeds;
     }
 
     private void OnContentRemoved(ContentRemovalSignal removal)
@@ -2075,6 +2077,8 @@ internal abstract partial class SocialFeedStore : IDisposable
         session.Changed -= OnSessionChanged;
         signals.ContentRemoved -= OnContentRemoved;
         mutes.Changed -= OnMuteChanged;
+        mutes.Words.Applied -= OnMutedWordApplied;
+        mutes.Words.Reverted -= RefreshLoadedFeeds;
         work.Dispose();
     }
 }

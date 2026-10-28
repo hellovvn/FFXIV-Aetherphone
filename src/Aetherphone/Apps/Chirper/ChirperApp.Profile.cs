@@ -704,6 +704,7 @@ internal sealed partial class ChirperApp
         {
             AddSheetItem(PostSheetAction.BadgeProgress, Loc.T(L.Social.BadgeProgress), false);
             AddSheetItem(PostSheetAction.MutedAccounts, Loc.T(L.Social.MutedAccounts), false);
+            AddSheetItem(PostSheetAction.MutedWords, Loc.T(L.Social.MutedWords), false);
             AddSheetItem(PostSheetAction.Rules, Loc.T(L.Conduct.Eyebrow), false);
         }
         else
@@ -744,6 +745,9 @@ internal sealed partial class ChirperApp
                 break;
             case PostSheetAction.MutedAccounts:
                 OpenMutedAccounts();
+                break;
+            case PostSheetAction.MutedWords:
+                OpenMutedWords();
                 break;
             case PostSheetAction.Mute:
                 ToggleMute(user.Id, store.IsMuted(user), user.DisplayName, user.Handle);
@@ -834,8 +838,9 @@ internal sealed partial class ChirperApp
     private void DrawHashtag(Rect area, string tag)
     {
         store.EnsureHashtagPosts(tag);
-        DrawScreenHeader(area, HashtagTitle(tag), 0f,
+        DrawScreenHeader(area, HashtagTitle(tag), SocialChrome.HeaderReserve(1) * UiScale.Current,
             hashtagTodayCount > 0 ? Loc.Plural(L.Chirper.ChirpsToday, hashtagTodayCount) : string.Empty);
+        DrawHashtagMute(area, tag);
         var scale = UiScale.Current;
         var top = area.Min.Y + AppHeader.Height * scale;
         var body = new Rect(new Vector2(area.Min.X, top), area.Max);
