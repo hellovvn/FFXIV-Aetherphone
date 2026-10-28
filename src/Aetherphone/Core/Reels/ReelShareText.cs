@@ -72,14 +72,14 @@ internal static class ReelShareText
         }
     }
 
-    internal static string Status(ReelShareStage stage, float progress)
+    internal static string Status(ReelShareStage stage, float progress, LocString posting)
     {
         var percent = (int)MathF.Round(Math.Clamp(progress, 0f, 1f) * 100f);
         return stage switch
         {
             ReelShareStage.Converting => Loc.T(L.Aethergram.ReelConverting, percent),
             ReelShareStage.Uploading => Loc.T(L.Aethergram.ReelUploading, percent),
-            _ => Loc.T(L.Aethergram.ReelPosting),
+            _ => Loc.T(posting),
         };
     }
 }

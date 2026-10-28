@@ -22,8 +22,8 @@ internal sealed partial class AethergramApp
     {
         get
         {
-            var layout = ReelLayout.Plan(Math.Max(2, reelEdit.DisplayWidth), Math.Max(2, reelEdit.DisplayHeight),
-                reelEdit.Crop);
+            var edit = reelEditor.Edit;
+            var layout = ReelLayout.Plan(Math.Max(2, edit.DisplayWidth), Math.Max(2, edit.DisplayHeight), edit.Crop);
             return (float)layout.Width / layout.Height;
         }
     }
@@ -33,7 +33,7 @@ internal sealed partial class AethergramApp
         personPicker.Gate();
         GateComposeCollabPicker();
         var scale = UiScale.Current;
-        reelFrames.Show(reelEdit.CoverSeconds, true);
+        reelEditor.Frames.Show(reelEditor.Edit.CoverSeconds, true);
         if (composeTagMode)
         {
             DrawReelTagging(area, scale);
@@ -132,14 +132,14 @@ internal sealed partial class AethergramApp
         var drawList = ImGui.GetWindowDrawList();
         var rounding = ComposePreviewRounding * scale;
         Elevation.Card(drawList, preview.Min, preview.Max, rounding, scale);
-        if (reelFrames.Preview is not { } texture)
+        if (reelEditor.Frames.Preview is not { } texture)
         {
             Squircle.Fill(drawList, preview.Min, preview.Max, rounding, ImGui.GetColorU32(theme.SurfaceMuted));
-            LoadingPulse.Spinner(preview.Center, ReelComposeSpinnerRadius * scale, Accent);
+            LoadingPulse.Spinner(preview.Center, ReelTrimEditor.SpinnerRadius * scale, Accent);
             return false;
         }
 
-        var crop = reelEdit.Crop ?? ReelCrop.Whole;
+        var crop = reelEditor.Edit.Crop ?? ReelCrop.Whole;
         ImageFit.DrawLetterboxed(drawList, texture, preview, new Vector2(crop.X, crop.Y),
             new Vector2(crop.X + crop.Width, crop.Y + crop.Height), rounding);
         Material.EdgeSquircle(drawList, preview.Min, preview.Max, rounding, scale);
@@ -165,11 +165,12 @@ internal sealed partial class AethergramApp
 
     private void DrawReelAltChip(Rect preview)
     {
-        if (reelPath.Length == 0 || preview.Width <= 0f || preview.Height <= 0f)
+        if (!reelEditor.IsOpen || preview.Width <= 0f || preview.Height <= 0f)
         {
             return;
         }
 
+        var reelPath = reelEditor.Path;
         var text = PostAltTexts.For(composeAltTexts, reelPath);
         if (DrawAltChip(preview, text))
         {
@@ -212,11 +213,13 @@ internal sealed partial class AethergramApp
 
     private void ShareReel()
     {
-        if (reelPath.Length == 0)
+        if (!reelEditor.IsOpen)
         {
             return;
         }
 
+        var reelPath = reelEditor.Path;
+        var reelEdit = reelEditor.Edit;
         var alt = PostAltTexts.For(composeAltTexts, reelPath);
         var request = new ReelShareRequest(reelPath, reelEdit.StartSeconds, reelEdit.EndSeconds,
             reelEdit.CoverSeconds, reelEdit.Crop, caption, ComposeTagInputs(), ComposeCollaboratorIds(),

@@ -1,3 +1,4 @@
+using Aetherphone.Core.Reels;
 using Dalamud.Plugin.Services;
 
 namespace Aetherphone.Core.Video;
@@ -14,6 +15,7 @@ internal sealed class VideoSuite : IDisposable
             services.StreamSignals, Screen);
         Suggestions = new StreamSuggestionNotifier(WatchAlong, services.Notifications);
         ChatFeed = new ScreenChatFeed(chatGui, configuration, Screen.Engine);
+        Reels = new ReelPlayback(Screen.Engine.Dependencies, services.Visibility, () => Player.Unpaused);
         ApplySettings(configuration);
     }
 
@@ -24,6 +26,10 @@ internal sealed class VideoSuite : IDisposable
     internal WatchAlongSession WatchAlong { get; }
     internal StreamSuggestionNotifier Suggestions { get; }
     internal ScreenChatFeed ChatFeed { get; }
+
+    // One reel player for every app that plays post videos, so leaving Aethergram for Chirper never keeps two idle
+    // mpv instances around.
+    internal ReelPlayback Reels { get; }
 
     internal bool PlacingScreen { get; set; }
 
@@ -56,6 +62,7 @@ internal sealed class VideoSuite : IDisposable
 
     public void Dispose()
     {
+        Reels.Dispose();
         ChatFeed.Dispose();
         Suggestions.Dispose();
         WatchAlong.Dispose();
