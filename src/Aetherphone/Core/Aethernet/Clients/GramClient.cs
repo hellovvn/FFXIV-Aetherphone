@@ -131,9 +131,10 @@ internal sealed partial class GramClient
     }
 
     public Task<StoryDto?> CreateStoryAsync(string caption, string mediaKey, int width, int height, CancellationToken token,
-        Action<AepFailure>? onFailure = null, int audience = StoryAudiences.Everyone)
+        Action<AepFailure>? onFailure = null, int audience = StoryAudiences.Everyone,
+        StoryStickerInput[]? stickers = null)
     {
-        return net.PostAsync("/stories", new CreateStoryRequest(caption, mediaKey, width, height, audience), AethernetJsonContext.Default.CreateStoryRequest, AethernetJsonContext.Default.StoryDto, token, null, onFailure);
+        return net.PostAsync("/stories", new CreateStoryRequest(caption, mediaKey, width, height, audience, Stickers: stickers), AethernetJsonContext.Default.CreateStoryRequest, AethernetJsonContext.Default.StoryDto, token, null, onFailure);
     }
 
     public Task<StoryTray?> StoryTrayAsync(CancellationToken token,

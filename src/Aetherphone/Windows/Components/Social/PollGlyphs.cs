@@ -9,6 +9,22 @@ internal static class PollGlyphs
     private const float RingThickness = 1.6f;
     private const float CheckThickness = 2f;
 
+    private static readonly float[] BarLengths = { 0.84f, 0.5f, 0.68f };
+
+    public static void Bars(ImDrawListPtr drawList, Vector2 center, float size, Vector4 ink)
+    {
+        var color = ImGui.GetColorU32(ink);
+        var thickness = size * 0.17f;
+        var left = center.X - size * 0.42f;
+        var spacing = size * 0.3f;
+        for (var index = 0; index < BarLengths.Length; index++)
+        {
+            var y = center.Y + (index - 1) * spacing;
+            drawList.AddRectFilled(new Vector2(left, y - thickness * 0.5f),
+                new Vector2(left + size * BarLengths[index], y + thickness * 0.5f), color, thickness * 0.5f);
+        }
+    }
+
     public static void RadioRing(ImDrawListPtr drawList, Vector2 center, Vector4 ink, float scale)
     {
         drawList.AddCircle(center, RadioRadius * scale, ImGui.GetColorU32(ink), 32, RingThickness * scale);

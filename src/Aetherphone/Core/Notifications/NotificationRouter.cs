@@ -52,6 +52,7 @@ internal sealed class NotificationRouter
     private const int TypeRadioLive = 21;
     private const int TypePlacing = 23;
     private const int TypeStoryLike = 24;
+    private const int TypeStoryMention = 27;
     private const string CallGroupPrefix = "call:";
     private readonly INavigator navigation;
     private readonly NotificationService notifications;
@@ -238,6 +239,8 @@ internal sealed class NotificationRouter
             TypeFollow or TypeConnectRequest or TypeConnectAccept or TypeFollowAccept or TypeStoryLike
                 when !string.IsNullOrEmpty(notification.ActorId)
                 => new SocialDeepLink(SocialLinkKind.Profile, notification.ActorId!),
+            TypeStoryMention when !string.IsNullOrEmpty(notification.PostId) && !string.IsNullOrEmpty(notification.ActorId)
+                => new SocialDeepLink(SocialLinkKind.Story, notification.PostId!, notification.ActorId!),
             TypeFollowRequest => new SocialDeepLink(SocialLinkKind.Requests, notification.ActorId ?? string.Empty),
             _ => null,
         };

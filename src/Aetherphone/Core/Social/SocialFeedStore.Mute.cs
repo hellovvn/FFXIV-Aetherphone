@@ -162,6 +162,7 @@ internal abstract partial class SocialFeedStore
     private void ResetMutes()
     {
         mutes.Reset();
+        mutes.Words.Reset();
         mutedAccounts = Array.Empty<UserDto>();
         mutedAccountsCursor = null;
         mutedAccountsLoaded = false;

@@ -17,7 +17,6 @@ internal sealed partial class AethergramApp
 {
     private const int ReelSeedCap = 30;
     private const float ReelSnapSeconds = Motion.PageSettle;
-    private const float ReelCoverSlack = 1.15f;
     private const uint ReelBackdropTint = 0xFF525252;
     private const float ReelScrimShare = 0.42f;
     private const float ReelTopScrimHeight = 72f;
@@ -47,7 +46,6 @@ internal sealed partial class AethergramApp
     private static readonly Vector4 ReelBlack = new(0f, 0f, 0f, 1f);
     private static readonly Vector4 ReelShadow = new(0f, 0f, 0f, 0.45f);
     private static readonly Vector4 ReelScrim = new(0f, 0f, 0f, 0.55f);
-    private static readonly Vector4 ReelTrack = new(1f, 1f, 1f, 0.28f);
     private static readonly Vector4 ReelChipFill = new(0f, 0f, 0f, 0.6f);
     private static readonly Vector4 ReelPillStroke = new(1f, 1f, 1f, 0.75f);
     private static readonly TextStyle ReelHandleStyle = TextStyles.Headline;
@@ -434,62 +432,25 @@ internal sealed partial class AethergramApp
         var frame = reelPlayback.FrameOf(post.Id);
         var mediaWidth = frame.HasFrame ? frame.Width : post.Video?.Width ?? post.MediaWidth;
         var mediaHeight = frame.HasFrame ? frame.Height : post.Video?.Height ?? post.MediaHeight;
-        var fills = ReelFillsFrame(mediaWidth, mediaHeight, rect);
+        var fills = ReelChrome.FillsFrame(mediaWidth, mediaHeight, rect);
         if (!fills && poster is not null)
         {
             var (backdropMin, backdropMax) = ImageFit.Cover(poster.Size.X, poster.Size.Y, rect.Width, rect.Height);
             drawList.AddImage(poster.Handle, rect.Min, rect.Max, backdropMin, backdropMax, ReelBackdropTint);
         }
 
-        var target = fills ? rect : ReelContain(mediaWidth, mediaHeight, rect);
+        var target = fills ? rect : ReelChrome.Contain(mediaWidth, mediaHeight, rect);
         if (frame.HasFrame)
         {
-            DrawReelTexture(drawList, new ImTextureID(frame.TextureHandle), frame.Width, frame.Height, target, fills);
+            ReelChrome.DrawTexture(drawList, new ImTextureID(frame.TextureHandle), frame.Width, frame.Height, target,
+                fills);
         }
         else if (poster is not null)
         {
-            DrawReelTexture(drawList, poster.Handle, poster.Size.X, poster.Size.Y, target, fills);
+            ReelChrome.DrawTexture(drawList, poster.Handle, poster.Size.X, poster.Size.Y, target, fills);
         }
 
         ModerationOverlay.Draw(drawList, rect.Min, rect.Max, 0f, post.ScanStatus);
-    }
-
-    private static void DrawReelTexture(ImDrawListPtr drawList, ImTextureID texture, float width, float height,
-        Rect target, bool fills)
-    {
-        if (!fills)
-        {
-            drawList.AddImage(texture, target.Min, target.Max);
-            return;
-        }
-
-        var (uv0, uv1) = ImageFit.Cover(width, height, target.Width, target.Height);
-        drawList.AddImage(texture, target.Min, target.Max, uv0, uv1);
-    }
-
-    private static bool ReelFillsFrame(float width, float height, Rect rect)
-    {
-        if (width <= 0f || height <= 0f || rect.Height <= 0f)
-        {
-            return true;
-        }
-
-        return width / height <= rect.Width / rect.Height * ReelCoverSlack;
-    }
-
-    private static Rect ReelContain(float width, float height, Rect rect)
-    {
-        var aspect = width / height;
-        if (aspect >= rect.Width / rect.Height)
-        {
-            var fittedHeight = rect.Width / aspect;
-            var top = rect.Center.Y - fittedHeight * 0.5f;
-            return new Rect(new Vector2(rect.Min.X, top), new Vector2(rect.Max.X, top + fittedHeight));
-        }
-
-        var fittedWidth = rect.Height * aspect;
-        var left = rect.Center.X - fittedWidth * 0.5f;
-        return new Rect(new Vector2(left, rect.Min.Y), new Vector2(left + fittedWidth, rect.Max.Y));
     }
 
     private bool ReelControlsHovered(Rect overlay, bool tabMode, PostDto post)
@@ -562,19 +523,10 @@ internal sealed partial class AethergramApp
         DrawReelTopBar(drawList, overlay, tabMode);
     }
 
-    private void DrawReelProgress(ImDrawListPtr drawList, Rect overlay, PostDto post, ReelProgress progress)
+    private static void DrawReelProgress(ImDrawListPtr drawList, Rect overlay, PostDto post, ReelProgress progress)
     {
         var duration = progress.DurationSeconds > 0d ? progress.DurationSeconds : (post.Video?.DurationMs ?? 0) / 1000d;
-        var fraction = duration > 0d ? Math.Clamp((float)(progress.PositionSeconds / duration), 0f, 1f) : 0f;
-        var top = overlay.Max.Y - ReelProgressHeight * UiScale.Current;
-        drawList.AddRectFilled(new Vector2(overlay.Min.X, top), overlay.Max, ImGui.GetColorU32(ReelTrack));
-        if (fraction <= 0f)
-        {
-            return;
-        }
-
-        drawList.AddRectFilled(new Vector2(overlay.Min.X, top),
-            new Vector2(overlay.Min.X + overlay.Width * fraction, overlay.Max.Y), ImGui.GetColorU32(Ink.White));
+        ReelChrome.Progress(drawList, overlay, progress.PositionSeconds, duration);
     }
 
     private void DrawReelRail(ImDrawListPtr drawList, Rect overlay, float bottom, PostDto post)
@@ -860,17 +812,8 @@ internal sealed partial class AethergramApp
         }
     }
 
-    private static Rect DrawReelChip(ImDrawListPtr drawList, Vector2 center, string text)
-    {
-        var scale = UiScale.Current;
-        var height = ReelChipHeight * scale;
-        var width = Typography.Measure(text, ReelChipStyle).X + ReelChipPadX * 2f * scale;
-        var min = new Vector2(center.X - width * 0.5f, center.Y - height * 0.5f);
-        var max = min + new Vector2(width, height);
-        drawList.AddRectFilled(min, max, ImGui.GetColorU32(ReelChipFill), height * 0.5f);
-        Typography.DrawCentered(drawList, center, text, Ink.White, ReelChipStyle);
-        return new Rect(min, max);
-    }
+    private static Rect DrawReelChip(ImDrawListPtr drawList, Vector2 center, string text) =>
+        ReelChrome.Chip(drawList, center, text);
 
     // Past the last reel of a feed that ran dry sits its own end card, so a swipe up ends there and a swipe down
     // returns to the last reel.

@@ -206,8 +206,16 @@ internal sealed partial class ChirperApp
                 new Vector2(left, cursorY), contentWidth, ChirperInk.MutedInk, ChirperInk.AccentLink, scale);
         }
 
-        var photos = PostMedia.Photos(post);
-        if (photos.Length > 0)
+        var photos = ChirpPhotos(post);
+        if (post.Video is { } video)
+        {
+            cursorY += 12f * scale;
+            var videoSize = VideoBlockSize(video, contentWidth, true);
+            DrawChirpVideo(post, video, new Rect(new Vector2(left, cursorY), new Vector2(left + videoSize.X,
+                cursorY + videoSize.Y)));
+            cursorY += videoSize.Y;
+        }
+        else if (photos.Length > 0)
         {
             cursorY += 12f * scale;
             var mediaHeight = photos.Length == 1

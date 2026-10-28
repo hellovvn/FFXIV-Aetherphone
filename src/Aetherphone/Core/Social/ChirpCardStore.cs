@@ -127,7 +127,7 @@ internal sealed class ChirpCardStore : IDisposable
         var photos = PostMedia.Photos(post);
         return new ChirpCard(post.Id, SocialIdentity.Name(post.AuthorDisplayName, post.AuthorHandle),
             post.AuthorHandle.Length > 0 ? "@" + post.AuthorHandle : string.Empty, post.Text,
-            photos.Length > 0 ? photos[0] : null, post.Sensitive);
+            post.Video?.PosterUrl ?? (photos.Length > 0 ? photos[0] : null), post.Sensitive);
     }
 
     private void Remember(string postId, ChirpCard card)

@@ -107,7 +107,7 @@ internal sealed partial class ChirperStore
         });
     }
 
-    protected override void OnAccountReset()
+    private void ResetScheduled()
     {
         scheduledFailure = null;
         scheduledLoaded = false;

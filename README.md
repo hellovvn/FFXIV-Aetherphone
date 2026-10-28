@@ -66,6 +66,7 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
         <li>Edit a chirp in its first hour, with its edit history a tap away</li>
         <li>Save chirps to find them again on your profile</li>
         <li>Photos, GIFs and thirteen reactions</li>
+        <li>Videos up to 90 seconds that play muted as you scroll and with sound full screen</li>
         <li>Polls, and GIF search from KLIPY once you turn it on</li>
         <li>Paste an image with Ctrl+V or drag one in from File Explorer</li>
         <li>Chirps in other languages translated with one tap</li>
@@ -77,7 +78,7 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
       <em>Shot in game. Shared on Aethergram.</em>
       <ul>
         <li>Up to eight photos straight from your gallery, or pasted and dragged in</li>
-        <li>Stories that last a day</li>
+        <li>Stories that last a day, with polls, questions and mentions on top</li>
         <li>An Explore grid picked for you, with trending tags</li>
         <li>A Reels tab: swipe through full-screen videos with sound</li>
         <li>Suggestions of people to follow</li>

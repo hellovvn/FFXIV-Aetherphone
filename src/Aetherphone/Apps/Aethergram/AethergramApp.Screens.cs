@@ -206,7 +206,11 @@ internal sealed partial class AethergramApp
         }
         else if (cell.Tapped)
         {
-            if (SocialActivity.OpensPost(item))
+            if (SocialActivity.OpensStory(item))
+            {
+                OpenMentionedStory(item.ActorId, item.PostId!);
+            }
+            else if (SocialActivity.OpensPost(item))
             {
                 openActivityPost(item);
             }
@@ -238,6 +242,7 @@ internal sealed partial class AethergramApp
                 break;
             case SocialActivity.TypeMention:
             case SocialActivity.TypeCommentMention:
+            case SocialActivity.TypeStoryMention:
                 drawList.AddCircleFilled(center, radius, ImGui.GetColorU32(Ink.AccentLink), 20);
                 Typography.DrawCentered(drawList, center, "@", Ink.White, TextStyles.Caption2);
                 break;

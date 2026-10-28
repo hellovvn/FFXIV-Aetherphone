@@ -16,15 +16,18 @@ internal sealed partial class ChirperApp
     private readonly HashSet<string> revealedMutedQuotes = new(StringComparer.Ordinal);
 
     private bool FoldsMutedQuote(PostDto? quoted, string? hostId) =>
-        hostId is not null && quoted is not null && store.IsAuthorMuted(quoted)
+        hostId is not null && quoted is not null && (quoted.WordMuted || store.IsAuthorMuted(quoted))
         && !revealedMutedQuotes.Contains(hostId);
 
-    private static float MutedQuoteHeight(float width)
+    private string MutedQuoteMessage(PostDto quoted) =>
+        Loc.T(store.IsAuthorMuted(quoted) ? L.Social.MutedQuote : L.Social.MutedQuoteWord);
+
+    private static float MutedQuoteHeight(float width, string message)
     {
         var scale = UiScale.Current;
         var linkSize = Typography.Measure(Loc.T(L.Social.MutedQuoteView), QuoteNameStyle);
         var messageWidth = MutedQuoteMessageWidth(width, linkSize.X);
-        var messageHeight = Typography.MeasureWrappedBlock(Loc.T(L.Social.MutedQuote), QuoteMetaStyle, messageWidth).Y;
+        var messageHeight = Typography.MeasureWrappedBlock(message, QuoteMetaStyle, messageWidth).Y;
         return MutedQuotePadY * 2f * scale + MathF.Max(messageHeight, linkSize.Y);
     }
 
@@ -34,7 +37,8 @@ internal sealed partial class ChirperApp
         return MathF.Max(1f, width - MutedQuotePadX * 2f * scale - MutedQuoteLinkGap * scale - linkWidth);
     }
 
-    private void DrawMutedQuote(ImDrawListPtr drawList, Vector2 min, float width, float height, string hostId)
+    private void DrawMutedQuote(ImDrawListPtr drawList, Vector2 min, float width, float height, string hostId,
+        string message)
     {
         var scale = UiScale.Current;
         var max = new Vector2(min.X + width, min.Y + height);
@@ -45,7 +49,7 @@ internal sealed partial class ChirperApp
         var linkSize = Typography.Measure(link, QuoteNameStyle);
         var padX = MutedQuotePadX * scale;
         var padY = MutedQuotePadY * scale;
-        Typography.DrawWrappedLeft(new Vector2(min.X + padX, min.Y + padY), Loc.T(L.Social.MutedQuote),
+        Typography.DrawWrappedLeft(new Vector2(min.X + padX, min.Y + padY), message,
             ChirperInk.MutedInk, QuoteMetaStyle, MutedQuoteMessageWidth(width, linkSize.X));
         var linkMin = new Vector2(max.X - padX - linkSize.X, min.Y + (height - linkSize.Y) * 0.5f);
         var linkMax = linkMin + linkSize;

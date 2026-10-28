@@ -57,7 +57,8 @@ internal sealed partial class AethergramApp
             : default;
         if (frame.HasFrame)
         {
-            DrawReelTexture(drawList, new ImTextureID(frame.TextureHandle), frame.Width, frame.Height, imageRect, true);
+            ReelChrome.DrawTexture(drawList, new ImTextureID(frame.TextureHandle), frame.Width, frame.Height, imageRect,
+                true);
         }
 
         DrawFeedReelBadge(drawList, imageRect);

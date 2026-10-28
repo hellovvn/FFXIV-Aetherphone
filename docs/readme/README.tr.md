@@ -61,6 +61,7 @@ Aethernet 2 Temmuz 2026'da açıldı. Sezon sonuna kadar 113 dünyadaki oyuncula
         <li>Senin İçin ve En Yeni akışları, Takip ediliyor filtresiyle</li>
         <li>Yeniden chirp'ler, alıntılar, yanıtlar ve hashtag'ler</li>
         <li>Fotoğraflar, GIF'ler ve on üç tepki</li>
+        <li>Kaydırırken sessiz, tam ekranda sesli oynayan 90 saniyeye kadar videolar</li>
         <li>Ctrl+V ile görsel yapıştır ya da Dosya Gezgini'nden sürükleyip bırak</li>
         <li>Başka dillerdeki chirp'ler tek dokunuşla çevrilir</li>
       </ul>
@@ -71,7 +72,7 @@ Aethernet 2 Temmuz 2026'da açıldı. Sezon sonuna kadar 113 dünyadaki oyuncula
       <em>Oyunda çekildi. Aethergram'da paylaşıldı.</em>
       <ul>
         <li>Doğrudan galerinden ya da yapıştırıp sürükleyerek sekiz fotoğrafa kadar</li>
-        <li>Bir gün süren hikayeler</li>
+        <li>Bir gün süren hikayeler, üzerinde anketler, sorular ve bahsetmelerle</li>
         <li>Karedeki kişileri etiketle</li>
         <li>Paylaşmadan önce yerleşik fotoğraf düzenleyici</li>
       </ul>

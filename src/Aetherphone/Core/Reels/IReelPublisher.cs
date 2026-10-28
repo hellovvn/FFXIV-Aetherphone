@@ -20,15 +20,17 @@ internal interface IReelPublisher
     Task<PostDto?> CreateAsync(CreateReelRequest request, CancellationToken token, Action<AepFailure> onFailure);
 }
 
+// The create step is handed in, so a reel posts as a gram and a chirp video posts as a chirp over the same uploads.
 internal sealed class AethernetReelPublisher : IReelPublisher
 {
     private readonly MediaClient media;
-    private readonly GramClient grams;
+    private readonly Func<CreateReelRequest, CancellationToken, Action<AepFailure>, Task<PostDto?>> create;
 
-    public AethernetReelPublisher(MediaClient media, GramClient grams)
+    public AethernetReelPublisher(MediaClient media,
+        Func<CreateReelRequest, CancellationToken, Action<AepFailure>, Task<PostDto?>> create)
     {
         this.media = media;
-        this.grams = grams;
+        this.create = create;
     }
 
     public Task<UploadUrlResponse?> ReserveAsync(string contentType, string scope, CancellationToken token,
@@ -45,5 +47,5 @@ internal sealed class AethernetReelPublisher : IReelPublisher
 
     public Task<PostDto?> CreateAsync(CreateReelRequest request, CancellationToken token,
         Action<AepFailure> onFailure) =>
-        grams.CreateReelAsync(request, token, onFailure);
+        create(request, token, onFailure);
 }

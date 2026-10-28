@@ -194,6 +194,28 @@ internal static class L
         public static readonly LocString MutedHint = new("social.mutedHint", "Muted accounts aren't told. Their posts and stories stay out of your Chirper and Aethergram feeds, and you can still visit their profile.");
         public static readonly LocString MutedQuote = new("social.mutedQuote", "This chirp is from an account you muted.");
         public static readonly LocString MutedQuoteView = new("social.mutedQuoteView", "View");
+        public static readonly LocString MutedWords = new("social.mutedWords", "Muted words");
+        public static readonly LocString MutedWordsEmpty = new("social.mutedWordsEmpty", "No muted words");
+        public static readonly LocString MutedWordsHint = new("social.mutedWordsHint", "Posts, replies and notifications with these words stay out of your Chirper and Aethergram feeds. Search and the profiles you open still show them.");
+        public static readonly LocString MutedWordAdd = new("social.mutedWordAdd", "Add muted word");
+        public static readonly LocString MutedWordEdit = new("social.mutedWordEdit", "Edit muted word");
+        public static readonly LocString MutedWordPlaceholder = new("social.mutedWordPlaceholder", "Word, phrase or #hashtag");
+        public static readonly LocString MutedWordMuteIn = new("social.mutedWordMuteIn", "Mute in");
+        public static readonly LocString MutedWordFeeds = new("social.mutedWordFeeds", "Feeds and replies");
+        public static readonly LocString MutedWordNotifications = new("social.mutedWordNotifications", "Notifications");
+        public static readonly LocString MutedWordFrom = new("social.mutedWordFrom", "From");
+        public static readonly LocString MutedWordAnyone = new("social.mutedWordAnyone", "Anyone");
+        public static readonly LocString MutedWordNotFollowing = new("social.mutedWordNotFollowing", "People you don't follow");
+        public static readonly LocString MutedWordDuration = new("social.mutedWordDuration", "Duration");
+        public static readonly LocString MutedWordForever = new("social.mutedWordForever", "Forever");
+        public static readonly LocString MutedWordDay = new("social.mutedWordDay", "24 hours");
+        public static readonly LocString MutedWordWeek = new("social.mutedWordWeek", "7 days");
+        public static readonly LocString MutedWordMonth = new("social.mutedWordMonth", "30 days");
+        public static readonly LocString MutedWordEnds = new("social.mutedWordEnds", "Ends {0}");
+        public static readonly LocString MutedWordSave = new("social.mutedWordSave", "Save");
+        public static readonly LocString MutedWordFull = new("social.mutedWordFull", "You can mute up to {0} words.");
+        public static readonly LocString MutedWordBadHashtag = new("social.mutedWordBadHashtag", "A hashtag can only hold letters, numbers and underscores.");
+        public static readonly LocString MutedQuoteWord = new("social.mutedQuoteWord", "This chirp contains a word you muted.");
         public static readonly LocString BlockConfirmTitle = new("social.blockConfirmTitle", "Block {0}?");
         public static readonly LocString BlockConfirm = new("social.blockConfirm", "You won't see each other's posts, comments, or profiles anymore. Any follows between you will be removed.");
         public static readonly LocString BlockedUsers = new("social.blockedUsers", "Blocked people");
@@ -362,6 +384,28 @@ internal static class L
         public static readonly LocString SaveToArchiveHint = new("story.saveToArchiveHint", "Keep your stories in a private archive after they disappear, so you can add them to highlights later.");
         public static readonly LocString ViewersTrimmed = new("story.viewersTrimmed", "Showing the latest {0} of {1}");
         public static readonly LocString DeleteFailed = new("story.deleteFailed", "Couldn't delete the story");
+        public static readonly LocString StickerPoll = new("story.stickerPoll", "Poll");
+        public static readonly LocString StickerQuestion = new("story.stickerQuestion", "Question");
+        public static readonly LocString StickerMention = new("story.stickerMention", "Mention");
+        public static readonly LocString StickerHint = new("story.stickerHint", "Drag a sticker to move it, scroll over it to resize");
+        public static readonly LocString StickerLimit = new("story.stickerLimit", "A story can have one poll, one question and up to {0} mentions");
+        public static readonly LocString PollYes = new("story.pollYes", "Yes");
+        public static readonly LocString PollNo = new("story.pollNo", "No");
+        public static readonly LocString QuestionDefault = new("story.questionDefault", "Ask me a question");
+        public static readonly LocString AnswerHint = new("story.answerHint", "Type something…");
+        public static readonly LocString AnswerSent = new("story.answerSent", "Answer sent");
+        public static readonly LocString AnswerFailed = new("story.answerFailed", "Couldn't send your answer");
+        public static readonly LocString AnswerPrivacy = new("story.answerPrivacy", "Only {0} sees your answer");
+        public static readonly LocString MentionPick = new("story.mentionPick", "Mention someone");
+        public static readonly LocString ViewersTab = new("story.viewersTab", "Viewers");
+        public static readonly LocString ResponsesTab = new("story.responsesTab", "Responses");
+        public static readonly LocString NoResponses = new("story.noResponses", "No responses yet");
+        public static readonly LocString VotedFor = new("story.votedFor", "Voted {0}");
+        public static readonly LocString DeleteResponseMessage = new("story.deleteResponseMessage", "Delete this answer? It's gone for good.");
+        public static readonly LocString DeleteResponseFailed = new("story.deleteResponseFailed", "Couldn't delete the answer");
+        public static readonly LocString MentionedYou = new("story.mentionedYou", "mentioned you in their story");
+        public static readonly LocString Unavailable = new("story.unavailable", "This story is no longer available");
+        public static readonly LocPlural ResponseCount = new("story.responseCount", "{0} response", "{0} responses");
     }
 
     internal static class Safety
@@ -2528,6 +2572,8 @@ internal static class L
                 "Added photo descriptions: tap ALT on a photo while posting to describe it or change it later, and tap the ALT badge on a photo to read its description"),
             new("changelog.r1420.13",
                 "Added drafts: closing the composer with something in it offers to save a draft, and Drafts brings it back later, up to 20 per app"),
+            new("changelog.r1420.44",
+                "Added Muted words next to Muted accounts: hide posts, replies and notifications with a word, phrase or #hashtag, from anyone or only people you don't follow, forever or for 24 hours, 7 days or 30 days"),
             new("changelog.r1420.14",
                 "Changed For You to start showing brand new posts that still need their first readers at the third card instead of the tenth"),
             new("changelog.r1420.15",
@@ -2560,6 +2606,12 @@ internal static class L
                 "Added story likes: tap the heart next to the reply field, and see who liked your story in its viewer list"),
             new("changelog.r1420.27",
                 "Added Add post to your story: share a post to your story with an optional caption from the send sheet or the post's menu"),
+            new("changelog.r1420.41",
+                "Added poll stickers to stories: ask a question with two answers, viewers vote once and then see the results, and Responses shows you who picked what"),
+            new("changelog.r1420.42",
+                "Added question stickers to stories: viewers send you answers only you can read, listed under Responses, where you can delete one or block its sender"),
+            new("changelog.r1420.43",
+                "Added mention stickers to stories: tag up to 10 people, who get a notification when they can see the story, and tap a tag to open that profile"),
             new("changelog.r1420.28",
                 "Fixed Translate showing the old caption after a post was edited"),
         };
@@ -2578,6 +2630,8 @@ internal static class L
                 "Added a Chirps tab to search, next to People, to find chirps by their words"),
             new("changelog.r1420.34",
                 "Added sharing chirps: Share chirp sends a chirp to a chat, adds it to your Aethergram story, or copies a link that shows as a chirp card in chats"),
+            new("changelog.r1420.45",
+                "Added videos in chirps: tap Add a video to attach one of up to 90 seconds, trim it and pick a cover. It plays muted in your feed and full screen with sound when you tap it"),
             new("changelog.r1420.35",
                 "Changed Reply on a chirp in a feed to open the chirp with the reply box ready to type"),
         };
@@ -2585,7 +2639,7 @@ internal static class L
         public static readonly LocString[] Release1420Coin =
         {
             new("changelog.r1420.36",
-                "Added the Post a reel quest: post a reel once a day for 35 coins on top of today's quests, paid an hour after the reel goes up"),
+                "Added the Post a reel quest: post a reel once a day for 35 coins on top of today's quests, paid an hour after the reel goes up. It counts toward your daily goal only on days you post one"),
             new("changelog.r1420.37",
                 "Added a one-time 500 coin bonus for your first reel, paid an hour after it goes up"),
             new("changelog.r1420.38",
@@ -7632,6 +7686,19 @@ internal static class L
         public static readonly LocString MaxPhotos = new("chirper.maxPhotos", "A chirp can carry up to {0} photos.");
         public static readonly LocString AddPoll = new("chirper.addPoll", "Add a poll");
         public static readonly LocString RemovePoll = new("chirper.removePoll", "Remove poll");
+        public static readonly LocString AddVideo = new("chirper.addVideo", "Add a video");
+        public static readonly LocString VideoChooseDialog = new("chirper.videoChooseDialog", "Choose a video for your chirp");
+        public static readonly LocString VideoEditTitle = new("chirper.videoEditTitle", "Edit Video");
+        public static readonly LocString VideoBlocksMedia = new("chirper.videoBlocksMedia", "Remove the video to add photos, a GIF or a poll.");
+        public static readonly LocString VideoRidesAlone = new("chirper.videoRidesAlone", "Remove the photos, GIF or poll to add a video.");
+        public static readonly LocString ScheduleNoVideo = new("chirper.scheduleNoVideo", "Scheduled chirps can't carry a video.");
+        public static readonly LocString DraftSavedNoVideo = new("chirper.draftSavedNoVideo", "Draft saved without the video");
+        public static readonly LocString VideoPosting = new("chirper.videoPosting", "Posting your chirp…");
+        public static readonly LocString VideoPosted = new("chirper.videoPosted", "Chirp posted");
+        public static readonly LocString VideoBusy = new("chirper.videoBusy", "Your last video is still posting. Try again when it's done.");
+        public static readonly LocString VideoPlayFailed = new("chirper.videoPlayFailed", "This video couldn't play");
+        public static readonly LocString VideoSetupTitle = new("chirper.videoSetupTitle", "Watch videos in game");
+        public static readonly LocString VideoSetupBody = new("chirper.videoSetupBody", "Videos play with MogCast's video engine. It downloads once and stays on your machine.");
         public static readonly LocString PollQuestionHint = new("chirper.pollQuestionHint", "Ask a question…");
         public static readonly LocString PollOptionHint = new("chirper.pollOptionHint", "Option {0}");
         public static readonly LocString PollAddOption = new("chirper.pollAddOption", "Add option");
@@ -7741,7 +7808,7 @@ internal static class L
         public static readonly LocString LastEdited = new("chirper.lastEdited", "Last edited {0}");
         public static readonly LocString EditHistory = new("chirper.editHistory", "Edit history");
         public static readonly LocPlural EditsLeft = new("chirper.editsLeft", "{0} edit left", "{0} edits left");
-        public static readonly LocString EditKeepsAttachments = new("chirper.editKeepsAttachments", "Photos, GIFs and quotes stay as they are.");
+        public static readonly LocString EditKeepsAttachments = new("chirper.editKeepsAttachments", "Photos, videos, GIFs and quotes stay as they are.");
         public static readonly LocString EditedToast = new("chirper.editedToast", "Chirp updated");
         public static readonly LocString EditWindowClosed = new("chirper.editWindowClosed", "Chirps can only be edited in the first hour after posting.");
         public static readonly LocString EditLimitReached = new("chirper.editLimitReached", "This chirp has no edits left.");
@@ -12130,6 +12197,10 @@ internal static class L
         public static readonly LocString RuleCallHint = new("coin.ruleCallHint", "Answered calls of two minutes or more where both of you talk, up to two people a day");
         public static readonly LocString RuleChatHint = new("coin.ruleChatHint", "Send a message to someone in a private chat, up to four people a day");
         public static readonly LocString RulePostHint = new("coin.rulePostHint", "One chirp or gram that stays up for an hour, once a day");
+        public static readonly LocString RuleReelFirst = new("coin.ruleReelFirst", "Your first reel");
+        public static readonly LocString RuleReelDaily = new("coin.ruleReelDaily", "A reel that lasted");
+        public static readonly LocString RuleReelFirstHint = new("coin.ruleReelFirstHint", "A one-time bonus an hour after your first reel goes up");
+        public static readonly LocString RuleReelDailyHint = new("coin.ruleReelDailyHint", "One reel that stays up for an hour, once a day");
         public static readonly LocString RuleCommentsDailyHint = new("coin.ruleCommentsDailyHint", "Comments on other people's posts that stay up for an hour, up to three authors a day");
         public static readonly LocString RuleGameSessionHint = new("coin.ruleGameSessionHint", "Play any arcade game for three minutes, up to five sessions a day");
         public static readonly LocString RuleGameDeepHint = new("coin.ruleGameDeepHint", "Stay in one game for fifteen minutes, up to twice a day");

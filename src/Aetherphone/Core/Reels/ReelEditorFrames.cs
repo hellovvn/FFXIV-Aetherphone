@@ -1,10 +1,8 @@
-using Aetherphone.Core;
 using Aetherphone.Core.Media;
-using Aetherphone.Core.Reels;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 
-namespace Aetherphone.Apps.Aethergram;
+namespace Aetherphone.Core.Reels;
 
 // The pictures the reel editor shows: a strip of frames across the whole clip and one larger frame at the time the
 // editor points at. Requests coalesce, so dragging a handle decodes at most one frame at a time.
@@ -165,7 +163,7 @@ internal sealed class ReelEditorFrames : IDisposable
         try
         {
             return await Plugin.TextureProvider.CreateFromRawAsync(RawImageSpecification.Rgba32(frame.Width,
-                frame.Height), frame.Pixels, "Aethergram reel frame", token).ConfigureAwait(false);
+                frame.Height), frame.Pixels, "Reel editor frame", token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

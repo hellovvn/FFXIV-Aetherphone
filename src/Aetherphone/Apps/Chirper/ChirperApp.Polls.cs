@@ -48,8 +48,6 @@ internal sealed partial class ChirperApp
     private static readonly TextStyle PollEditorActionStyle = TextStyles.FootnoteEmphasized;
     private static readonly TextStyle PollAddStyle = TextStyles.SubheadlineEmphasized;
 
-    private static readonly float[] PollGlyphBars = { 0.84f, 0.5f, 0.68f };
-
     private static readonly string[] PollOptionIds =
     {
         "##chirpPollOption0",
@@ -442,11 +440,12 @@ internal sealed partial class ChirperApp
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         }
 
-        var blocked = !composePoll.Active && (composeAttachments.Count > 0 || quoteTarget is not null);
+        var blocked = !composePoll.Active
+            && (composeAttachments.Count > 0 || quoteTarget is not null || ComposeVideoPending);
         var ink = composePoll.Active ? ChirperInk.Accent
             : blocked ? Palette.WithAlpha(ChirperInk.MutedInk, 0.4f)
             : ChirperInk.AccentLink;
-        PaintPollGlyph(drawList, center, PollGlyphSize * scale, ink);
+        PollGlyphs.Bars(drawList, center, PollGlyphSize * scale, ink);
         HoverTooltip.Show(new Rect(center - extent, center + extent),
             Loc.T(composePoll.Active ? L.Chirper.RemovePoll : L.Chirper.AddPoll), HoverLabelSide.Above);
         if (UiInteract.Click(center - extent, center + extent, hovered))
@@ -455,20 +454,6 @@ internal sealed partial class ChirperApp
         }
 
         return center.X + iconRadius;
-    }
-
-    private static void PaintPollGlyph(ImDrawListPtr drawList, Vector2 center, float size, Vector4 ink)
-    {
-        var color = ImGui.GetColorU32(ink);
-        var thickness = size * 0.17f;
-        var left = center.X - size * 0.42f;
-        var spacing = size * 0.3f;
-        for (var index = 0; index < PollGlyphBars.Length; index++)
-        {
-            var y = center.Y + (index - 1) * spacing;
-            drawList.AddRectFilled(new Vector2(left, y - thickness * 0.5f),
-                new Vector2(left + size * PollGlyphBars[index], y + thickness * 0.5f), color, thickness * 0.5f);
-        }
     }
 
     private void ToggleComposePoll()
@@ -486,6 +471,12 @@ internal sealed partial class ChirperApp
             return;
         }
 
+        if (ComposeVideoPending)
+        {
+            toast.Show(Loc.T(L.Chirper.VideoBlocksMedia));
+            return;
+        }
+
         if (composeAttachments.Count > 0)
         {
             toast.Show(Loc.T(ComposeHasGif() ? L.Gifs.PollBlockedByGif : L.Chirper.PollRidesAlone));
@@ -499,6 +490,11 @@ internal sealed partial class ChirperApp
 
     private string ComposeMediaRefusal()
     {
+        if (ComposeVideoPending)
+        {
+            return Loc.T(L.Chirper.VideoBlocksMedia);
+        }
+
         if (FocusedTakesPoll && composePoll.Active)
         {
             return Loc.T(L.Chirper.PollBlocksMedia);
@@ -510,7 +506,9 @@ internal sealed partial class ChirperApp
     }
 
     private string ComposeGifRefusal() =>
-        FocusedTakesPoll && composePoll.Active ? Loc.T(L.Chirper.PollBlocksMedia) : Loc.T(L.Common.GifRidesAlone);
+        ComposeVideoPending ? Loc.T(L.Chirper.VideoBlocksMedia)
+        : FocusedTakesPoll && composePoll.Active ? Loc.T(L.Chirper.PollBlocksMedia)
+        : Loc.T(L.Common.GifRidesAlone);
 
     private bool SubmitComposePoll()
     {

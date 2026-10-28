@@ -13,6 +13,8 @@ internal sealed class SocialMuteLedger
 
     public event Action<MuteChange>? Changed;
 
+    public SocialMutedWords Words { get; } = new();
+
     public bool TryGet(string userId, out bool muted) => changes.TryGetValue(userId, out muted);
 
     public void Record(string userId, bool muted) => Apply(new MuteChange(userId, muted, false));

@@ -193,7 +193,9 @@ internal sealed record CreatePostRequest(
     string? GifUrl = null,
     string? GifSlug = null,
     int ReplyPolicy = 0,
-    string[]? AltTexts = null);
+    string[]? AltTexts = null,
+    string? VideoKey = null,
+    string? PosterKey = null);
 
 internal sealed record SetSensitiveRequest(bool Sensitive);
 
@@ -278,7 +280,8 @@ internal sealed record PostDto(
     int ThreadCount = 0,
     bool AuthorMuted = false,
     CollaboratorDto[]? Collaborators = null,
-    VideoDto? Video = null) : IIdentified
+    VideoDto? Video = null,
+    bool WordMuted = false) : IIdentified
 {
     [JsonIgnore] public string[]? GifMedia { get; } = GifUrl is null ? null : new[] { GifUrl };
 }
@@ -333,7 +336,7 @@ internal sealed record CreateGramRequest(
     string[]? CollaboratorIds = null);
 
 internal sealed record CreateStoryRequest(string Caption, string MediaKey, int Width, int Height, int Audience = 0,
-    string? SharedPostId = null);
+    string? SharedPostId = null, StoryStickerInput[]? Stickers = null);
 
 internal sealed record StoryDto(
     string Id,
@@ -354,7 +357,8 @@ internal sealed record StoryDto(
     int Audience = 0,
     StorySharedPostDto? SharedPost = null,
     bool Liked = false,
-    int LikeCount = 0) : IIdentified;
+    int LikeCount = 0,
+    StoryStickerDto[]? Stickers = null) : IIdentified;
 
 internal sealed record StoryRingDto(
     string AuthorId,

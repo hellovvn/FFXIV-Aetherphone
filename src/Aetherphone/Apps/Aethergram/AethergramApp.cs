@@ -281,11 +281,13 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         editPostMentions = new MentionAutocomplete(store.NewMentionSuggestions());
         editPostPreviewPage = DrawEditPostPreviewPage;
         personPicker = new PersonPicker(store.NewMentionSuggestions());
+        mentionPicker = new PersonPicker(store.NewMentionSuggestions(), L.Story.MentionPick);
+        storyUnavailable = ShowStoryUnavailable;
         stories = new StoryPresenter(session, net.Grams, net.Media, images, lodestone, AethergramArt.StoryRing,
             AppPalettes.Aethergram, new StoryConfirmLabels(L.Aethergram.DeleteConfirm, L.Aethergram.DeleteCancel,
                 L.Aethergram.Saving), confirm, translation, realtimeSignals, "Aethergram stories", StartStoryCompose,
             new StoryReplyHooks(L.Aethergram.ReplyToStory, dmStore.SendStoryReply, OpenThread), OpenProfile,
-            OnHighlightStory, OpenDetailFromStory);
+            OnHighlightStory, OpenDetailFromStory, BlockFromStory);
         highlights = new HighlightStore(session, net.Grams);
         storyArchive = new StoryArchiveStore(session, net.Grams);
         closeFriends = new CloseFriendsStore(net.Grams);
@@ -326,7 +328,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             RemoveCommentConfirmMessage = L.Aethergram.RemoveCommentConfirmMessage,
         }, confirm, report);
         threadView = new ThreadView(this);
-        reelPlayback = new ReelPlayback(video.Screen.Engine.Dependencies, visibility, () => video.Player.Unpaused);
+        reelPlayback = video.Reels;
         reelPlayback.Hidden += OnReelsHidden;
     }
 
@@ -391,6 +393,10 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
             else if (link.Kind == SocialLinkKind.ComposeReel)
             {
                 StartReelCompose();
+            }
+            else if (link.Kind == SocialLinkKind.Story)
+            {
+                OpenMentionedStory(link.OwnerId, link.Id);
             }
             else if (link.Kind == SocialLinkKind.Compose)
             {
@@ -471,7 +477,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawNight(screen, context.Content.Min.Y);
         using (InputShield.Engage(avatarLightbox.Expanded || GifSheetCaptures || StoryShareCaptures
                    || ReelCommentsCaptures))
-        using (InputShield.Engage(AltTextCapturesPointer))
+        using (InputShield.Engage(AltTextCapturesPointer || MutedWordSheetCaptures || StickerEditorCaptures))
         using (intro.FadeContent())
         {
             router.Draw(SceneChrome.AppAreaFrom(context.Content, theme, UiScale.Current), AppSkin.Transparent,
@@ -494,6 +500,8 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         DrawFeedExplainer(screen);
         DrawPostViewsSheet(screen);
         DrawAltText(screen);
+        DrawMutedWordSheet(screen);
+        DrawStoryStickerEditor(screen);
         DrawReelComments(screen);
         DrawCommentSheet(screen);
         DrawGifSheet(screen);
@@ -591,6 +599,9 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
                 break;
             case AethergramScreen.MutedAccounts:
                 DrawMutedAccounts(area);
+                break;
+            case AethergramScreen.MutedWords:
+                DrawMutedWords(area);
                 break;
             case AethergramScreen.CloseFriends:
                 DrawCloseFriends(area);
@@ -1952,7 +1963,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         settingsCancellation.Cancel();
         settingsCancellation.Dispose();
         composeSession.Dispose();
-        reelFrames.Dispose();
+        reelEditor.Dispose();
         store.DismissReelShare();
         threadView.Dispose();
         dmStore.Dispose();
@@ -1961,8 +1972,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         highlights.Dispose();
         storyArchive.Dispose();
         closeFriends.Dispose();
-        reelPlayback.Dispose();
-        reelSetupWork.Dispose();
+        reelSetup.Dispose();
     }
 
     private void DrawHomeTopBar(Rect area)

@@ -65,7 +65,7 @@ internal sealed partial class AethergramApp
 
         if (composeReelMode)
         {
-            return reelFrames.Preview;
+            return reelEditor.Frames.Preview;
         }
 
         return composeSession.TryGetPreviewUv(altTextPhotoIndex, ComposeAspect, ComposeAllowsReveal, out var texture,

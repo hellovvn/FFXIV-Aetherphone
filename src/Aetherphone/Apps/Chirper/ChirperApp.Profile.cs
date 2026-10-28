@@ -608,14 +608,16 @@ internal sealed partial class ChirperApp
                 continue;
             }
 
-            var photos = PostMedia.Photos(post);
-            if (photos.Length == 0 || HiddenByMediaPreference(photos))
+            var photos = ChirpPhotos(post);
+            var video = post.Video;
+            if ((photos.Length == 0 && video is null) || HiddenByMediaPreference(photos))
             {
                 continue;
             }
 
             var veiled = SensitiveReveals.ShouldVeil(post.Sensitive, post.Id, configuration.ShowSensitiveContent);
-            for (var photoIndex = 0; photoIndex < photos.Length; photoIndex++)
+            var cellCount = video is null ? photos.Length : 1;
+            for (var photoIndex = 0; photoIndex < cellCount; photoIndex++)
             {
                 var column = cellIndex % MediaGridColumns;
                 var row = cellIndex / MediaGridColumns;
@@ -629,7 +631,11 @@ internal sealed partial class ChirperApp
 
                 var min = new Vector2(origin.X + column * (cell + gap), origin.Y + rowTop);
                 var max = new Vector2(min.X + cell, min.Y + cell);
-                DrawProfileMediaCell(drawList, post, photos[photoIndex], min, max, veiled, scale);
+                DrawProfileMediaCell(drawList, post, video?.PosterUrl ?? photos[photoIndex], min, max, veiled, scale);
+                if (video is not null && !veiled)
+                {
+                    DrawVideoPlayBadge(drawList, new Rect(min, max).Center, scale);
+                }
                 if (photoIndex == 0)
                 {
                     store.ObserveImpression(post.Id, min.Y, max.Y);
@@ -698,6 +704,7 @@ internal sealed partial class ChirperApp
         {
             AddSheetItem(PostSheetAction.BadgeProgress, Loc.T(L.Social.BadgeProgress), false);
             AddSheetItem(PostSheetAction.MutedAccounts, Loc.T(L.Social.MutedAccounts), false);
+            AddSheetItem(PostSheetAction.MutedWords, Loc.T(L.Social.MutedWords), false);
             AddSheetItem(PostSheetAction.Rules, Loc.T(L.Conduct.Eyebrow), false);
         }
         else
@@ -738,6 +745,9 @@ internal sealed partial class ChirperApp
                 break;
             case PostSheetAction.MutedAccounts:
                 OpenMutedAccounts();
+                break;
+            case PostSheetAction.MutedWords:
+                OpenMutedWords();
                 break;
             case PostSheetAction.Mute:
                 ToggleMute(user.Id, store.IsMuted(user), user.DisplayName, user.Handle);
@@ -828,8 +838,9 @@ internal sealed partial class ChirperApp
     private void DrawHashtag(Rect area, string tag)
     {
         store.EnsureHashtagPosts(tag);
-        DrawScreenHeader(area, HashtagTitle(tag), 0f,
+        DrawScreenHeader(area, HashtagTitle(tag), SocialChrome.HeaderReserve(1) * UiScale.Current,
             hashtagTodayCount > 0 ? Loc.Plural(L.Chirper.ChirpsToday, hashtagTodayCount) : string.Empty);
+        DrawHashtagMute(area, tag);
         var scale = UiScale.Current;
         var top = area.Min.Y + AppHeader.Height * scale;
         var body = new Rect(new Vector2(area.Min.X, top), area.Max);

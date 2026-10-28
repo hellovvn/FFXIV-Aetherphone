@@ -61,6 +61,7 @@ Aethernet ging am 2. Juli 2026 an den Start. Bis zum Ende der Saison haben Spiel
         <li>Timelines „Für dich“ und „Neueste“, mit Filter „Folge ich“</li>
         <li>Rechirps, Zitate, Antworten und Hashtags</li>
         <li>Fotos, GIFs und dreizehn Reaktionen</li>
+        <li>Videos bis 90 Sekunden, die beim Scrollen stumm und im Vollbild mit Ton laufen</li>
         <li>Füge ein Bild mit Strg+V ein oder zieh eins aus dem Datei-Explorer hinein</li>
         <li>Chirps in anderen Sprachen mit einem Tipp übersetzt</li>
       </ul>
@@ -71,7 +72,7 @@ Aethernet ging am 2. Juli 2026 an den Start. Bis zum Ende der Saison haben Spiel
       <em>Im Spiel geknipst. Auf Aethergram geteilt.</em>
       <ul>
         <li>Bis zu acht Fotos direkt aus deiner Galerie, oder eingefügt und hineingezogen</li>
-        <li>Storys, die einen Tag lang bleiben</li>
+        <li>Storys, die einen Tag lang bleiben, mit Umfragen, Fragen und Erwähnungen darauf</li>
         <li>Markiere die Leute im Bild</li>
         <li>Ein eingebauter Fotoeditor vor dem Teilen</li>
       </ul>

@@ -8,9 +8,10 @@ internal enum SocialLinkKind
     Compose,
     ComposeStory,
     ComposeReel,
+    Story,
 }
 
-internal readonly record struct SocialDeepLink(SocialLinkKind Kind, string Id);
+internal readonly record struct SocialDeepLink(SocialLinkKind Kind, string Id, string OwnerId = "");
 
 internal sealed class SocialLauncher
 {
