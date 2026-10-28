@@ -111,7 +111,6 @@ internal sealed partial class StoryStore : IDisposable
     public StoryDto[] OpenStories => openStories;
     public string? OpenAuthorId => openAuthorId;
     public bool GroupLoading => groupLoading;
-    public bool TrayLoading => trayLoading;
     public bool Posting => posting;
     public StoryViewerDto[] Viewers => viewers;
     public int ViewersTotal => viewersTotal;

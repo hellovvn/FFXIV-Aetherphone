@@ -41,6 +41,13 @@ internal sealed partial class GramClient
             onFailure);
     }
 
+    public Task<StoryItem?> StoryItemAsync(string storyId, CancellationToken token,
+        Action<AepFailure>? onFailure = null)
+    {
+        return net.GetAsync($"/stories/item/{Uri.EscapeDataString(storyId)}", AethernetJsonContext.Default.StoryItem,
+            token, null, onFailure);
+    }
+
     private static string StickerPath(string storyId, string stickerId) =>
         $"/stories/{Uri.EscapeDataString(storyId)}/stickers/{Uri.EscapeDataString(stickerId)}";
 }

@@ -74,6 +74,7 @@ namespace Aetherphone.Core.Aethernet;
 [JsonSerializable(typeof(StoryPollVoteRequest))]
 [JsonSerializable(typeof(StoryAnswerRequest))]
 [JsonSerializable(typeof(StoryResponsesPage))]
+[JsonSerializable(typeof(StoryItem))]
 [JsonSerializable(typeof(StoryHighlightDto))]
 [JsonSerializable(typeof(StoryHighlightList))]
 [JsonSerializable(typeof(StoryHighlightMembership))]

@@ -14,6 +14,8 @@ internal sealed partial class StoryStore
     private volatile int responseAnswerCount;
     private volatile bool responsesLoading;
     private volatile bool responsesLoadingMore;
+    private volatile StoryItem? loadedItem;
+    private volatile bool itemLoading;
 
     public StoryResponseDto[] Responses => responses;
     public int ResponseVoteCount => responseVoteCount;
@@ -21,6 +23,30 @@ internal sealed partial class StoryStore
     public bool ResponsesLoading => responsesLoading;
     public bool ResponsesLoadingMore => responsesLoadingMore;
     public bool HasMoreResponses => responsesCursor is not null;
+    public bool ItemLoading => itemLoading;
+
+    public void LoadItem(string storyId)
+    {
+        loadedItem = null;
+        itemLoading = true;
+        work.Run("story item", async token =>
+        {
+            loadedItem = await client.StoryItemAsync(storyId, token).ConfigureAwait(false);
+        }, () => itemLoading = false);
+    }
+
+    public StoryItem? TakeItem()
+    {
+        var taken = loadedItem;
+        loadedItem = null;
+        return taken;
+    }
+
+    public void ShowSingle(string authorId, StoryDto story)
+    {
+        openAuthorId = authorId;
+        openStories = new[] { story };
+    }
 
     public void Vote(StoryDto story, StoryStickerDto sticker, int option)
     {

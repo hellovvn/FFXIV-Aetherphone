@@ -282,6 +282,7 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         editPostPreviewPage = DrawEditPostPreviewPage;
         personPicker = new PersonPicker(store.NewMentionSuggestions());
         mentionPicker = new PersonPicker(store.NewMentionSuggestions(), L.Story.MentionPick);
+        storyUnavailable = ShowStoryUnavailable;
         stories = new StoryPresenter(session, net.Grams, net.Media, images, lodestone, AethergramArt.StoryRing,
             AppPalettes.Aethergram, new StoryConfirmLabels(L.Aethergram.DeleteConfirm, L.Aethergram.DeleteCancel,
                 L.Aethergram.Saving), confirm, translation, realtimeSignals, "Aethergram stories", StartStoryCompose,
@@ -460,7 +461,6 @@ internal sealed partial class AethergramApp : IResumableApp, ITabIconDrawer, INa
         AdvancePendingReelTap();
         ConsumeOpenedHighlight();
         stories.Advance();
-        AdvanceMentionedStory();
         if (photoViewer.Active)
         {
             photoViewer.Draw(screen, theme);

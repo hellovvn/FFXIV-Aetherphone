@@ -88,6 +88,20 @@ public sealed class StoryStickerTests
     }
 
     [Fact]
+    public void AMentionedStoryArrivesWithItsAuthorForTheViewerHeader()
+    {
+        var item = JsonSerializer.Deserialize("{\"story\":" + ServerStory + ",\"authorDisplayName\":\"Ayla\","
+            + "\"authorHandle\":\"ayla\",\"authorAvatarUrl\":null}", AethernetJsonContext.Default.StoryItem);
+
+        Assert.NotNull(item);
+        Assert.Equal("s1", item.Story.Id);
+        Assert.Equal(3, item.Story.Stickers!.Length);
+        Assert.Equal("Ayla", item.AuthorDisplayName);
+        Assert.Equal("ayla", item.AuthorHandle);
+        Assert.Null(item.AuthorAvatarUrl);
+    }
+
+    [Fact]
     public void ThePhotoCoversAWideStageByOverflowingTopAndBottom()
     {
         var stage = new Rect(new Vector2(0f, 0f), new Vector2(450f, 600f));

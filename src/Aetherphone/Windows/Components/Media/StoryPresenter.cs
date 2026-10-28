@@ -48,6 +48,8 @@ internal sealed class StoryPresenter : IDisposable
     private readonly Action<string, Action<bool>>? blockUser;
     private StoryRingDto? pendingRing;
     private string? pendingStoryId;
+    private string? pendingItemAuthorId;
+    private Action<string>? itemUnavailable;
     private bool pendingOpenAtEnd;
     private bool pendingFromViewer;
     private StoryDto[]? viewerItems;
@@ -92,8 +94,6 @@ internal sealed class StoryPresenter : IDisposable
     public void RefreshTray() => stories.RefreshTray();
 
     public bool TryRing(string authorId, out StoryRingDto ring) => stories.TryRing(authorId, out ring);
-
-    public bool TrayLoading => stories.TrayLoading;
 
     public void CreateStory(string sourcePath, WallpaperCrop crop, Aetherphone.Core.Media.PhotoEdit edit,
         string caption, Action<bool> onComplete, int audience = StoryAudiences.Everyone,
@@ -162,6 +162,14 @@ internal sealed class StoryPresenter : IDisposable
         pendingStoryId = storyId;
     }
 
+    public void OpenStoryItem(string authorId, string storyId, Action<string> unavailable)
+    {
+        Close();
+        pendingItemAuthorId = authorId;
+        itemUnavailable = unavailable;
+        stories.LoadItem(storyId);
+    }
+
     public void Close()
     {
         viewer.Reset();
@@ -170,6 +178,8 @@ internal sealed class StoryPresenter : IDisposable
         stories.ClearResponses();
         pendingRing = null;
         pendingStoryId = null;
+        pendingItemAuthorId = null;
+        itemUnavailable = null;
         pendingOpenAtEnd = false;
         pendingFromViewer = false;
         viewerItems = null;
@@ -179,6 +189,7 @@ internal sealed class StoryPresenter : IDisposable
     public void Advance()
     {
         DrainStickerUpdates();
+        AdvancePendingItem();
         if (detached && !viewer.Active)
         {
             detached = false;
@@ -230,6 +241,31 @@ internal sealed class StoryPresenter : IDisposable
             null, nextGroup, previousGroup, openAtEnd, ring.IsMe ? null : replyPrompt, stories.LoadMoreViewers,
             ring.IsMe ? highlightStory : null, ring.IsMe || replyPrompt is null ? null : toggleLike,
             startIndex: startIndex, stickers: stickerHooks);
+    }
+
+    private void AdvancePendingItem()
+    {
+        if (pendingItemAuthorId is not { } authorId || stories.ItemLoading)
+        {
+            return;
+        }
+
+        var unavailable = itemUnavailable;
+        pendingItemAuthorId = null;
+        itemUnavailable = null;
+        if (stories.TakeItem() is not { } item)
+        {
+            unavailable?.Invoke(authorId);
+            return;
+        }
+
+        var story = item.Story;
+        stories.ShowSingle(authorId, story);
+        pendingRing = new StoryRingDto(authorId, item.AuthorDisplayName, item.AuthorHandle, item.AuthorAvatarUrl,
+            false, !story.Seen, 1, story.CreatedAtUnix, story.AuthorFrameId);
+        pendingStoryId = story.Id;
+        pendingOpenAtEnd = false;
+        pendingFromViewer = false;
     }
 
     private static int IndexOf(StoryDto[] items, string storyId)
