@@ -6,6 +6,7 @@ internal static class CoinGoals
 {
     private const string WelcomeRuleId = "coin.welcome";
     private const string CallRuleId = "call.connected";
+    private const string ReelDailyRuleId = "reel.daily";
 
     public static void Count(CoinRuleStatusDto[] rules, bool weekly, out int done, out int total)
     {
@@ -74,6 +75,12 @@ internal static class CoinGoals
             return false;
         }
 
-        return !string.Equals(rule.RuleId, CallRuleId, StringComparison.Ordinal) || rule.Awards > 0;
+        return !JoinsOnlyWhenEarned(rule.RuleId) || rule.Awards > 0;
     }
+
+    // A call needs someone on the other end and a reel needs a Windows video encoder, so neither may hold
+    // back a player's daily goal on days they did not do it.
+    private static bool JoinsOnlyWhenEarned(string ruleId) =>
+        string.Equals(ruleId, CallRuleId, StringComparison.Ordinal)
+        || string.Equals(ruleId, ReelDailyRuleId, StringComparison.Ordinal);
 }
