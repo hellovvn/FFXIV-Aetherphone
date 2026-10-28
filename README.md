@@ -78,7 +78,7 @@ Aethernet opened on 2 July 2026. By the end of the season, players on 113 worlds
       <em>Shot in game. Shared on Aethergram.</em>
       <ul>
         <li>Up to eight photos straight from your gallery, or pasted and dragged in</li>
-        <li>Stories that last a day</li>
+        <li>Stories that last a day, with polls, questions and mentions on top</li>
         <li>An Explore grid picked for you, with trending tags</li>
         <li>A Reels tab: swipe through full-screen videos with sound</li>
         <li>Suggestions of people to follow</li>

@@ -44,7 +44,10 @@ internal sealed class StoryPresenter : IDisposable
     private bool detached;
     private readonly Action<StorySharedPostDto>? openPost;
     private readonly Action<StoryDto> toggleLike;
+    private readonly StoryStickerHooks stickerHooks;
+    private readonly Action<string, Action<bool>>? blockUser;
     private StoryRingDto? pendingRing;
+    private string? pendingStoryId;
     private bool pendingOpenAtEnd;
     private bool pendingFromViewer;
     private StoryDto[]? viewerItems;
@@ -53,15 +56,18 @@ internal sealed class StoryPresenter : IDisposable
         LodestoneService lodestone, StoryRingPainter painter, AppPalette palette, StoryConfirmLabels labels,
         ConfirmService confirm, TranslationService translation, RealtimeSignalBus signals, string logTag, Action onCompose,
         StoryReplyHooks? reply = null, Action<string>? openProfile = null, Action<StoryDto>? highlight = null,
-        Action<StorySharedPostDto>? openPost = null)
+        Action<StorySharedPostDto>? openPost = null, Action<string, Action<bool>>? blockUser = null)
     {
         highlightStory = highlight;
         stories = new StoryStore(session, client, media, signals, logTag);
         tray = new StoryTrayRow(images, lodestone);
         this.openProfile = openProfile;
         this.openPost = openPost;
+        this.blockUser = blockUser;
         toggleLike = stories.ToggleLike;
-        viewer = new StoryViewerOverlay(images, lodestone, translation, confirm,
+        stickerHooks = new StoryStickerHooks(stories.Vote, AnswerSticker, ResponsesFor, stories.LoadMoreResponses,
+            AskDeleteResponse, AskBlockResponder);
+        viewer = new StoryViewerOverlay(images, lodestone, translation, confirm, palette.Accent,
             openProfile is null ? null : OpenAuthorProfile, openPost is null ? null : OpenSharedPost);
         this.painter = painter;
         this.palette = palette;
@@ -87,9 +93,12 @@ internal sealed class StoryPresenter : IDisposable
 
     public bool TryRing(string authorId, out StoryRingDto ring) => stories.TryRing(authorId, out ring);
 
+    public bool TrayLoading => stories.TrayLoading;
+
     public void CreateStory(string sourcePath, WallpaperCrop crop, Aetherphone.Core.Media.PhotoEdit edit,
-        string caption, Action<bool> onComplete, int audience = StoryAudiences.Everyone) =>
-        stories.CreateStory(sourcePath, crop, edit, caption, onComplete, audience);
+        string caption, Action<bool> onComplete, int audience = StoryAudiences.Everyone,
+        StoryStickerInput[]? stickers = null) =>
+        stories.CreateStory(sourcePath, crop, edit, caption, onComplete, audience, stickers);
 
     public void ShareGram(string postId, string caption, Action<bool, AepFailure> onComplete) =>
         stories.ShareGram(postId, caption, onComplete);
@@ -108,7 +117,7 @@ internal sealed class StoryPresenter : IDisposable
         detached = true;
         viewerItems = items;
         viewer.Open(items, label, avatarUrl, mine ? IgnoreSeen : stories.MarkSeen, reply: mine ? null : replyPrompt,
-            replyTo: ownerName);
+            replyTo: ownerName, stickers: stickerHooks, author: mine);
     }
 
     public void OpenArchived(StoryDto[] items, int startIndex, string label, string? avatarUrl,
@@ -118,7 +127,7 @@ internal sealed class StoryPresenter : IDisposable
         detached = true;
         viewerItems = items;
         viewer.Open(items, label, avatarUrl, IgnoreSeen, true, delete, highlight: highlightStory,
-            startIndex: startIndex);
+            startIndex: startIndex, stickers: stickerHooks);
     }
 
     public void DropDetached(string storyId)
@@ -141,9 +150,16 @@ internal sealed class StoryPresenter : IDisposable
     public void OpenRing(StoryRingDto ring)
     {
         pendingRing = ring;
+        pendingStoryId = null;
         pendingOpenAtEnd = false;
         pendingFromViewer = false;
         stories.OpenAuthor(ring.AuthorId);
+    }
+
+    public void OpenRingAt(StoryRingDto ring, string storyId)
+    {
+        OpenRing(ring);
+        pendingStoryId = storyId;
     }
 
     public void Close()
@@ -151,7 +167,9 @@ internal sealed class StoryPresenter : IDisposable
         viewer.Reset();
         stories.CloseAuthor();
         stories.ClearViewers();
+        stories.ClearResponses();
         pendingRing = null;
+        pendingStoryId = null;
         pendingOpenAtEnd = false;
         pendingFromViewer = false;
         viewerItems = null;
@@ -160,6 +178,7 @@ internal sealed class StoryPresenter : IDisposable
 
     public void Advance()
     {
+        DrainStickerUpdates();
         if (detached && !viewer.Active)
         {
             detached = false;
@@ -197,16 +216,106 @@ internal sealed class StoryPresenter : IDisposable
 
         pendingRing = null;
         var openAtEnd = pendingOpenAtEnd;
+        var startIndex = pendingStoryId is { } wanted ? IndexOf(items, wanted) : -1;
+        pendingStoryId = null;
         pendingOpenAtEnd = false;
         pendingFromViewer = false;
         viewerItems = items;
         stories.ClearViewers();
+        stories.ClearResponses();
         var label = ring.IsMe
             ? Loc.T(L.Story.YourStory)
             : SocialIdentity.Name(ring.AuthorDisplayName, ring.AuthorHandle);
         viewer.Open(items, label, ring.AuthorAvatarUrl, stories.MarkSeen, ring.IsMe, AskDelete, viewersSource,
             null, nextGroup, previousGroup, openAtEnd, ring.IsMe ? null : replyPrompt, stories.LoadMoreViewers,
-            ring.IsMe ? highlightStory : null, ring.IsMe || replyPrompt is null ? null : toggleLike);
+            ring.IsMe ? highlightStory : null, ring.IsMe || replyPrompt is null ? null : toggleLike,
+            startIndex: startIndex, stickers: stickerHooks);
+    }
+
+    private static int IndexOf(StoryDto[] items, string storyId)
+    {
+        for (var index = 0; index < items.Length; index++)
+        {
+            if (items[index].Id == storyId)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private void DrainStickerUpdates()
+    {
+        while (stories.TryTakeStickerUpdate(out var update))
+        {
+            if (!detached || viewerItems is not { } items)
+            {
+                continue;
+            }
+
+            var patched = StoryStickerList.Patch(items, update.StoryId, update.Sticker);
+            if (ReferenceEquals(patched, items))
+            {
+                continue;
+            }
+
+            viewerItems = patched;
+            viewer.Replace(patched);
+        }
+    }
+
+    private void AnswerSticker(StoryDto story, StoryStickerDto sticker, string text, Action<bool> done)
+    {
+        stories.Answer(story, sticker, text, (sent, _) => done(sent));
+    }
+
+    private StoryResponses ResponsesFor(StoryDto story)
+    {
+        stories.LoadResponses(story.Id);
+        return new StoryResponses(stories.Responses, stories.ResponseVoteCount, stories.ResponseAnswerCount,
+            stories.ResponsesLoading, stories.HasMoreResponses, stories.ResponsesLoadingMore);
+    }
+
+    private void AskDeleteResponse(StoryDto story, StoryResponseDto response)
+    {
+        confirm.Ask(new ConfirmRequest
+        {
+            Message = Loc.T(L.Story.DeleteResponseMessage),
+            ConfirmLabel = Loc.T(labels.Confirm),
+            CancelLabel = Loc.T(labels.Cancel),
+            Sheet = true,
+            BusyLabel = Loc.T(labels.Busy),
+            FailedMessage = Loc.T(L.Story.DeleteResponseFailed),
+            ConfirmAsync = done => stories.DeleteResponse(story, response.Id, done),
+        });
+    }
+
+    private void AskBlockResponder(StoryResponseDto response)
+    {
+        if (blockUser is not { } block)
+        {
+            return;
+        }
+
+        var userId = response.UserId;
+        confirm.Ask(new ConfirmRequest
+        {
+            Title = Loc.T(L.Social.BlockConfirmTitle, SocialIdentity.Name(response.DisplayName, response.Handle)),
+            Message = Loc.T(L.Social.BlockConfirm),
+            ConfirmLabel = Loc.T(L.Social.BlockAction),
+            CancelLabel = Loc.T(L.Common.Cancel),
+            Danger = true,
+            ConfirmAsync = done => block(userId, blocked =>
+            {
+                if (blocked)
+                {
+                    stories.ForgetResponder(userId);
+                }
+
+                done(blocked);
+            }),
+        });
     }
 
     private bool TryAdvanceGroup() => TryOpenAdjacentRing(1);

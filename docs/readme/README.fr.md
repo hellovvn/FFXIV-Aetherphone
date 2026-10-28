@@ -72,7 +72,7 @@ Aethernet a ouvert ses portes le 2 juillet 2026. À la fin de la saison, les jou
       <em>Pris en jeu. Partagé sur Aethergram.</em>
       <ul>
         <li>Jusqu'à huit photos directement depuis votre galerie, ou par copier-coller et glisser-déposer</li>
-        <li>Des stories qui durent une journée</li>
+        <li>Des stories qui durent une journée, avec sondages, questions et mentions par-dessus</li>
         <li>Identifiez les personnes présentes sur la photo</li>
         <li>Un éditeur de photos intégré avant de partager</li>
       </ul>

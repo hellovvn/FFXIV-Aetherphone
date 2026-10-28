@@ -384,6 +384,28 @@ internal static class L
         public static readonly LocString SaveToArchiveHint = new("story.saveToArchiveHint", "Keep your stories in a private archive after they disappear, so you can add them to highlights later.");
         public static readonly LocString ViewersTrimmed = new("story.viewersTrimmed", "Showing the latest {0} of {1}");
         public static readonly LocString DeleteFailed = new("story.deleteFailed", "Couldn't delete the story");
+        public static readonly LocString StickerPoll = new("story.stickerPoll", "Poll");
+        public static readonly LocString StickerQuestion = new("story.stickerQuestion", "Question");
+        public static readonly LocString StickerMention = new("story.stickerMention", "Mention");
+        public static readonly LocString StickerHint = new("story.stickerHint", "Drag a sticker to move it, scroll over it to resize");
+        public static readonly LocString StickerLimit = new("story.stickerLimit", "A story can have one poll, one question and up to {0} mentions");
+        public static readonly LocString PollYes = new("story.pollYes", "Yes");
+        public static readonly LocString PollNo = new("story.pollNo", "No");
+        public static readonly LocString QuestionDefault = new("story.questionDefault", "Ask me a question");
+        public static readonly LocString AnswerHint = new("story.answerHint", "Type something…");
+        public static readonly LocString AnswerSent = new("story.answerSent", "Answer sent");
+        public static readonly LocString AnswerFailed = new("story.answerFailed", "Couldn't send your answer");
+        public static readonly LocString AnswerPrivacy = new("story.answerPrivacy", "Only {0} sees your answer");
+        public static readonly LocString MentionPick = new("story.mentionPick", "Mention someone");
+        public static readonly LocString ViewersTab = new("story.viewersTab", "Viewers");
+        public static readonly LocString ResponsesTab = new("story.responsesTab", "Responses");
+        public static readonly LocString NoResponses = new("story.noResponses", "No responses yet");
+        public static readonly LocString VotedFor = new("story.votedFor", "Voted {0}");
+        public static readonly LocString DeleteResponseMessage = new("story.deleteResponseMessage", "Delete this answer? It's gone for good.");
+        public static readonly LocString DeleteResponseFailed = new("story.deleteResponseFailed", "Couldn't delete the answer");
+        public static readonly LocString MentionedYou = new("story.mentionedYou", "mentioned you in their story");
+        public static readonly LocString Unavailable = new("story.unavailable", "This story is no longer available");
+        public static readonly LocPlural ResponseCount = new("story.responseCount", "{0} response", "{0} responses");
     }
 
     internal static class Safety

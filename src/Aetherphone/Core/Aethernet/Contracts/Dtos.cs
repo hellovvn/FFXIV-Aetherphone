@@ -336,7 +336,7 @@ internal sealed record CreateGramRequest(
     string[]? CollaboratorIds = null);
 
 internal sealed record CreateStoryRequest(string Caption, string MediaKey, int Width, int Height, int Audience = 0,
-    string? SharedPostId = null);
+    string? SharedPostId = null, StoryStickerInput[]? Stickers = null);
 
 internal sealed record StoryDto(
     string Id,
@@ -357,7 +357,8 @@ internal sealed record StoryDto(
     int Audience = 0,
     StorySharedPostDto? SharedPost = null,
     bool Liked = false,
-    int LikeCount = 0) : IIdentified;
+    int LikeCount = 0,
+    StoryStickerDto[]? Stickers = null) : IIdentified;
 
 internal sealed record StoryRingDto(
     string AuthorId,

@@ -16,7 +16,7 @@ For any privacy question or request, write to **privacy@aetherphone.net**. A pos
 
 **Your profile.** Your display name, a handle and in-app phone number that we create at random, your bio, pictures and settings, and any profiles you create in individual apps.
 
-**What you post and share.** Posts, comments, photos, videos, voice notes, stories, reactions, poll votes, listings, events, radio stations, game rooms, and anything you send through the Feedback app. A Feedback report also includes your app version, language, game client, region and phone size, unless you turn that off before sending. We also keep who you follow, your contacts and who you block. Kupo confessions are shown to others without your name, but we store them with your account.
+**What you post and share.** Posts, comments, photos, videos, voice notes, stories, reactions, poll votes, answers to story questions, listings, events, radio stations, game rooms, and anything you send through the Feedback app. A Feedback report also includes your app version, language, game client, region and phone size, unless you turn that off before sending. We also keep who you follow, your contacts and who you block. Kupo confessions are shown to others without your name, but we store them with your account.
 
 **Private messages.** Your ChocoChat, Velvet, Aethergram and Yellow Pages conversations, with their photos and voice notes. Whether we can read them is explained under Encrypted messages.
 
@@ -110,7 +110,7 @@ We keep personal data only as long as we need it for the purposes in this policy
 | Account, profile and settings | Until you delete your account |
 | Posts, comments and other content | Until you delete it or your account, with the exceptions explained below this table |
 | Private messages | Until you delete them or your account, or 7 days after everyone in the conversation has cleared it. Velvet conversations: 7 days after the connection ends. Yellow Pages conversations: together with the listing, not when cleared |
-| Stories, listings, events, notifications and game rooms | Deleted automatically within 60 days after they end. Aethergram stories are kept in your private archive until you delete them or your account, except a story that ends while **Save story to archive** is turned off in Aethergram's settings. A story in a highlight is kept while it is in the highlight |
+| Stories, votes and answers on stories, listings, events, notifications and game rooms | Deleted automatically within 60 days after they end. Aethergram stories are kept in your private archive until you delete them or your account, except a story that ends while **Save story to archive** is turned off in Aethergram's settings; the votes and answers on an archived story are not kept with it. A story in a highlight is kept, with its votes and answers, while it is in the highlight |
 | Which posts your feeds showed you, and whether you opened or shared them | 4 days |
 | Radio listening and mini-game sessions for Aether Coin quests | 7 days |
 | Call records | Until you delete your account |

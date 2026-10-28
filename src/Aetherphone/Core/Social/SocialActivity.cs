@@ -31,6 +31,7 @@ internal static class SocialActivity
     public const int TypeStoryLike = 24;
     public const int TypeCollabInvite = 25;
     public const int TypeCollabAccepted = 26;
+    public const int TypeStoryMention = 27;
     public const string ChirperApp = "chirper";
     public const string AethergramApp = "aethergram";
     public const string VelvetApp = "velvet";
@@ -41,6 +42,9 @@ internal static class SocialActivity
 
     public static bool IsModerationNotice(int type) =>
         type is TypePostRemoved or TypeWarning or TypeReportUpdate;
+
+    public static bool OpensStory(NotificationDto item) =>
+        item.Type == TypeStoryMention && !string.IsNullOrEmpty(item.PostId);
 
     public static bool OpensPost(NotificationDto item) =>
         item.Type is TypeLike or TypeComment or TypeCommentLike or TypeMention or TypeCommentMention or TypePhotoTag
@@ -153,6 +157,8 @@ internal static class SocialActivity
                 return Loc.T(L.Aethergram.CollabInvited);
             case TypeCollabAccepted:
                 return Loc.T(L.Aethergram.CollabAcceptedActivity);
+            case TypeStoryMention:
+                return Loc.T(L.Story.MentionedYou);
             default:
                 return string.Empty;
         }
