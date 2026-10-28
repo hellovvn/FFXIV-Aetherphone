@@ -189,10 +189,10 @@ internal sealed class SuggestedPeopleRail
         var textWidth = MathF.Max(1f, card.Width - CardPadX * 2f * scale);
         var nameHeight = Typography.LineHeight(NameStyle);
         var nameCenterY = avatarCenter.Y + avatarRadius + NameGap * scale + nameHeight * 0.5f;
-        Typography.DrawCentered(drawList, new Vector2(card.Center.X, nameCenterY),
+        Typography.DrawCenteredLine(drawList, new Vector2(card.Center.X, nameCenterY),
             Typography.FitText(displayName, textWidth, NameStyle), ink.TitleInk, NameStyle);
         var reasonCenterY = nameCenterY + nameHeight * 0.5f + LineGap * scale + Typography.LineHeight(ReasonStyle) * 0.5f;
-        Typography.DrawCentered(drawList, new Vector2(card.Center.X, reasonCenterY),
+        Typography.DrawCenteredLine(drawList, new Vector2(card.Center.X, reasonCenterY),
             Typography.FitText(ReasonLine(person), textWidth, ReasonStyle), ink.MutedInk, ReasonStyle);
         PhoneIcon.Draw(drawList, (dismissMin + dismissMax) * 0.5f, PhoneIcons.X, dismissHovered ? ink.TitleInk : ink.MutedInk,
             DismissGlyph * scale);
