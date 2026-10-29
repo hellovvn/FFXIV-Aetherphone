@@ -366,28 +366,40 @@ internal sealed class PhoneWindow : Window
         var drag = shell.ConsumeMinimizedDrag();
         var idle = shell.MinimizedIdleSize;
         var extra = Vector2.Max(dockSize - idle, Vector2.Zero);
-        if (minimizedPosition is not { } anchor)
+        var anchor = minimizedPosition ?? maximizedPosition ?? LastPosition;
+        if (viewport.Size.X <= 0f || viewport.Size.Y <= 0f)
         {
-            anchor = maximizedPosition ?? LastPosition;
-            dockGrowLeft = PastCenterX(anchor.X + idle.X * 0.5f, viewport);
-            dockGrowUp = PastCenterY(anchor.Y + idle.Y * 0.5f, viewport);
+            return DockOffset(anchor, extra);
         }
 
-        anchor += drag.Delta;
+        if (minimizedPosition is null)
+        {
+            dockGrowLeft = PastCenterX(anchor.X + idle.X * 0.5f, viewport);
+            dockGrowUp = PastCenterY(anchor.Y + idle.Y * 0.5f, viewport);
+            minimizedPosition = ClampToViewport(anchor, idle, viewport);
+        }
+
+        if (drag.Delta != Vector2.Zero)
+        {
+            anchor = ClampToViewport(anchor, idle, viewport) + drag.Delta;
+            minimizedPosition = ClampToViewport(anchor, idle, viewport);
+        }
+
         if (drag.Released)
         {
             var visual = LastPosition;
             dockGrowLeft = PastCenterX(visual.X + dockSize.X * 0.5f, viewport);
             dockGrowUp = PastCenterY(visual.Y + dockSize.Y * 0.5f, viewport);
             anchor = new Vector2(visual.X + (dockGrowLeft ? extra.X : 0f), visual.Y + (dockGrowUp ? extra.Y : 0f));
+            minimizedPosition = ClampToViewport(anchor, idle, viewport);
         }
 
-        anchor = ClampToViewport(anchor, idle, viewport);
-        minimizedPosition = anchor;
-        var position = new Vector2(dockGrowLeft ? anchor.X - extra.X : anchor.X,
-            dockGrowUp ? anchor.Y - extra.Y : anchor.Y);
-        return ClampToViewport(position, dockSize, viewport);
+        var shown = ClampToViewport(anchor, idle, viewport);
+        return ClampToViewport(DockOffset(shown, extra), dockSize, viewport);
     }
+
+    private Vector2 DockOffset(Vector2 anchor, Vector2 extra) =>
+        new(dockGrowLeft ? anchor.X - extra.X : anchor.X, dockGrowUp ? anchor.Y - extra.Y : anchor.Y);
 
     private static bool PastCenterX(float x, ImGuiViewportPtr viewport) =>
         x > viewport.Pos.X + viewport.Size.X * 0.5f;
